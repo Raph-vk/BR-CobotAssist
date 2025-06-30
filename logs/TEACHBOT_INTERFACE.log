@@ -1,0 +1,30 @@
+2025-06-27 15:12:11,766 [INFO]TEACHBOT_INTERFACE Starting Dummy Teachbot Interface
+2025-06-27 15:12:11,766 [INFO]TEACHBOT_INTERFACE DummyTeachbot: Simulating connect()
+2025-06-27 15:12:11,767 [INFO]TEACHBOT_INTERFACE Successfully initialized DummyTeachbot class
+2025-06-27 15:12:11,767 [INFO]TEACHBOT_INTERFACE Preparing to send response: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,767 [INFO]TEACHBOT_INTERFACE Sent response: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:25,701 [INFO]TEACHBOT_INTERFACE Received message: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,701 [INFO]TEACHBOT_INTERFACE DummyTeachbot: Disconnect called
+2025-06-27 15:12:25,708 [INFO]TEACHBOT_INTERFACE Disconnected from Dummy Teachbot
+2025-06-27 15:12:25,708 [INFO]TEACHBOT_INTERFACE Preparing to send response: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:12:25,708 [INFO]TEACHBOT_INTERFACE Sent response: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:11,709 [INFO]TEACHBOT_INTERFACE Starting Dummy Teachbot Interface
+2025-06-27 15:17:11,709 [INFO]TEACHBOT_INTERFACE DummyTeachbot: Simulating connect()
+2025-06-27 15:17:11,709 [INFO]TEACHBOT_INTERFACE Successfully initialized DummyTeachbot class
+2025-06-27 15:17:11,710 [INFO]TEACHBOT_INTERFACE Preparing to send response: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,710 [INFO]TEACHBOT_INTERFACE Sent response: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:25,217 [INFO]TEACHBOT_INTERFACE Received message: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,217 [INFO]TEACHBOT_INTERFACE DummyTeachbot: Disconnect called
+2025-06-27 15:17:25,219 [INFO]TEACHBOT_INTERFACE Disconnected from Dummy Teachbot
+2025-06-27 15:17:25,219 [INFO]TEACHBOT_INTERFACE Preparing to send response: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:25,219 [INFO]TEACHBOT_INTERFACE Sent response: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:24,421 [INFO]TEACHBOT_INTERFACE Starting Dummy Teachbot Interface
+2025-06-30 09:46:24,421 [INFO]TEACHBOT_INTERFACE DummyTeachbot: Simulating connect()
+2025-06-30 09:46:24,422 [INFO]TEACHBOT_INTERFACE Successfully initialized DummyTeachbot class
+2025-06-30 09:46:24,422 [INFO]TEACHBOT_INTERFACE Preparing to send response: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:24,422 [INFO]TEACHBOT_INTERFACE Sent response: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:41,510 [INFO]TEACHBOT_INTERFACE Received message: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,510 [INFO]TEACHBOT_INTERFACE DummyTeachbot: Disconnect called
+2025-06-30 09:46:41,517 [INFO]TEACHBOT_INTERFACE Disconnected from Dummy Teachbot
+2025-06-30 09:46:41,517 [INFO]TEACHBOT_INTERFACE Preparing to send response: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:41,517 [INFO]TEACHBOT_INTERFACE Sent response: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}

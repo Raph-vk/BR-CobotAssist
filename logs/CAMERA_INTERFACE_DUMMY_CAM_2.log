@@ -1,0 +1,78 @@
+2025-06-27 15:12:11,184 [INFO]CAMERA_INTERFACE_dummy_cam_2 Starting Camera Interface for 'dummy_cam_2'...
+2025-06-27 15:12:11,192 [INFO]CAMERA_INTERFACE_dummy_cam_2 Connected to ring buffers: camera_color1_dummy_cam_2, camera_depth1_dummy_cam_2, camera_color2_dummy_cam_2, camera_depth2_dummy_cam_2
+2025-06-27 15:12:11,192 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy CameraInterface initialized for 'dummy_cam_2' (SN: DUMMY_002)
+2025-06-27 15:12:11,192 [INFO]CAMERA_INTERFACE_dummy_cam_2 Attempting to initialize dummy camera 'dummy_cam_2' (attempt 1/3)
+2025-06-27 15:12:11,693 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera 'dummy_cam_2' initialized successfully
+2025-06-27 15:12:11,693 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:12:11,852 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received message: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-27 15:12:11,852 [INFO]CAMERA_INTERFACE_dummy_cam_2 Starting capture loop for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:11,852 [INFO]CAMERA_INTERFACE_dummy_cam_2 Started capture thread for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:11,852 [INFO]CAMERA_INTERFACE_dummy_cam_2 Recording episodes started for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:11,852 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:12:26,701 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received message: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:26,701 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received stop command for camera 'dummy_cam_2'
+2025-06-27 15:12:26,701 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopping dummy camera interface for 'dummy_cam_2'
+2025-06-27 15:12:26,718 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped capture for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,718 [INFO]CAMERA_INTERFACE_dummy_cam_2 Cleaning up dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,718 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped capture for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,718 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped policy capture for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,733 [INFO]CAMERA_INTERFACE_dummy_cam_2 Color buffer closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Depth buffer closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Color buffer2 closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Depth buffer2 closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera 'dummy_cam_2' cleanup completed
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera interface for 'dummy_cam_2' stopped successfully
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:12:26,751 [INFO]CAMERA_INTERFACE_dummy_cam_2 Camera Interface for 'dummy_cam_2' shutting down...
+2025-06-27 15:17:11,126 [INFO]CAMERA_INTERFACE_dummy_cam_2 Starting Camera Interface for 'dummy_cam_2'...
+2025-06-27 15:17:11,135 [INFO]CAMERA_INTERFACE_dummy_cam_2 Connected to ring buffers: camera_color1_dummy_cam_2, camera_depth1_dummy_cam_2, camera_color2_dummy_cam_2, camera_depth2_dummy_cam_2
+2025-06-27 15:17:11,135 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy CameraInterface initialized for 'dummy_cam_2' (SN: DUMMY_002)
+2025-06-27 15:17:11,135 [INFO]CAMERA_INTERFACE_dummy_cam_2 Attempting to initialize dummy camera 'dummy_cam_2' (attempt 1/3)
+2025-06-27 15:17:11,636 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera 'dummy_cam_2' initialized successfully
+2025-06-27 15:17:11,636 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:17:11,789 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received message: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-27 15:17:11,789 [INFO]CAMERA_INTERFACE_dummy_cam_2 Starting capture loop for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:11,789 [INFO]CAMERA_INTERFACE_dummy_cam_2 Started capture thread for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:11,790 [INFO]CAMERA_INTERFACE_dummy_cam_2 Recording episodes started for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:11,790 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:17:26,219 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received message: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:26,219 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received stop command for camera 'dummy_cam_2'
+2025-06-27 15:17:26,219 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopping dummy camera interface for 'dummy_cam_2'
+2025-06-27 15:17:26,251 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped capture for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,251 [INFO]CAMERA_INTERFACE_dummy_cam_2 Cleaning up dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,251 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped capture for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,251 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped policy capture for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,274 [INFO]CAMERA_INTERFACE_dummy_cam_2 Color buffer closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Depth buffer closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Color buffer2 closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Depth buffer2 closed for dummy camera 'dummy_cam_2'
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera 'dummy_cam_2' cleanup completed
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera interface for 'dummy_cam_2' stopped successfully
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:17:26,284 [INFO]CAMERA_INTERFACE_dummy_cam_2 Camera Interface for 'dummy_cam_2' shutting down...
+2025-06-30 09:46:23,833 [INFO]CAMERA_INTERFACE_dummy_cam_2 Starting Camera Interface for 'dummy_cam_2'...
+2025-06-30 09:46:23,841 [INFO]CAMERA_INTERFACE_dummy_cam_2 Connected to ring buffers: camera_color1_dummy_cam_2, camera_depth1_dummy_cam_2, camera_color2_dummy_cam_2, camera_depth2_dummy_cam_2
+2025-06-30 09:46:23,841 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy CameraInterface initialized for 'dummy_cam_2' (SN: DUMMY_002)
+2025-06-30 09:46:23,841 [INFO]CAMERA_INTERFACE_dummy_cam_2 Attempting to initialize dummy camera 'dummy_cam_2' (attempt 1/3)
+2025-06-30 09:46:24,341 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera 'dummy_cam_2' initialized successfully
+2025-06-30 09:46:24,342 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-30 09:46:24,495 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received message: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-30 09:46:24,495 [INFO]CAMERA_INTERFACE_dummy_cam_2 Starting capture loop for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:24,495 [INFO]CAMERA_INTERFACE_dummy_cam_2 Started capture thread for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:24,495 [INFO]CAMERA_INTERFACE_dummy_cam_2 Recording episodes started for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:24,495 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-30 09:46:42,509 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received message: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:42,509 [INFO]CAMERA_INTERFACE_dummy_cam_2 Received stop command for camera 'dummy_cam_2'
+2025-06-30 09:46:42,509 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopping dummy camera interface for 'dummy_cam_2'
+2025-06-30 09:46:42,545 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped capture for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,545 [INFO]CAMERA_INTERFACE_dummy_cam_2 Cleaning up dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,545 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped capture for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,546 [INFO]CAMERA_INTERFACE_dummy_cam_2 Stopped policy capture for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,564 [INFO]CAMERA_INTERFACE_dummy_cam_2 Color buffer closed for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Depth buffer closed for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Color buffer2 closed for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Depth buffer2 closed for dummy camera 'dummy_cam_2'
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera 'dummy_cam_2' cleanup completed
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Dummy camera interface for 'dummy_cam_2' stopped successfully
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Sent response: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-30 09:46:42,575 [INFO]CAMERA_INTERFACE_dummy_cam_2 Camera Interface for 'dummy_cam_2' shutting down...

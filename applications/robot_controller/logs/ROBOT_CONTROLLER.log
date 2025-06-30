@@ -1,0 +1,31 @@
+2025-06-26 15:28:49,830 [INFO]ROBOT_CONTROLLER Initializing RobotController...
+2025-06-26 15:28:49,832 [INFO]ROBOT_CONTROLLER Imported modules.robot.fanuc.robot_fanuc for robot_brand=fanuc
+2025-06-26 15:28:49,855 [INFO]ROBOT_CONTROLLER topicmanager initialized
+2025-06-26 15:28:49,868 [INFO]ROBOT_CONTROLLER Imported modules.teachbot.teachbot_interbotix for teachbot_brand=interbotix
+2025-06-26 15:28:49,878 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-26 15:28:49,878 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-26 15:28:49,878 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-26 15:28:49,878 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-26 15:28:49,894 [INFO]ROBOT_CONTROLLER Imported modules.camera.camera_inteld405 for camera_brand=inteld405
+2025-06-26 15:28:50,522 [ERROR]ROBOT_CONTROLLER Unsupported policy type: act => No module named 'torchvision'
+2025-06-26 15:28:50,523 [INFO]ROBOT_CONTROLLER signal_shutdown [atexit]
+2025-06-26 15:41:31,985 [INFO]ROBOT_CONTROLLER Initializing RobotController...
+2025-06-26 15:41:31,987 [INFO]ROBOT_CONTROLLER Imported modules.robot.fanuc.robot_fanuc for robot_brand=fanuc
+2025-06-26 15:41:32,165 [INFO]ROBOT_CONTROLLER topicmanager initialized
+2025-06-26 15:41:32,178 [INFO]ROBOT_CONTROLLER Imported modules.teachbot.teachbot_interbotix for teachbot_brand=interbotix
+2025-06-26 15:41:32,189 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-26 15:41:32,189 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-26 15:41:32,189 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-26 15:41:32,189 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-26 15:41:32,202 [INFO]ROBOT_CONTROLLER Imported modules.camera.camera_inteld405 for camera_brand=inteld405
+2025-06-26 15:41:32,839 [ERROR]ROBOT_CONTROLLER Unsupported policy type: act => No module named 'torchvision'
+2025-06-26 15:41:32,840 [INFO]ROBOT_CONTROLLER signal_shutdown [atexit]
+2025-06-26 16:30:53,545 [INFO]ROBOT_CONTROLLER Initializing RobotController...
+2025-06-26 16:30:53,547 [INFO]ROBOT_CONTROLLER Imported modules.robot.fanuc.robot_fanuc for robot_brand=fanuc
+2025-06-26 16:30:53,548 [INFO]ROBOT_CONTROLLER Imported modules.teachbot.teachbot_interbotix for teachbot_brand=interbotix
+2025-06-26 16:30:53,552 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-26 16:30:53,552 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-26 16:30:53,553 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-26 16:30:53,553 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-26 16:30:53,566 [INFO]ROBOT_CONTROLLER Imported modules.camera.camera_inteld405 for camera_brand=inteld405
+2025-06-26 16:30:54,211 [ERROR]ROBOT_CONTROLLER Unsupported policy type: act => No module named 'torchvision'

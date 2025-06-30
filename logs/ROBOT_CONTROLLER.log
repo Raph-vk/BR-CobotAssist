@@ -1,0 +1,360 @@
+2025-06-27 15:12:09,967 [INFO]ROBOT_CONTROLLER Initializing RobotController...
+2025-06-27 15:12:09,970 [INFO]ROBOT_CONTROLLER Imported modules.robot.dummy.robot_dummy for robot_brand=dummy
+2025-06-27 15:12:09,970 [INFO]ROBOT_CONTROLLER Imported modules.teachbot.teachbot_dummy for teachbot_brand=dummy
+2025-06-27 15:12:09,975 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-27 15:12:09,975 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-27 15:12:09,975 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-27 15:12:09,975 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-27 15:12:09,982 [INFO]ROBOT_CONTROLLER Imported modules.camera.camera_dummy for camera_brand=dummy
+2025-06-27 15:12:11,140 [INFO]ROBOT_CONTROLLER Imported modules.policy.act.policy_act for policy_type=act
+2025-06-27 15:12:11,141 [INFO]ROBOT_CONTROLLER Initializing camera ring buffers.
+2025-06-27 15:12:11,145 [INFO]ROBOT_CONTROLLER Initialized ring buffers for camera 'dummy_cam_1' (SN: DUMMY_001) Color: 640x480, Depth: 640x480, Recording buffer capacity: 512 frames, Policy buffer capacity: 1 frames.
+2025-06-27 15:12:11,146 [INFO]ROBOT_CONTROLLER Initialized ring buffers for camera 'dummy_cam_2' (SN: DUMMY_002) Color: 640x480, Depth: 640x480, Recording buffer capacity: 512 frames, Policy buffer capacity: 1 frames.
+2025-06-27 15:12:11,146 [INFO]ROBOT_CONTROLLER Creating policy shared memory segment: shm_target_pos2 with DOF=7, capacity=500
+2025-06-27 15:12:11,146 [WARNING]ROBOT_CONTROLLER Policy shared memory segment already exists, cleaning up and recreating
+2025-06-27 15:12:11,146 [INFO]ROBOT_CONTROLLER Cleaned up existing policy shared memory segment
+2025-06-27 15:12:11,146 [INFO]ROBOT_CONTROLLER Policy shared memory segment recreated with size: 30000 bytes
+2025-06-27 15:12:11,146 [INFO]ROBOT_CONTROLLER Policy shared memory initialized successfully. Entry format: =I7d
+2025-06-27 15:12:11,146 [INFO]ROBOT_CONTROLLER Setting up RabbitMQ infrastructure (RobotController).
+2025-06-27 15:12:11,154 [INFO]ROBOT_CONTROLLER Infrastructure setup complete for command queue.
+2025-06-27 15:12:11,154 [INFO]ROBOT_CONTROLLER Starting command consumer thread.
+2025-06-27 15:12:11,154 [INFO]ROBOT_CONTROLLER Starting robust_consume on robot_controller_commands with key robot_controller.command.#...
+2025-06-27 15:12:11,154 [INFO]ROBOT_CONTROLLER RobotController initialized successfully.
+2025-06-27 15:12:11,154 [INFO]ROBOT_CONTROLLER Preparing to send response: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,158 [INFO]ROBOT_CONTROLLER Begin consuming commands on queue=robot_controller_commands
+2025-06-27 15:12:11,158 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5}
+2025-06-27 15:12:11,158 [INFO]ROBOT_CONTROLLER Starting CAMERA_INTERFACE processes for each camera.
+2025-06-27 15:12:11,158 [INFO]ROBOT_CONTROLLER Starting camera interface process for 'dummy_cam_1' (SN: DUMMY_001)
+2025-06-27 15:12:11,159 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.initialization: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,164 [INFO]ROBOT_CONTROLLER Camera process for 'dummy_cam_1' started with PID: 414281
+2025-06-27 15:12:11,165 [INFO]ROBOT_CONTROLLER Starting camera interface process for 'dummy_cam_2' (SN: DUMMY_002)
+2025-06-27 15:12:11,169 [INFO]ROBOT_CONTROLLER Camera process for 'dummy_cam_2' started with PID: 414282
+2025-06-27 15:12:11,169 [INFO]ROBOT_CONTROLLER Camera interface status thread started.
+2025-06-27 15:12:11,692 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:12:11,692 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-27 15:12:11,692 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' initialized. (1/2)
+2025-06-27 15:12:11,698 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:12:11,698 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:12:11,698 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' initialized. (2/2)
+2025-06-27 15:12:11,698 [INFO]ROBOT_CONTROLLER All camera interfaces initialized successfully.
+2025-06-27 15:12:11,704 [INFO]ROBOT_CONTROLLER All CAMERA_INTERFACE processes are ready for commands.
+2025-06-27 15:12:11,704 [INFO]ROBOT_CONTROLLER Starting SAVE_INTERFACE process.
+2025-06-27 15:12:11,709 [INFO]ROBOT_CONTROLLER Save interface status thread started.
+2025-06-27 15:12:11,732 [INFO]ROBOT_CONTROLLER Received message from save interface: {'interface': 'SAVE_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,732 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: initialization, completed. success = True
+2025-06-27 15:12:11,741 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE is ready for commands.
+2025-06-27 15:12:11,741 [INFO]ROBOT_CONTROLLER Starting TEACHBOT_INTERFACE process.
+2025-06-27 15:12:11,747 [INFO]ROBOT_CONTROLLER Teachbot interface status thread started.
+2025-06-27 15:12:11,770 [INFO]ROBOT_CONTROLLER Received message: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,770 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE message: initialization, completed. success = True
+2025-06-27 15:12:11,779 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE is ready for commands.
+2025-06-27 15:12:11,779 [INFO]ROBOT_CONTROLLER Starting ROBOT_INTERFACE process.
+2025-06-27 15:12:11,815 [INFO]ROBOT_CONTROLLER Robot interface status thread started.
+2025-06-27 15:12:11,843 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'interface': 'ROBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,844 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: initialization, completed. success = True
+2025-06-27 15:12:11,847 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE is ready for commands.
+2025-06-27 15:12:11,848 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-27 15:12:11,848 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE occupied with: record_episodes
+2025-06-27 15:12:11,848 [INFO]ROBOT_CONTROLLER Sent command to all 2 camera interfaces: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-27 15:12:11,848 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE'}
+2025-06-27 15:12:11,849 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE occupied with: record_episodes
+2025-06-27 15:12:11,849 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE'}
+2025-06-27 15:12:11,849 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE'}
+2025-06-27 15:12:11,849 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE occupied with: record_episodes
+2025-06-27 15:12:11,849 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE'}
+2025-06-27 15:12:11,849 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:12:11,854 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:12:11,854 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:12:11,855 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' completed: record_episodes
+2025-06-27 15:12:11,855 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-27 15:12:11,855 [INFO]ROBOT_CONTROLLER Received message from save interface: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE', 'error': 'None'}
+2025-06-27 15:12:11,855 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' completed: record_episodes
+2025-06-27 15:12:11,855 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: record_episodes, completed. success = True
+2025-06-27 15:12:11,855 [INFO]ROBOT_CONTROLLER All cameras completed command: record_episodes
+2025-06-27 15:12:11,856 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.record_episodes: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:12:12,087 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE', 'error': 'None'}
+2025-06-27 15:12:12,087 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: record_episodes, completed. success = True
+2025-06-27 15:12:25,682 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'stop'}
+2025-06-27 15:12:25,682 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'ROBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,682 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE occupied with: stop
+2025-06-27 15:12:25,682 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'ROBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,682 [INFO]ROBOT_CONTROLLER Disconnecting ROBOT_INTERFACE...
+2025-06-27 15:12:25,696 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'type': 'RESP', 'interface': 'ROBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:12:25,696 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: stop, completed. success = True
+2025-06-27 15:12:25,699 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE disconnected.
+2025-06-27 15:12:25,699 [INFO]ROBOT_CONTROLLER POLICY_INTERFACE not running; nothing to disconnect.
+2025-06-27 15:12:25,699 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,699 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE occupied with: stop
+2025-06-27 15:12:25,699 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,699 [INFO]ROBOT_CONTROLLER Disconnecting TEACHBOT_INTERFACE...
+2025-06-27 15:12:25,710 [INFO]ROBOT_CONTROLLER Received message: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:12:25,710 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE message: stop, completed. success = True
+2025-06-27 15:12:25,715 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE disconnected.
+2025-06-27 15:12:25,715 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'SAVE_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,715 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE occupied with: stop
+2025-06-27 15:12:25,715 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'SAVE_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:25,716 [INFO]ROBOT_CONTROLLER Disconnecting SAVE_INTERFACE...
+2025-06-27 15:12:26,690 [INFO]ROBOT_CONTROLLER Received message from save interface: {'type': 'RESP', 'interface': 'SAVE_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:12:26,690 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: stop, completed. success = True
+2025-06-27 15:12:26,700 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE disconnected.
+2025-06-27 15:12:26,700 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:26,700 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE occupied with: stop
+2025-06-27 15:12:26,700 [INFO]ROBOT_CONTROLLER Sent command to all 2 camera interfaces: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-27 15:12:26,700 [INFO]ROBOT_CONTROLLER Disconnecting all camera interfaces...
+2025-06-27 15:12:26,742 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:12:26,742 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-27 15:12:26,742 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' completed: stop
+2025-06-27 15:12:26,754 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:12:26,754 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:12:26,754 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' completed: stop
+2025-06-27 15:12:26,754 [INFO]ROBOT_CONTROLLER All cameras completed command: stop
+2025-06-27 15:12:26,765 [INFO]ROBOT_CONTROLLER All camera interfaces disconnected.
+2025-06-27 15:12:26,768 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE status thread joined.
+2025-06-27 15:12:26,771 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE status thread joined.
+2025-06-27 15:12:26,771 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE status thread joined.
+2025-06-27 15:12:26,771 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE status thread joined.
+2025-06-27 15:12:26,771 [INFO]ROBOT_CONTROLLER All interfaces disconnected; controller is still running.
+2025-06-27 15:12:26,771 [INFO]ROBOT_CONTROLLER Interfaces stopped, controller remains active.
+2025-06-27 15:12:26,771 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:12:26,776 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.stop: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:09,892 [INFO]ROBOT_CONTROLLER Initializing RobotController...
+2025-06-27 15:17:09,899 [INFO]ROBOT_CONTROLLER Imported modules.robot.dummy.robot_dummy for robot_brand=dummy
+2025-06-27 15:17:09,899 [INFO]ROBOT_CONTROLLER Imported modules.teachbot.teachbot_dummy for teachbot_brand=dummy
+2025-06-27 15:17:09,904 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-27 15:17:09,904 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-27 15:17:09,904 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-27 15:17:09,904 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-27 15:17:09,909 [INFO]ROBOT_CONTROLLER Imported modules.camera.camera_dummy for camera_brand=dummy
+2025-06-27 15:17:11,079 [INFO]ROBOT_CONTROLLER Imported modules.policy.act.policy_act for policy_type=act
+2025-06-27 15:17:11,080 [INFO]ROBOT_CONTROLLER Initializing camera ring buffers.
+2025-06-27 15:17:11,085 [INFO]ROBOT_CONTROLLER Initialized ring buffers for camera 'dummy_cam_1' (SN: DUMMY_001) Color: 640x480, Depth: 640x480, Recording buffer capacity: 512 frames, Policy buffer capacity: 1 frames.
+2025-06-27 15:17:11,085 [INFO]ROBOT_CONTROLLER Initialized ring buffers for camera 'dummy_cam_2' (SN: DUMMY_002) Color: 640x480, Depth: 640x480, Recording buffer capacity: 512 frames, Policy buffer capacity: 1 frames.
+2025-06-27 15:17:11,085 [INFO]ROBOT_CONTROLLER Creating policy shared memory segment: shm_target_pos2 with DOF=7, capacity=500
+2025-06-27 15:17:11,085 [WARNING]ROBOT_CONTROLLER Policy shared memory segment already exists, cleaning up and recreating
+2025-06-27 15:17:11,085 [INFO]ROBOT_CONTROLLER Cleaned up existing policy shared memory segment
+2025-06-27 15:17:11,086 [INFO]ROBOT_CONTROLLER Policy shared memory segment recreated with size: 30000 bytes
+2025-06-27 15:17:11,086 [INFO]ROBOT_CONTROLLER Policy shared memory initialized successfully. Entry format: =I7d
+2025-06-27 15:17:11,086 [INFO]ROBOT_CONTROLLER Setting up RabbitMQ infrastructure (RobotController).
+2025-06-27 15:17:11,094 [INFO]ROBOT_CONTROLLER Infrastructure setup complete for command queue.
+2025-06-27 15:17:11,094 [INFO]ROBOT_CONTROLLER Starting command consumer thread.
+2025-06-27 15:17:11,094 [INFO]ROBOT_CONTROLLER Starting robust_consume on robot_controller_commands with key robot_controller.command.#...
+2025-06-27 15:17:11,094 [INFO]ROBOT_CONTROLLER RobotController initialized successfully.
+2025-06-27 15:17:11,094 [INFO]ROBOT_CONTROLLER Preparing to send response: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,099 [INFO]ROBOT_CONTROLLER Begin consuming commands on queue=robot_controller_commands
+2025-06-27 15:17:11,099 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'report_dataset_names'}
+2025-06-27 15:17:11,099 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.initialization: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,099 [INFO]ROBOT_CONTROLLER Reported dataset names: [{'dataset_name': '20250627_111448'}, {'dataset_name': '20250627_110431'}, {'dataset_name': '20250627_110740'}, {'dataset_name': '20250627_103201'}, {'dataset_name': '20250627_142312'}, {'dataset_name': '20250627_104002'}, {'dataset_name': '20250627_151209'}, {'dataset_name': '20250627_124940'}]
+2025-06-27 15:17:11,099 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'report_dataset_names', 'error': 'None', 'files': [{'dataset_name': '20250627_111448'}, {'dataset_name': '20250627_110431'}, {'dataset_name': '20250627_110740'}, {'dataset_name': '20250627_103201'}, {'dataset_name': '20250627_142312'}, {'dataset_name': '20250627_104002'}, {'dataset_name': '20250627_151209'}, {'dataset_name': '20250627_124940'}]}
+2025-06-27 15:17:11,102 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.report_dataset_names: {'type': 'RESP', 'message': 'report_dataset_names', 'error': 'None', 'files': [{'dataset_name': '20250627_111448'}, {'dataset_name': '20250627_110431'}, {'dataset_name': '20250627_110740'}, {'dataset_name': '20250627_103201'}, {'dataset_name': '20250627_142312'}, {'dataset_name': '20250627_104002'}, {'dataset_name': '20250627_151209'}, {'dataset_name': '20250627_124940'}]}
+2025-06-27 15:17:11,102 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5}
+2025-06-27 15:17:11,102 [INFO]ROBOT_CONTROLLER Starting CAMERA_INTERFACE processes for each camera.
+2025-06-27 15:17:11,102 [INFO]ROBOT_CONTROLLER Starting camera interface process for 'dummy_cam_1' (SN: DUMMY_001)
+2025-06-27 15:17:11,107 [INFO]ROBOT_CONTROLLER Camera process for 'dummy_cam_1' started with PID: 415705
+2025-06-27 15:17:11,107 [INFO]ROBOT_CONTROLLER Starting camera interface process for 'dummy_cam_2' (SN: DUMMY_002)
+2025-06-27 15:17:11,110 [INFO]ROBOT_CONTROLLER Camera process for 'dummy_cam_2' started with PID: 415706
+2025-06-27 15:17:11,110 [INFO]ROBOT_CONTROLLER Camera interface status thread started.
+2025-06-27 15:17:11,633 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:17:11,634 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-27 15:17:11,634 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' initialized. (1/2)
+2025-06-27 15:17:11,639 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:17:11,640 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:17:11,640 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' initialized. (2/2)
+2025-06-27 15:17:11,640 [INFO]ROBOT_CONTROLLER All camera interfaces initialized successfully.
+2025-06-27 15:17:11,643 [INFO]ROBOT_CONTROLLER All CAMERA_INTERFACE processes are ready for commands.
+2025-06-27 15:17:11,643 [INFO]ROBOT_CONTROLLER Starting SAVE_INTERFACE process.
+2025-06-27 15:17:11,649 [INFO]ROBOT_CONTROLLER Save interface status thread started.
+2025-06-27 15:17:11,677 [INFO]ROBOT_CONTROLLER Received message from save interface: {'interface': 'SAVE_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,677 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: initialization, completed. success = True
+2025-06-27 15:17:11,681 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE is ready for commands.
+2025-06-27 15:17:11,681 [INFO]ROBOT_CONTROLLER Starting TEACHBOT_INTERFACE process.
+2025-06-27 15:17:11,685 [INFO]ROBOT_CONTROLLER Teachbot interface status thread started.
+2025-06-27 15:17:11,714 [INFO]ROBOT_CONTROLLER Received message: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,714 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE message: initialization, completed. success = True
+2025-06-27 15:17:11,718 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE is ready for commands.
+2025-06-27 15:17:11,718 [INFO]ROBOT_CONTROLLER Starting ROBOT_INTERFACE process.
+2025-06-27 15:17:11,754 [INFO]ROBOT_CONTROLLER Robot interface status thread started.
+2025-06-27 15:17:11,782 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'interface': 'ROBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,782 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: initialization, completed. success = True
+2025-06-27 15:17:11,786 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE is ready for commands.
+2025-06-27 15:17:11,786 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-27 15:17:11,786 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE occupied with: record_episodes
+2025-06-27 15:17:11,787 [INFO]ROBOT_CONTROLLER Sent command to all 2 camera interfaces: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-27 15:17:11,787 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE'}
+2025-06-27 15:17:11,787 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE occupied with: record_episodes
+2025-06-27 15:17:11,787 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE'}
+2025-06-27 15:17:11,788 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE'}
+2025-06-27 15:17:11,788 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE occupied with: record_episodes
+2025-06-27 15:17:11,788 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE'}
+2025-06-27 15:17:11,788 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:17:11,793 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.record_episodes: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER Received message from save interface: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE', 'error': 'None'}
+2025-06-27 15:17:11,795 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: record_episodes, completed. success = True
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' completed: record_episodes
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' completed: record_episodes
+2025-06-27 15:17:11,795 [INFO]ROBOT_CONTROLLER All cameras completed command: record_episodes
+2025-06-27 15:17:12,027 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE', 'error': 'None'}
+2025-06-27 15:17:12,027 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: record_episodes, completed. success = True
+2025-06-27 15:17:25,196 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'stop'}
+2025-06-27 15:17:25,197 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'ROBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,197 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE occupied with: stop
+2025-06-27 15:17:25,197 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'ROBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,197 [INFO]ROBOT_CONTROLLER Disconnecting ROBOT_INTERFACE...
+2025-06-27 15:17:25,212 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'type': 'RESP', 'interface': 'ROBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:25,212 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: stop, completed. success = True
+2025-06-27 15:17:25,213 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE disconnected.
+2025-06-27 15:17:25,213 [INFO]ROBOT_CONTROLLER POLICY_INTERFACE not running; nothing to disconnect.
+2025-06-27 15:17:25,213 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,213 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE occupied with: stop
+2025-06-27 15:17:25,213 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,213 [INFO]ROBOT_CONTROLLER Disconnecting TEACHBOT_INTERFACE...
+2025-06-27 15:17:25,224 [INFO]ROBOT_CONTROLLER Received message: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:25,224 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE message: stop, completed. success = True
+2025-06-27 15:17:25,230 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE disconnected.
+2025-06-27 15:17:25,230 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'SAVE_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,230 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE occupied with: stop
+2025-06-27 15:17:25,230 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'SAVE_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:25,230 [INFO]ROBOT_CONTROLLER Disconnecting SAVE_INTERFACE...
+2025-06-27 15:17:26,202 [INFO]ROBOT_CONTROLLER Received message from save interface: {'type': 'RESP', 'interface': 'SAVE_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:26,203 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: stop, completed. success = True
+2025-06-27 15:17:26,215 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE disconnected.
+2025-06-27 15:17:26,215 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:26,215 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE occupied with: stop
+2025-06-27 15:17:26,215 [INFO]ROBOT_CONTROLLER Sent command to all 2 camera interfaces: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-27 15:17:26,215 [INFO]ROBOT_CONTROLLER Disconnecting all camera interfaces...
+2025-06-27 15:17:26,259 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:17:26,259 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-27 15:17:26,260 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' completed: stop
+2025-06-27 15:17:26,288 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-27 15:17:26,288 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-27 15:17:26,288 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' completed: stop
+2025-06-27 15:17:26,288 [INFO]ROBOT_CONTROLLER All cameras completed command: stop
+2025-06-27 15:17:26,296 [INFO]ROBOT_CONTROLLER All camera interfaces disconnected.
+2025-06-27 15:17:26,299 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE status thread joined.
+2025-06-27 15:17:26,299 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE status thread joined.
+2025-06-27 15:17:26,299 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE status thread joined.
+2025-06-27 15:17:26,300 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE status thread joined.
+2025-06-27 15:17:26,300 [INFO]ROBOT_CONTROLLER All interfaces disconnected; controller is still running.
+2025-06-27 15:17:26,300 [INFO]ROBOT_CONTROLLER Interfaces stopped, controller remains active.
+2025-06-27 15:17:26,300 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:26,304 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.stop: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:22,599 [INFO]ROBOT_CONTROLLER Initializing RobotController...
+2025-06-30 09:46:22,602 [INFO]ROBOT_CONTROLLER Imported modules.robot.dummy.robot_dummy for robot_brand=dummy
+2025-06-30 09:46:22,602 [INFO]ROBOT_CONTROLLER Imported modules.teachbot.teachbot_dummy for teachbot_brand=dummy
+2025-06-30 09:46:22,607 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-30 09:46:22,607 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-30 09:46:22,607 [DEBUG]ROBOT_CONTROLLER Creating converter from 7 to 5
+2025-06-30 09:46:22,607 [DEBUG]ROBOT_CONTROLLER Creating converter from 5 to 7
+2025-06-30 09:46:22,612 [INFO]ROBOT_CONTROLLER Imported modules.camera.camera_dummy for camera_brand=dummy
+2025-06-30 09:46:23,788 [INFO]ROBOT_CONTROLLER Imported modules.policy.act.policy_act for policy_type=act
+2025-06-30 09:46:23,789 [INFO]ROBOT_CONTROLLER Initializing camera ring buffers.
+2025-06-30 09:46:23,796 [INFO]ROBOT_CONTROLLER Initialized ring buffers for camera 'dummy_cam_1' (SN: DUMMY_001) Color: 640x480, Depth: 640x480, Recording buffer capacity: 512 frames, Policy buffer capacity: 1 frames.
+2025-06-30 09:46:23,797 [INFO]ROBOT_CONTROLLER Initialized ring buffers for camera 'dummy_cam_2' (SN: DUMMY_002) Color: 640x480, Depth: 640x480, Recording buffer capacity: 512 frames, Policy buffer capacity: 1 frames.
+2025-06-30 09:46:23,797 [INFO]ROBOT_CONTROLLER Creating policy shared memory segment: shm_target_pos2 with DOF=7, capacity=500
+2025-06-30 09:46:23,797 [WARNING]ROBOT_CONTROLLER Policy shared memory segment already exists, cleaning up and recreating
+2025-06-30 09:46:23,797 [INFO]ROBOT_CONTROLLER Cleaned up existing policy shared memory segment
+2025-06-30 09:46:23,797 [INFO]ROBOT_CONTROLLER Policy shared memory segment recreated with size: 30000 bytes
+2025-06-30 09:46:23,797 [INFO]ROBOT_CONTROLLER Policy shared memory initialized successfully. Entry format: =I7d
+2025-06-30 09:46:23,798 [INFO]ROBOT_CONTROLLER Setting up RabbitMQ infrastructure (RobotController).
+2025-06-30 09:46:23,805 [INFO]ROBOT_CONTROLLER Infrastructure setup complete for command queue.
+2025-06-30 09:46:23,805 [INFO]ROBOT_CONTROLLER Starting command consumer thread.
+2025-06-30 09:46:23,805 [INFO]ROBOT_CONTROLLER Starting robust_consume on robot_controller_commands with key robot_controller.command.#...
+2025-06-30 09:46:23,806 [INFO]ROBOT_CONTROLLER RobotController initialized successfully.
+2025-06-30 09:46:23,806 [INFO]ROBOT_CONTROLLER Preparing to send response: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:23,810 [INFO]ROBOT_CONTROLLER Begin consuming commands on queue=robot_controller_commands
+2025-06-30 09:46:23,810 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5}
+2025-06-30 09:46:23,810 [INFO]ROBOT_CONTROLLER Starting CAMERA_INTERFACE processes for each camera.
+2025-06-30 09:46:23,810 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.initialization: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:23,810 [INFO]ROBOT_CONTROLLER Starting camera interface process for 'dummy_cam_1' (SN: DUMMY_001)
+2025-06-30 09:46:23,815 [INFO]ROBOT_CONTROLLER Camera process for 'dummy_cam_1' started with PID: 850644
+2025-06-30 09:46:23,815 [INFO]ROBOT_CONTROLLER Starting camera interface process for 'dummy_cam_2' (SN: DUMMY_002)
+2025-06-30 09:46:23,819 [INFO]ROBOT_CONTROLLER Camera process for 'dummy_cam_2' started with PID: 850645
+2025-06-30 09:46:23,819 [INFO]ROBOT_CONTROLLER Camera interface status thread started.
+2025-06-30 09:46:24,343 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-30 09:46:24,343 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-30 09:46:24,343 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' initialized. (1/2)
+2025-06-30 09:46:24,343 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'initialization', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-30 09:46:24,344 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' initialized. (2/2)
+2025-06-30 09:46:24,344 [INFO]ROBOT_CONTROLLER All camera interfaces initialized successfully.
+2025-06-30 09:46:24,352 [INFO]ROBOT_CONTROLLER All CAMERA_INTERFACE processes are ready for commands.
+2025-06-30 09:46:24,352 [INFO]ROBOT_CONTROLLER Starting SAVE_INTERFACE process.
+2025-06-30 09:46:24,358 [INFO]ROBOT_CONTROLLER Save interface status thread started.
+2025-06-30 09:46:24,387 [INFO]ROBOT_CONTROLLER Received message from save interface: {'interface': 'SAVE_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:24,387 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: initialization, completed. success = True
+2025-06-30 09:46:24,391 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE is ready for commands.
+2025-06-30 09:46:24,391 [INFO]ROBOT_CONTROLLER Starting TEACHBOT_INTERFACE process.
+2025-06-30 09:46:24,397 [INFO]ROBOT_CONTROLLER Teachbot interface status thread started.
+2025-06-30 09:46:24,425 [INFO]ROBOT_CONTROLLER Received message: {'interface': 'TEACHBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:24,426 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE message: initialization, completed. success = True
+2025-06-30 09:46:24,429 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE is ready for commands.
+2025-06-30 09:46:24,429 [INFO]ROBOT_CONTROLLER Starting ROBOT_INTERFACE process.
+2025-06-30 09:46:24,458 [INFO]ROBOT_CONTROLLER Robot interface status thread started.
+2025-06-30 09:46:24,482 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'interface': 'ROBOT_INTERFACE', 'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:24,482 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: initialization, completed. success = True
+2025-06-30 09:46:24,491 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE is ready for commands.
+2025-06-30 09:46:24,491 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-30 09:46:24,491 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE occupied with: record_episodes
+2025-06-30 09:46:24,492 [INFO]ROBOT_CONTROLLER Sent command to all 2 camera interfaces: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'CAMERA_INTERFACE'}
+2025-06-30 09:46:24,492 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE'}
+2025-06-30 09:46:24,492 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE occupied with: record_episodes
+2025-06-30 09:46:24,493 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE'}
+2025-06-30 09:46:24,493 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE'}
+2025-06-30 09:46:24,493 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE occupied with: record_episodes
+2025-06-30 09:46:24,493 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE'}
+2025-06-30 09:46:24,493 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-30 09:46:24,498 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.record_episodes: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER Received message from save interface: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'SAVE_INTERFACE', 'error': 'None'}
+2025-06-30 09:46:24,499 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: record_episodes, completed. success = True
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' completed: record_episodes
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'record_episodes', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' completed: record_episodes
+2025-06-30 09:46:24,499 [INFO]ROBOT_CONTROLLER All cameras completed command: record_episodes
+2025-06-30 09:46:24,730 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'interface': 'ROBOT_INTERFACE', 'error': 'None'}
+2025-06-30 09:46:24,731 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: record_episodes, completed. success = True
+2025-06-30 09:46:41,488 [INFO]ROBOT_CONTROLLER Received command: {'type': 'CMD', 'message': 'stop'}
+2025-06-30 09:46:41,488 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'ROBOT_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,488 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE occupied with: stop
+2025-06-30 09:46:41,488 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'ROBOT_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,488 [INFO]ROBOT_CONTROLLER Disconnecting ROBOT_INTERFACE...
+2025-06-30 09:46:41,500 [INFO]ROBOT_CONTROLLER Received message from robot interface: {'type': 'RESP', 'interface': 'ROBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:41,500 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE message: stop, completed. success = True
+2025-06-30 09:46:41,504 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE disconnected.
+2025-06-30 09:46:41,504 [INFO]ROBOT_CONTROLLER POLICY_INTERFACE not running; nothing to disconnect.
+2025-06-30 09:46:41,504 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,504 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE occupied with: stop
+2025-06-30 09:46:41,505 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,505 [INFO]ROBOT_CONTROLLER Disconnecting TEACHBOT_INTERFACE...
+2025-06-30 09:46:41,521 [INFO]ROBOT_CONTROLLER Received message: {'type': 'RESP', 'interface': 'TEACHBOT_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:41,521 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE message: stop, completed. success = True
+2025-06-30 09:46:41,537 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE disconnected.
+2025-06-30 09:46:41,537 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'SAVE_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,537 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE occupied with: stop
+2025-06-30 09:46:41,537 [INFO]ROBOT_CONTROLLER Sent local command: {'type': 'CMD', 'interface': 'SAVE_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:41,537 [INFO]ROBOT_CONTROLLER Disconnecting SAVE_INTERFACE...
+2025-06-30 09:46:42,496 [INFO]ROBOT_CONTROLLER Received message from save interface: {'type': 'RESP', 'interface': 'SAVE_INTERFACE', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:42,497 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE message: stop, completed. success = True
+2025-06-30 09:46:42,507 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE disconnected.
+2025-06-30 09:46:42,507 [INFO]ROBOT_CONTROLLER Waiting to send local command: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:42,507 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE occupied with: stop
+2025-06-30 09:46:42,507 [INFO]ROBOT_CONTROLLER Sent command to all 2 camera interfaces: {'type': 'CMD', 'interface': 'CAMERA_INTERFACE', 'message': 'stop'}
+2025-06-30 09:46:42,507 [INFO]ROBOT_CONTROLLER Disconnecting all camera interfaces...
+2025-06-30 09:46:42,559 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-30 09:46:42,559 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_1', 'error': 'None'}
+2025-06-30 09:46:42,559 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_1' completed: stop
+2025-06-30 09:46:42,576 [DEBUG]ROBOT_CONTROLLER Camera status thread is processing messages...
+2025-06-30 09:46:42,577 [INFO]ROBOT_CONTROLLER Received message from camera interface: {'type': 'RESP', 'interface': 'CAMERA_INTERFACE', 'message': 'stop', 'camera_name': 'dummy_cam_2', 'error': 'None'}
+2025-06-30 09:46:42,577 [INFO]ROBOT_CONTROLLER Camera 'dummy_cam_2' completed: stop
+2025-06-30 09:46:42,577 [INFO]ROBOT_CONTROLLER All cameras completed command: stop
+2025-06-30 09:46:42,588 [INFO]ROBOT_CONTROLLER All camera interfaces disconnected.
+2025-06-30 09:46:42,592 [INFO]ROBOT_CONTROLLER ROBOT_INTERFACE status thread joined.
+2025-06-30 09:46:42,593 [INFO]ROBOT_CONTROLLER TEACHBOT_INTERFACE status thread joined.
+2025-06-30 09:46:42,593 [INFO]ROBOT_CONTROLLER SAVE_INTERFACE status thread joined.
+2025-06-30 09:46:42,594 [INFO]ROBOT_CONTROLLER CAMERA_INTERFACE status thread joined.
+2025-06-30 09:46:42,594 [INFO]ROBOT_CONTROLLER All interfaces disconnected; controller is still running.
+2025-06-30 09:46:42,594 [INFO]ROBOT_CONTROLLER Interfaces stopped, controller remains active.
+2025-06-30 09:46:42,594 [INFO]ROBOT_CONTROLLER Preparing to send response: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:42,598 [INFO]ROBOT_CONTROLLER Sent response on key=robot_controller.response.stop: {'type': 'RESP', 'message': 'stop', 'error': 'None'}

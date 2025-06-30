@@ -1,0 +1,7 @@
+# Navigate to the tos_ui directory
+cd /home/teun/tos_app/applications/tos_ui
+chmod +x tos_ui.sh
+chmod +x TOS-UI.desktop
+cp TOS-UI.desktop ~/.local/share/applications/
+
+sudo systemctl enable rabbitmq-server

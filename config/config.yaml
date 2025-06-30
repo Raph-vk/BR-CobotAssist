@@ -1,0 +1,328 @@
+# config.yaml
+
+# --------------------------------------HARDWARE CONFIGURATION--------------------------------
+
+hardware:
+
+# --------------------------------------Robot Configuration--------------------------------
+  robot:
+    # Dummy robot settings (same as FANUC but without actual communication)
+    brand: "dummy"
+    model: "Dummy Robot"
+    control_dt : 0.004
+    utool_no: 1 #not used yet
+    uframe_no: 1 #not used yet
+    payload_weight: 2
+    max_payload: 7
+    j3_limit: 59
+    j3_interaction: True
+    dof: 6
+    dof_ee: 1
+    server_address: 
+      - "127.0.0.1"  # Localhost for dummy
+      - 8001  # IP and port of the cpp connects to  port + 1
+    robot_address: 
+      - "127.0.0.1"  # Localhost for dummy
+      - 60015
+    rmi_port: 16001
+    upper_limits: [165, 140, 208, 185, 120, 355]
+    lower_limits: [-165, -95, -65, -185, -120, -355]
+    velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+
+  # robot:
+  #   # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
+  #   brand: "fanuc"
+  #   model: "LRMate 200iD 7l"
+  #   control_dt : 0.004
+  #   utool_no: 1 #not used yet
+  #   uframe_no: 1 #not used yet
+  #   payload_weight: 2
+  #   max_payload: 7
+  #   j3_limit: 59
+  #   j3_interaction: True
+  #   dof: 6
+  #   dof_ee: 1
+  #   server_address: 
+  #     - "192.168.1.201"
+  #     - 8001  # IP and port of the cpp connects to  port + 1
+  #   robot_address: 
+  #     - "192.168.1.202"
+  #     - 60015
+  #   rmi_port: 16001
+  #   upper_limits: [165, 140, 208, 185, 120, 355]
+  #   lower_limits: [-165, -95, -65, -185, -120, -355]
+  #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+  #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+  #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+
+  # robot:
+  #   # Robot settings
+  #   brand: "Techman"
+  #   control_dt : 0.01
+  #   dof: 6
+  #   server_adress:
+  #     - "192.168.10.3"
+  #     - 8001
+  #   robot_adress: 
+  #     - "192.168.10.2"
+  #     - 5890
+  #   robot_recv_address: 
+  #     - "192.168.10.3"  # Local machine IP to receive data from robot
+  #     - 5891
+  #   # Techman TMSCT Position command parameters
+  #   move_to_start_params:
+  #     accel_time: 2000        # Time interval to accelerate to top speed (ms), range: 150-2000
+  #     motion_gain: 1          # Motion Control Gain value, range: 1-100, larger is faster response to new value
+  #     protection_time: 100     # Control value protection time interval (ms), min: 20
+    
+  #   continuous_mode_params:
+  #     accel_time: 600        # Time interval to accelerate to top speed (ms), range: 150-2000  
+  #     motion_gain: 80          # Motion Control Gain value, range: 1-100
+  #     protection_time: 100     # Control value protection time interval (ms), min: 20
+
+
+  # --------------------------------------Teachbot Configuration--------------------------------
+
+  teachbot:
+    # Teachbot settings
+    brand: "dummy"
+    model: "_"
+    joint_target_period: 0.01
+    j6_min_angle: -140
+    j6_max_angle: 220
+    j6_multiplier: 1
+    gripper_treshold: 1085
+
+  # teachbot:
+  #   # TOS encoder settings for teachbot
+  #   brand: "tos"
+  #   joint_target_period: 0.004
+  #   j4_locked: True
+  #   j6_min_angle: -140
+  #   j6_max_angle: 220
+  #   j6_multiplier: 1
+  #   local_ip: "192.168.1.201"
+  #   start_port: 5006
+  #   num_joints: 6
+  #   packet_size: 3  # 3 bytes for 17-bit singleturn encoder
+  #   position_offsets: [42000, 24666, 102000, 67910, 19200, 119840]  # Calibration offsets for each joint
+  #   joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
+  #   port_joint_mapping:
+  #     0: 0  # Joint 0 -> port 5004 (start_port + 0)
+  #     1: 1  # Joint 1 -> port 5005 (start_port + 1)
+  #     2: 2  # Joint 2 -> port 5006 (start_port + 2)
+  #     3: 3  # Joint 3 -> port 5007 (start_port + 3)
+  #     4: 4  # Joint 4 -> port 5008 (start_port + 4)
+  #     5: 5  # Joint 5 -> port 5009 (start_port + 5)
+
+  # teachbot:
+  #   # Teachbot settings
+  #   brand: "Interbotix"
+  #   model: "WX250S"
+  #   j4_locked: True
+  #   j6_min_angle: -140
+  #   j6_max_angle: 220
+  #   j6_multiplier: 1
+  #   gripper_min: 91.14
+  #   gripper_max: 102.65
+
+
+# --------------------------------------Camera Configuration--------------------------------
+
+
+  camera:
+    # Camera settings
+    brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
+    info:
+      - name: "dummy_cam_1"
+        serial_number: "DUMMY_001"
+        fps: 30
+        color_width: 640
+        color_height: 480
+        depth_width: 640
+        depth_height: 480
+
+      - name: "dummy_cam_2"
+        serial_number: "DUMMY_002"
+        fps: 30
+        color_width: 640
+        color_height: 480
+        depth_width: 640
+        depth_height: 480
+
+  # camera:
+  #   # Camera settings
+  #   brand: "inteld405" 
+  #   info:
+  #     - name: "cam_1"
+  #       serial_number: "218622271425"
+  #       fps: 90
+  #       color_width: 424
+  #       color_height: 240
+  #       depth_width: 424
+  #       depth_height: 240
+
+  #     - name: "cam_2"
+  #       serial_number: "218622271391"
+  #       fps: 90
+  #       color_width: 424
+  #       color_height: 240
+  #       depth_width: 424
+  #       depth_height: 240
+
+  #     - name: "cam_3"
+  #       serial_number: "130322272626"
+  #       fps: 90
+  #       color_width: 424
+  #       color_height: 240
+  #       depth_width: 424
+  #       depth_height: 240
+
+  #     - name: "cam_4"
+  #       serial_number: "218622271529"
+  #       fps: 90
+  #       color_width: 424
+  #       color_height: 240
+  #       depth_width: 424
+  #       depth_height: 240
+
+
+
+# --------------------------------------GENERAL CONFIGURATION--------------------------------
+
+
+general:
+  # Update settings
+  status_refresh_period:  0.016067
+  check_queue_period:     0.005556 
+  check_queue_period_divisor: 3
+
+  # start_position: [0, -20, -50, 0, 30, 50, 0]  # 6 joints + gripper state
+  start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
+  start_joint_tolerance: 10
+  joint_synchronization: False
+  default_recording_speed: 0.5
+  gripper_delay: 0.3 # In seconds on robot speed 1
+  gripper_treshold: 0.5
+  action_buffer_length: 3
+  j4_locked: True
+
+
+  app_directory: "."
+  data_directory: "../tos_app_data"
+
+  record_duration: 5
+  record_divisor: 4
+  
+  # Policy interface buffer settings
+  policy_img_buffer_size: 1  # Size of policy interface camera buffers
+
+  control_loop_language: "python"  # Options: "cpp", "python"
+
+
+
+logging:
+  log_level: "DEBUG"
+  library_log_levels:
+    pika: "WARNING"
+    werkzeug: "ERROR"
+    matplotlib: "WARNING"  # Suppress verbose font debugging logs
+  config_dict:
+    version: 1
+    disable_existing_loggers: false
+    formatters:
+      standard:
+        # Example format
+        format: "%(asctime)s [%(levelname)s][...] %(message)s"
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: standard
+        level: "INFO"
+      file:
+        class: logging.handlers.RotatingFileHandler
+        filename: "logs/dummy_log"
+        formatter: standard
+        level: "INFO"
+        maxBytes: 5242880  # 5 MB
+        backupCount: 3
+    root:
+      handlers: ["console", "file"]
+      level: "INFO"
+
+
+
+application:
+  # General Application Settings
+  flask_host: "0.0.0.0"
+  flask_port: 5000
+  flask_debug: false
+  flask_use_reloader: false
+  connection_threshold: 1.0
+  # Path to the controller script
+  controller_path: "applications/robot_controller/main.py"
+  # Whether to open the controller script in a new terminal by default
+  open_terminal_default: true
+
+
+
+rabbitmq:
+  exchange_name: "tos_exchange"
+  exchange_type: "topic"
+
+  # Status queue/binding
+  ui_queue_name: "ui_status_queue"
+  status_binding_key: "robot_controller.status.package"
+
+  # Command queue/binding
+  command_queue_name: "robot_controller_commands"
+  command_binding_key_prefix: "robot_controller.command."
+
+  # response queue/binding
+  response_queue_name: "robot_controller_response"
+  response_binding_key_prefix: "robot_controller.response."
+
+  # Connection defaults
+  host: "localhost"
+  user: "guest"
+  pass: "guest"
+  heartbeat: 30
+  blocked_connection_timeout: 2
+  max_retries: 0     # 0 means infinite retry
+  wait_seconds: 2.0
+
+  # RabbitMQ client properties
+  client_name_ui_sender: "ui_command_sender"
+  client_name_ui_status: "ui_status_consumer"
+  client_name_default: "my_conn"
+  product: "MyRabbitApp"
+  information: "A robust RabbitMQ client using Pika"
+
+
+
+cpp:
+  # Shared memory configuration for C++ interface
+  shared_memory:
+    # For save interface (recording)
+    shm_joint_data1:
+      shm_name: "shm_cpp_joint_data1"
+      slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
+      header_format: "=IIII"
+    # For policy interface (real-time control)
+    shm_joint_data2:
+      shm_name: "shm_cpp_joint_data2"
+      capacity: 100
+      slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
+      header_format: "=IIII" 
+
+
+
+policy:
+  name: "ACT"
+  # Shared memory configuration for policy interface
+  shared_memory:
+    shm_name: "shm_target_pos2"
+    capacity: 500  # Number of sequence entries - should match policy_sequence_buffer_length
+    entry_format_template: "=I{dof}d"  # sequence_id (I) + dof joint positions (d each)

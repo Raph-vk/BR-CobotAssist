@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TOS UI</title>
+  <style>
+    /* Main brand colors */
+    :root {
+      --color-blue: #2a4595;
+      --color-red:  #d91b11;
+    }
+
+    /* Reset / Base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f2f2f2;
+      color: #333;
+    }
+
+    /* Full-width top header with centered logos */
+    .header {
+      width: 100%;
+      background-color: var(--color-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4rem;
+      padding: 0.5rem 1rem;
+    }
+    .logo-tos {
+      height: 100px;
+      object-fit: contain;
+    }
+    .logo-breda {
+      height: 100px;
+      object-fit: contain;
+    }
+    .logo-stimulus {
+      height: 50px;
+      object-fit: contain;
+    }
+
+    /* Container for the two sections + red lines */
+    .two-sections {
+      position: relative;    
+      width: 900px;          
+      height: 505px;         
+      margin: 2rem auto;     
+      background-color: #f2f2f2;
+    }
+
+    /* Red lines for top & bottom boxes */
+    .line-top-left {
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 5px;
+      height: 500px;
+      background-color: var(--color-red);
+    }
+    .line-top-bottom {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      top: 500px;
+      background-color: var(--color-red);
+    }
+    .line-bottom-right {
+      position: absolute;
+      top: 500px;
+      right: -5px;
+      width: 5px;
+      height: 205px;
+      background-color: var(--color-red);
+    }
+
+    /* Top box: 300px tall */
+    .box-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 500px;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    /* Bottom box: 200px tall */
+    .box-bottom {
+      position: absolute;
+      top: 505px;  
+      left: 0;
+      width: 100%;
+      height: 200px;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    /* Headings */
+    .box-top h2,
+    .box-bottom h2 {
+      margin-bottom: 1rem;
+      color: var(--color-blue);
+    }
+
+    /* Buttons row(s) */
+    .button-row {
+      margin-top: 1rem;
+    }
+    .btn {
+      display: inline-block;
+      width: 220px;  /* fixed width for uniform button size */
+      white-space: nowrap;
+      text-align: center;
+      padding: 0.7rem;
+      margin: 0.5rem 0.75rem;
+      background-color: var(--color-blue);
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      transition: background-color 0.2s ease-in-out;
+    }
+    .btn:hover {
+      background-color: var(--color-red);
+    }
+
+    /* Fixed-width dropdown */
+    #recordingsDropdown {
+      width: 220px; 
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin: 0.5rem 0.75rem;
+    }
+
+    #datasetsDropdown {
+      width: 220px; 
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin: 0.5rem 0.75rem;
+    }
+
+    #modelsDropdown {
+      width: 220px; 
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin: 0.5rem 0.75rem;
+    }
+
+    /* Bottom Box sliders area */
+    .settings-section h3 {
+      margin-bottom: 1rem;
+      color: var(--color-blue);
+      font-size: 1.2rem;
+    }
+    .slider-row {
+      margin: 1rem auto;
+      text-align: left;
+      max-width: 300px;
+    }
+    .slider-row label {
+      display: inline-block;
+      min-width: 120px;
+    }
+    .slider-row input[type="range"] {
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .slider-value {
+      font-weight: bold;
+      color: var(--color-blue);
+      margin-left: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header with logos -->
+  <div class="header">
+    <img class="logo-tos" src="{{ url_for('static', filename='tos_logo.jpg') }}" alt="TOS Logo">
+    <img class="logo-breda" src="{{ url_for('static', filename='breda_robotics_logo.png') }}" alt="Breda Robotics Logo">
+    <img class="logo-stimulus" src="{{ url_for('static', filename='logo_stimulus.png') }}" alt="Stimulus Logo">
+  </div>
+
+  <!-- Main container for 2 boxes + the lines -->
+  <div class="two-sections">
+    <div class="line-top-left"></div>
+    <div class="line-top-bottom"></div>
+    <div class="line-bottom-right"></div>
+
+    <!-- Top Box -->
+    <div class="box-top">
+      <h2>TOS UI Controls</h2>
+
+
+<!-- 
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('start_teleoperation')">
+          Start Teleop
+        </button>
+        <button class="btn" onclick="sendCommand('start_teleoperation_record')">
+          Start Teleop &amp; Record
+        </button>
+      </div> -->
+
+
+      <!-- <div class="button-row">
+        <select id="recordingsDropdown"
+                onmouseover="fetchRecordingsInBackground()" 
+                onfocus="fetchRecordingsInBackground()"
+                onchange="onRecordingSelected()">
+          <option hidden value="">Select name...</option>
+        </select>
+
+        <button class="btn" onclick="playSelectedRecording()">
+          Play Recording
+        </button>
+      </div>
+
+
+      <div class="button-row">
+        <button class="btn" onclick="deleteSelectedRecording()">
+          Delete Recording
+        </button>
+      </div> -->
+
+
+
+
+      <!-- Datasets dropdown and models dropdown -->
+
+      <div class="button-row">
+        <select id="datasetsDropdown"
+                onmouseover="fetchDatasetsInBackground()" 
+                onfocus="fetchDatasetsInBackground()"
+                onchange="onDatasetSelected()">
+          <option hidden value="">Select dataset...</option>
+        </select>
+        <button class="btn" onclick="sendCommand('train_policy')">
+          Train Policy
+        </button>
+
+      </div>
+
+
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('record_episodes')">
+          Record Episodes
+        </button>
+        <button class="btn" onclick="sendCommand('record_mistake')">
+          Record Mistake
+        </button>
+      </div>
+
+
+
+      <div class="button-row">
+        <select id="modelsDropdown"
+                onmouseover="fetchModelsInBackground()" 
+                onfocus="fetchModelsInBackground()"
+                onchange="onModelSelected()">
+          <option hidden value="">Select model...</option>
+        </select>
+
+        <button class="btn" onclick="sendCommand('run_policy')">
+          Run Policy
+        </button>
+      </div>
+
+
+
+
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('stop')">
+          Stop
+        </button>
+        <button class="btn" onclick="sendCommand('hard_stop')">
+          Hard Stop
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Box -->
+    <div class="box-bottom">
+      <h2>Settings</h2>
+      <div class="settings-section">
+      <!-- Recording Speed slider -->
+      <div class="slider-row">
+        <label for="recording_speed">Recording Speed:</label>
+        <input type="range" id="recording_speed" name="recording_speed"
+           min="0" max="2" value="1" step="1"
+           oninput="updateSliderValueRecording(this.value)">
+        <span class="slider-value" id="recording_speed_value">0.5</span>
+      </div>
+
+      <script>
+        function updateSliderValueRecording(index) {
+        const speeds = [0.25, 0.5, 1.0];
+        const valueSpan = document.getElementById('recording_speed_value');
+        valueSpan.textContent = speeds[index];
+        }
+        // Initialize with default value
+        updateSliderValueRecording(1);
+      </script>
+
+        <!-- Playback Speed slider -->
+        <div class="slider-row">
+          <label for="playback_speed">Playback Speed:</label>
+          <!-- We'll treat this slider as an index into a discrete array. -->
+          <input type="range" id="playback_speed" name="playback_speed"
+                 min="0" max="3" value="0" step="1"
+                 oninput="updateSliderValue('playback_speed', this.value)"
+                 data-speeds="[]"  
+          > <!-- We will fill this in at runtime -->
+          <span class="slider-value" id="playback_speed_value">N/A</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+  <script>
+    /**
+     * Global: We'll store the latest array of {file_name, recording_speed} objects here.
+     */
+    window.recordings = [];
+
+    /**
+     * Global: We'll store the latest array of {dataset_name} objects here.
+     */
+    window.datasets = [];
+
+    /**
+     * Called whenever the user selects a new recording in the dropdown.
+     * We find its associated recording_speed and set up the playback_speed slider accordingly.
+     */
+    function onRecordingSelected() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selectedFile = dropdown.value;
+      if (!selectedFile) return;
+
+      // Find the recording object in window.recordings
+      const selectedObj = window.recordings.find(
+        rec => rec.file_name === selectedFile
+      );
+      if (!selectedObj) {
+        console.warn("No matching recording object found for:", selectedFile);
+        return;
+      }
+
+      // Extract the speed. If it's 0.25, 0.5, or 1.0, we choose a set of discrete speeds.
+      // Otherwise, provide a fallback or your desired default set.
+      const recordingSpeed = selectedObj.recording_speed;
+      setPlaybackSpeedOptions(recordingSpeed);
+    }
+
+    /**
+     * Depending on the recording speed, limit the playback speeds to a discrete set.
+     * Then set the slider to "index" mode, defaulting to the index where speed=1.0 (if found).
+     */
+    function setPlaybackSpeedOptions(recordingSpeed) {
+      let speeds;
+      switch (recordingSpeed) {
+        case 0.25:
+          speeds = [0.5, 1.0, 2.0, 4.0];
+          break;
+        case 0.5:
+          speeds = [0.25, 0.5, 1.0, 2.0];
+          break;
+        case 1.0:
+          speeds = [0.25, 0.5, 0.75, 1.0];
+          break;
+        default:
+          // If recordingSpeed is something else (null or 0.8?), pick a fallback:
+          speeds = [0.25, 0.5, 1.0, 2.0]; // up to you
+          break;
+      }
+
+      const playbackSlider = document.getElementById('playback_speed');
+      // Store the discrete speed array in a data attribute
+      playbackSlider.setAttribute('data-speeds', JSON.stringify(speeds));
+
+      // Adjust the slider's min/max/step
+      playbackSlider.min = 0;
+      playbackSlider.max = speeds.length - 1;
+      playbackSlider.step = 1;
+
+      // Default to the index of "1.0" if present, else 0
+      let defaultIndex = speeds.indexOf(1.0);
+      if (defaultIndex < 0) {
+        defaultIndex = 0;
+      }
+      playbackSlider.value = defaultIndex;
+
+      // Update the label
+      updateSliderValue('playback_speed', defaultIndex);
+    }
+
+    /**
+     * Called when "Play Recording" button is clicked.
+     */
+    function playSelectedRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No recording selected to play!");
+        return;
+      }
+      sendCommand('play_recording', selected);
+    }
+
+    /**
+     * Called when "Delete Recording" button is clicked.
+     */
+    function deleteSelectedRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No recording selected to delete!");
+        return;
+      }
+      sendCommand('delete_recording', selected);
+    }
+
+    function sendCommand(cmd, itemName = null) {
+      const params = new URLSearchParams({ 'message': cmd });
+
+      // Always attach the itemName if provided.
+      // For recording commands, this will be the recording_name
+      // For dataset commands, this will be the dataset_name
+      if (itemName) {
+        if (cmd.includes('recording') || cmd === 'play_recording' || cmd === 'delete_recording') {
+          params.append('recording_name', itemName);
+        } else if (cmd.includes('dataset') || cmd === 'load_dataset' || cmd === 'run_policy' || cmd === 'train_policy') {
+          params.append('dataset_name', itemName);
+        } else {
+          // Generic fallback
+          params.append('item_name', itemName);
+        }
+      }
+
+      // For record_episodes, run_policy, and train_policy commands, automatically include the selected dataset
+      if (cmd === 'record_episodes' || cmd === 'run_policy' || cmd === 'train_policy') {
+        const datasetsDropdown = document.getElementById('datasetsDropdown');
+        const selectedDataset = datasetsDropdown ? datasetsDropdown.value : '';
+        params.append('dataset_name', selectedDataset);
+      }
+
+      // For run_policy command, also include the selected model
+      if (cmd === 'run_policy') {
+        const modelsDropdown = document.getElementById('modelsDropdown');
+        const selectedModel = modelsDropdown ? modelsDropdown.value : '';
+        params.append('model_name', selectedModel);
+      }
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+
+      // POST to /send_command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(r => r.json())
+      .then(data => console.log("Command response:", data))
+      .catch(err => console.error("Error sending command:", err));
+    }
+
+    /**
+     * For the "Recording Speed" slider, we assume an index of [0, 1, 2]
+     * mapping to [0.25, 0.5, 1.0].
+     */
+    function getRecordingSpeed() {
+      const slider = document.getElementById('recording_speed');
+      const index = parseInt(slider.value, 10);
+      const speeds = [0.25, 0.5, 1.0];
+      return speeds[index]; // e.g. 0.5
+    }
+
+    /**
+     * For the "Playback Speed" slider, we read a dynamic array from data-speeds,
+     * then use the slider's value as an array index.
+     */
+    function getPlaybackSpeed() {
+      const playbackSlider = document.getElementById('playback_speed');
+      const speeds = JSON.parse(playbackSlider.getAttribute('data-speeds') || "[]");
+      const index = parseInt(playbackSlider.value, 10);
+
+      if (index >= 0 && index < speeds.length) {
+        return speeds[index]; // e.g. 2.0
+      }
+      return 1.0; // fallback
+    }
+
+    /**
+     * Fetch latest recordings from server, store them globally in window.recordings,
+     * and repopulate the <select> with the .file_name values only.
+     */
+    function fetchRecordingsInBackground() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const oldSelected = dropdown.value;
+
+      fetch('/request_recordings', { method: 'POST' })
+        .then(response => response.json())
+        .then(recordingObjects => {
+          // Store entire array so we can look up speeds
+          window.recordings = recordingObjects;
+
+          dropdown.innerHTML = "";
+          const placeholder = document.createElement('option');
+          placeholder.value = "";
+          placeholder.hidden = true;
+          placeholder.textContent = "Select name...";
+          dropdown.appendChild(placeholder);
+
+          // For each {file_name, recording_speed}, we only show file_name.
+          // We'll store the speed in data attributes or just lookup from window.recordings.
+          recordingObjects.forEach(obj => {
+            const { file_name, recording_speed } = obj;
+            const opt = document.createElement('option');
+            opt.value = file_name;
+            opt.textContent = file_name; // Only show the filename
+            // Store speed in data attribute if you want quick lookups
+            opt.dataset.speed = recording_speed;
+            dropdown.appendChild(opt);
+          });
+
+          // restore old selection if valid
+          const validNames = recordingObjects.map(r => r.file_name);
+          if (validNames.includes(oldSelected)) {
+            dropdown.value = oldSelected;
+          } else {
+            dropdown.value = "";
+          }
+        })
+        .catch(err => console.error('Error fetching recordings:', err));
+    }
+
+    /**
+     * Fetch latest datasets from server, store them globally in window.datasets,
+     * and repopulate a datasets dropdown with the dataset_name values.
+     */
+    function fetchDatasetsInBackground() {
+      // Note: This assumes you have a datasetsDropdown element in your HTML
+      const dropdown = document.getElementById('datasetsDropdown');
+      if (!dropdown) {
+        console.warn('datasetsDropdown element not found');
+        return;
+      }
+      
+      const oldSelected = dropdown.value;
+
+      fetch('/request_datasets', { method: 'POST' })
+        .then(response => response.json())
+        .then(datasetObjects => {
+          // Store entire array so we can look up additional info later
+          window.datasets = datasetObjects;
+
+          dropdown.innerHTML = "";
+          const placeholder = document.createElement('option');
+          placeholder.value = "";
+          placeholder.hidden = true;
+          placeholder.textContent = "Select dataset...";
+          dropdown.appendChild(placeholder);
+
+          // For each {dataset_name}, we show the dataset_name
+          datasetObjects.forEach(obj => {
+            const { dataset_name } = obj;
+            const opt = document.createElement('option');
+            opt.value = dataset_name;
+            opt.textContent = dataset_name; // Show the dataset name
+            dropdown.appendChild(opt);
+          });
+
+          // restore old selection if valid
+          const validNames = datasetObjects.map(d => d.dataset_name);
+          if (validNames.includes(oldSelected)) {
+            dropdown.value = oldSelected;
+          } else {
+            dropdown.value = "";
+          }
+        })
+        .catch(err => console.error('Error fetching datasets:', err));
+    }
+
+    /**
+     * Called whenever the user selects a new dataset in the dropdown.
+     */
+    function onDatasetSelected() {
+      const dropdown = document.getElementById('datasetsDropdown');
+      const selectedDataset = dropdown.value;
+      if (!selectedDataset) return;
+
+      console.log('Selected dataset:', selectedDataset);
+      
+      // Refresh the models dropdown when dataset changes
+      fetchModelsInBackground();
+    }
+
+    /**
+     * Load the selected dataset.
+     */
+    function loadSelectedDataset() {
+      const dropdown = document.getElementById('datasetsDropdown');
+      const selectedDataset = dropdown.value;
+      
+      if (!selectedDataset) {
+        alert('Please select a dataset first.');
+        return;
+      }
+
+      console.log('Loading dataset:', selectedDataset);
+      // Use the sendCommand function but pass the dataset name as the second parameter
+      // For now, we'll use 'load_dataset' as the command - this would need to be implemented in the backend
+      sendCommand('load_dataset', selectedDataset);
+    }
+
+    /**
+     * Fetch latest models from server, store them globally in window.models,
+     * and repopulate the models dropdown with the model_name values.
+     */
+    function fetchModelsInBackground() {
+      const dropdown = document.getElementById('modelsDropdown');
+      if (!dropdown) {
+        console.warn('modelsDropdown element not found');
+        return;
+      }
+      
+      const oldSelected = dropdown.value;
+      
+      // Get the currently selected dataset to filter models
+      const datasetsDropdown = document.getElementById('datasetsDropdown');
+      const selectedDataset = datasetsDropdown ? datasetsDropdown.value : '';
+
+      const formData = new FormData();
+      if (selectedDataset) {
+        formData.append('dataset_name', selectedDataset);
+      }
+
+      fetch('/request_models', { 
+        method: 'POST',
+        body: formData
+      })
+        .then(response => response.json())
+        .then(modelObjects => {
+          // Store entire array so we can look up additional info later
+          window.models = modelObjects;
+
+          dropdown.innerHTML = "";
+          const placeholder = document.createElement('option');
+          placeholder.value = "";
+          placeholder.hidden = true;
+          placeholder.textContent = "Select model...";
+          dropdown.appendChild(placeholder);
+
+          // For each {model_name}, we show the model_name
+          modelObjects.forEach(obj => {
+            const { model_name } = obj;
+            const opt = document.createElement('option');
+            opt.value = model_name;
+            opt.textContent = model_name; // Show the model name
+            dropdown.appendChild(opt);
+          });
+
+          // restore old selection if valid
+          const validNames = modelObjects.map(m => m.model_name);
+          if (validNames.includes(oldSelected)) {
+            dropdown.value = oldSelected;
+          } else {
+            dropdown.value = "";
+          }
+        })
+        .catch(err => console.error('Error fetching models:', err));
+    }
+
+    /**
+     * Called whenever the user selects a new model in the dropdown.
+     */
+    function onModelSelected() {
+      const dropdown = document.getElementById('modelsDropdown');
+      const selectedModel = dropdown.value;
+      if (!selectedModel) return;
+
+      console.log('Selected model:', selectedModel);
+    }
+
+    /**
+     * Load the selected model.
+     */
+    function loadSelectedModel() {
+      const dropdown = document.getElementById('modelsDropdown');
+      const selectedModel = dropdown.value;
+      
+      if (!selectedModel) {
+        alert('Please select a model first.');
+        return;
+      }
+
+      console.log('Loading model:', selectedModel);
+      // Use the sendCommand function but pass the model name as the second parameter
+      sendCommand('load_model', selectedModel);
+    }
+
+
+
+
+    /**
+     * The generic slider update function:
+     * - If it's the "playback_speed" slider, we treat `newValue` as an array index.
+     * - If it's the "recording_speed" slider, we just print the numeric value for now.
+     */
+    function updateSliderValue(sliderId, newValue) {
+      const sliderValueSpan = document.getElementById(sliderId + '_value');
+      if (!sliderValueSpan) return;
+
+      if (sliderId === "playback_speed") {
+        const slider = document.getElementById(sliderId);
+        // Read the array of discrete speeds
+        const speeds = JSON.parse(slider.getAttribute('data-speeds') || "[]");
+
+        const index = parseInt(newValue, 10);
+        if (index >= 0 && index < speeds.length) {
+          sliderValueSpan.textContent = speeds[index];
+        } else {
+          sliderValueSpan.textContent = 'N/A';
+        }
+      } else {
+        // For the "recording_speed" slider, just show the numeric value [0..100].
+        sliderValueSpan.textContent = newValue;
+      }
+    }
+  </script>
+</body>
+</html>

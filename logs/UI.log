@@ -1,0 +1,109 @@
+2025-06-27 15:12:07,281 [INFO][UI] Starting TOS UI...
+2025-06-27 15:12:07,282 [INFO][UI] Setting up RabbitMQ infrastructure...
+2025-06-27 15:12:07,289 [INFO][UI] RabbitMQ exchange/queues/bindings set up successfully.
+2025-06-27 15:12:07,291 [INFO][UI] Starting robust_consume on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:12:07,291 [INFO][UI] Started RabbitMQ response consumer in background thread.
+2025-06-27 15:12:07,291 [INFO][UI] Searching for 'TOS UI — Mozilla Firefox' window...
+2025-06-27 15:12:07,296 [INFO][UI] Begin consuming on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:12:07,298 [INFO][UI] TOS UI Firefox window not found
+2025-06-27 15:12:07,299 [INFO][UI] Trying xdotool to find TOS UI window...
+2025-06-27 15:12:07,326 [INFO][UI] No existing TOS UI browser window found, opening new one.
+2025-06-27 15:12:09,771 [INFO][UI] Received form data - message: 'record_episodes', dataset_name: '', recording_name: ''
+2025-06-27 15:12:09,785 [INFO][UI] No controller found. Launching main.py...
+2025-06-27 15:12:09,786 [INFO][UI] No Interbotix hardware detected. Launching without ROS environment.
+2025-06-27 15:12:09,788 [INFO][UI] Launched controller in a new terminal without ROS environment.
+2025-06-27 15:12:09,793 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-27 15:12:09,796 [INFO][UI] Sent command: {"type": "CMD", "message": "record_episodes", "dataset_name": "20250627_151209", "recording_speed": 0.5} => routing_key='robot_controller.command.record_episodes'
+2025-06-27 15:12:09,796 [INFO][UI] Command sent: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5}
+2025-06-27 15:12:11,158 [INFO][UI] Received response: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,158 [INFO][UI] Response for 'initialization' command: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:12:11,855 [INFO][UI] Received response: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:12:11,855 [INFO][UI] Response for 'record_episodes' command: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151209', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:12:25,659 [INFO][UI] Received form data - message: 'stop', dataset_name: '', recording_name: ''
+2025-06-27 15:12:25,674 [INFO][UI] Controller seems to be running already.
+2025-06-27 15:12:25,679 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-27 15:12:25,682 [INFO][UI] Sent command: {"type": "CMD", "message": "stop"} => routing_key='robot_controller.command.stop'
+2025-06-27 15:12:25,682 [INFO][UI] Command sent: {'type': 'CMD', 'message': 'stop'}
+2025-06-27 15:12:26,775 [INFO][UI] Received response: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:12:26,775 [INFO][UI] Response for 'stop' command: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:02,533 [INFO][UI] Starting TOS UI...
+2025-06-27 15:17:02,533 [INFO][UI] Setting up RabbitMQ infrastructure...
+2025-06-27 15:17:02,539 [INFO][UI] RabbitMQ exchange/queues/bindings set up successfully.
+2025-06-27 15:17:02,540 [INFO][UI] Starting robust_consume on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:17:02,540 [INFO][UI] Started RabbitMQ response consumer in background thread.
+2025-06-27 15:17:02,541 [INFO][UI] Searching for 'TOS UI — Mozilla Firefox' window...
+2025-06-27 15:17:02,546 [INFO][UI] Begin consuming on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:17:02,546 [INFO][UI] TOS UI Firefox window not found
+2025-06-27 15:17:02,547 [INFO][UI] Trying xdotool to find TOS UI window...
+2025-06-27 15:17:02,556 [INFO][UI] No existing TOS UI browser window found, opening new one.
+2025-06-27 15:17:09,706 [INFO][UI] No controller found. Launching main.py...
+2025-06-27 15:17:09,706 [INFO][UI] No Interbotix hardware detected. Launching without ROS environment.
+2025-06-27 15:17:09,708 [INFO][UI] Launched controller in a new terminal without ROS environment.
+2025-06-27 15:17:09,714 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-27 15:17:09,718 [INFO][UI] Sent command: {"type": "CMD", "message": "report_dataset_names"} => routing_key='robot_controller.command.report_dataset_names'
+2025-06-27 15:17:10,135 [INFO][UI] Received form data - message: 'record_episodes', dataset_name: '', recording_name: ''
+2025-06-27 15:17:10,153 [INFO][UI] Controller seems to be running already.
+2025-06-27 15:17:10,157 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-27 15:17:10,160 [INFO][UI] Sent command: {"type": "CMD", "message": "record_episodes", "dataset_name": "20250627_151710", "recording_speed": 0.5} => routing_key='robot_controller.command.record_episodes'
+2025-06-27 15:17:10,160 [INFO][UI] Command sent: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5}
+2025-06-27 15:17:11,099 [INFO][UI] Received response: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,099 [INFO][UI] Response for 'initialization' command: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-27 15:17:11,102 [INFO][UI] Received response: {'type': 'RESP', 'message': 'report_dataset_names', 'error': 'None', 'files': [{'dataset_name': '20250627_111448'}, {'dataset_name': '20250627_110431'}, {'dataset_name': '20250627_110740'}, {'dataset_name': '20250627_103201'}, {'dataset_name': '20250627_142312'}, {'dataset_name': '20250627_104002'}, {'dataset_name': '20250627_151209'}, {'dataset_name': '20250627_124940'}]}
+2025-06-27 15:17:11,102 [INFO][UI] Dataset files: [{'dataset_name': '20250627_111448'}, {'dataset_name': '20250627_110431'}, {'dataset_name': '20250627_110740'}, {'dataset_name': '20250627_103201'}, {'dataset_name': '20250627_142312'}, {'dataset_name': '20250627_104002'}, {'dataset_name': '20250627_151209'}, {'dataset_name': '20250627_124940'}]
+2025-06-27 15:17:11,793 [INFO][UI] Received response: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:17:11,793 [INFO][UI] Response for 'record_episodes' command: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250627_151710', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-27 15:17:25,175 [INFO][UI] Received form data - message: 'stop', dataset_name: '', recording_name: ''
+2025-06-27 15:17:25,188 [INFO][UI] Controller seems to be running already.
+2025-06-27 15:17:25,193 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-27 15:17:25,196 [INFO][UI] Sent command: {"type": "CMD", "message": "stop"} => routing_key='robot_controller.command.stop'
+2025-06-27 15:17:25,196 [INFO][UI] Command sent: {'type': 'CMD', 'message': 'stop'}
+2025-06-27 15:17:26,304 [INFO][UI] Received response: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:17:26,304 [INFO][UI] Response for 'stop' command: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-27 15:18:06,907 [INFO][UI] Starting TOS UI...
+2025-06-27 15:18:06,907 [INFO][UI] Setting up RabbitMQ infrastructure...
+2025-06-27 15:18:06,914 [INFO][UI] RabbitMQ exchange/queues/bindings set up successfully.
+2025-06-27 15:18:06,916 [INFO][UI] Starting robust_consume on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:18:06,916 [INFO][UI] Started RabbitMQ response consumer in background thread.
+2025-06-27 15:18:06,916 [INFO][UI] Searching for 'TOS UI — Mozilla Firefox' window...
+2025-06-27 15:18:06,921 [INFO][UI] Begin consuming on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:18:06,922 [INFO][UI] TOS UI Firefox window not found
+2025-06-27 15:18:06,923 [INFO][UI] Trying xdotool to find TOS UI window...
+2025-06-27 15:18:06,936 [INFO][UI] No existing TOS UI browser window found, opening new one.
+2025-06-27 15:18:12,626 [INFO][UI] Starting TOS UI...
+2025-06-27 15:18:12,627 [INFO][UI] Setting up RabbitMQ infrastructure...
+2025-06-27 15:18:12,634 [INFO][UI] RabbitMQ exchange/queues/bindings set up successfully.
+2025-06-27 15:18:12,635 [INFO][UI] Starting robust_consume on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:18:12,636 [INFO][UI] Started RabbitMQ response consumer in background thread.
+2025-06-27 15:18:12,636 [INFO][UI] Searching for 'TOS UI — Mozilla Firefox' window...
+2025-06-27 15:18:12,641 [INFO][UI] Begin consuming on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-27 15:18:12,642 [INFO][UI] TOS UI Firefox window not found
+2025-06-27 15:18:12,643 [INFO][UI] Trying xdotool to find TOS UI window...
+2025-06-27 15:18:12,665 [INFO][UI] No existing TOS UI browser window found, opening new one.
+2025-06-30 09:46:19,833 [INFO][UI] Starting TOS UI...
+2025-06-30 09:46:19,833 [INFO][UI] Setting up RabbitMQ infrastructure...
+2025-06-30 09:46:19,840 [INFO][UI] RabbitMQ exchange/queues/bindings set up successfully.
+2025-06-30 09:46:19,841 [INFO][UI] Starting robust_consume on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-30 09:46:19,842 [INFO][UI] Started RabbitMQ response consumer in background thread.
+2025-06-30 09:46:19,842 [INFO][UI] Searching for 'TOS UI — Mozilla Firefox' window...
+2025-06-30 09:46:19,847 [INFO][UI] Begin consuming on queue='robot_controller_response' with routing_key='robot_controller.response.#'.
+2025-06-30 09:46:19,848 [INFO][UI] TOS UI Firefox window not found
+2025-06-30 09:46:19,849 [INFO][UI] Trying xdotool to find TOS UI window...
+2025-06-30 09:46:19,874 [INFO][UI] No existing TOS UI browser window found, opening new one.
+2025-06-30 09:46:22,399 [INFO][UI] Received form data - message: 'record_episodes', dataset_name: '', recording_name: ''
+2025-06-30 09:46:22,414 [INFO][UI] No controller found. Launching main.py...
+2025-06-30 09:46:22,414 [INFO][UI] No Interbotix hardware detected. Launching without ROS environment.
+2025-06-30 09:46:22,416 [INFO][UI] Launched controller in a new terminal without ROS environment.
+2025-06-30 09:46:22,422 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-30 09:46:22,426 [INFO][UI] Sent command: {"type": "CMD", "message": "record_episodes", "dataset_name": "20250630_094622", "recording_speed": 0.5} => routing_key='robot_controller.command.record_episodes'
+2025-06-30 09:46:22,426 [INFO][UI] Command sent: {'type': 'CMD', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5}
+2025-06-30 09:46:23,809 [INFO][UI] Received response: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:23,810 [INFO][UI] Response for 'initialization' command: {'message': 'initialization', 'type': 'RESP', 'error': 'None'}
+2025-06-30 09:46:24,498 [INFO][UI] Received response: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-30 09:46:24,498 [INFO][UI] Response for 'record_episodes' command: {'type': 'RESP', 'message': 'record_episodes', 'dataset_name': '20250630_094622', 'recording_speed': 0.5, 'error': 'None'}
+2025-06-30 09:46:41,465 [INFO][UI] Received form data - message: 'stop', dataset_name: '', recording_name: ''
+2025-06-30 09:46:41,480 [INFO][UI] Controller seems to be running already.
+2025-06-30 09:46:41,485 [INFO][UI] Confirmed controller's command queue is active. Proceeding.
+2025-06-30 09:46:41,488 [INFO][UI] Sent command: {"type": "CMD", "message": "stop"} => routing_key='robot_controller.command.stop'
+2025-06-30 09:46:41,488 [INFO][UI] Command sent: {'type': 'CMD', 'message': 'stop'}
+2025-06-30 09:46:42,598 [INFO][UI] Received response: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
+2025-06-30 09:46:42,598 [INFO][UI] Response for 'stop' command: {'type': 'RESP', 'message': 'stop', 'error': 'None'}
