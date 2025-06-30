@@ -84,17 +84,9 @@ class FanucSinglePositionCalibration:
             "camera_data": {}
         }
         
-        # Create output directory for calibration data in tos_app_data/camera_calibration
-        # Get the data directory from config
-        config = load_config()
-        data_directory = config.get("general", {}).get("data_directory", "../tos_app_data")
-        
-        # Convert relative path to absolute based on project root
+        # Create output directory for calibration data in the same directory as this script
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.abspath(os.path.join(script_dir, "../../../../"))
-        data_path = os.path.join(project_root, data_directory.lstrip("../"))
-        
-        self.output_dir = os.path.join(data_path, "camera_calibration", "single_pos_calibration", datetime.now().strftime("%Y%m%d_%H%M%S"))
+        self.output_dir = os.path.join(script_dir, "single_pos_calibration", datetime.now().strftime("%Y%m%d_%H%M%S"))
         os.makedirs(self.output_dir, exist_ok=True)
         self.logger.info(f"Calibration data will be saved to: {self.output_dir}")
         

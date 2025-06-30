@@ -1,0 +1,9 @@
+make stateless
+
+Add WandB logging
+Implement Teun backbone loading
+Implement eval after every update
+Check evaluation time of ResiP with detectron on 4090 pc
+
+
+Fix current work with depth images in vision data and different number of cams

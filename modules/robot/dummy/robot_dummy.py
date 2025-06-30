@@ -209,6 +209,7 @@ class DummyUDPStreaming:
                         self.current_velocity[i] = diff * 0.1 / self.control_dt
                     else:
                         self.current_velocity[i] = 0.0
+                self.logger.debug(f"Dummy UDP: Current position {self.current_position}, velocity {self.current_velocity}")
                         
             time.sleep(self.control_dt)
             
@@ -914,11 +915,15 @@ class DummyRobot:
                             send_pos_with_gripper = new_position + [gripper_state_float]
                             last_received_js = new_position + [gripper_state_float]  # Simulate received joint state
                             
+                            def _to_list_if_array(x):
+                                import numpy as np
+                                return x.tolist() if isinstance(x, np.ndarray) else x
+
                             joint_data = {
-                                "master_position": master_pos_with_gripper,
-                                "send_position_robot": send_pos_with_gripper,
-                                "robot_position": last_received_js,  # Already includes gripper state
-                                "robot_position_timestamp": time.time(),
+                                "master_position": _to_list_if_array(master_pos_with_gripper),
+                                "send_position_robot": _to_list_if_array(send_pos_with_gripper),
+                                "robot_position": _to_list_if_array(last_received_js),
+                                "robot_position_timestamp": time.time(),  # or time.time() in dummy
                                 "seq_id": self.udp.seq_id_sent,
                             }
                             self.shm_joint_data2.put(joint_data)

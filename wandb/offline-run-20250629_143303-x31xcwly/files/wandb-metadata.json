@@ -1,0 +1,38 @@
+{
+  "os": "Linux-6.12.10-76061203-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.9.23",
+  "startedAt": "2025-06-29T12:33:03.499255Z",
+  "program": "/home/tos-pc3/Desktop/tos_app/applications/robot_controller/main.py",
+  "codePath": "applications/robot_controller/main.py",
+  "root": "/home/tos-pc3/Desktop/tos_app",
+  "host": "pop-os",
+  "executable": "/home/tos-pc3/anaconda3/envs/TOS/bin/python3",
+  "codePathLocal": "applications/robot_controller/main.py",
+  "cpu_count": 8,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA GeForce RTX 5060 Ti",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "1030963859456",
+      "used": "45037481984"
+    }
+  },
+  "memory": {
+    "total": "32743231488"
+  },
+  "cpu": {
+    "count": 8,
+    "countLogical": 16
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 5060 Ti",
+      "memoryTotal": "17103323136",
+      "cudaCores": 4608,
+      "architecture": "Blackwell",
+      "uuid": "GPU-a8f283e6-6b53-d9c4-2130-7209c5edad5f"
+    }
+  ],
+  "cudaVersion": "12.9"
+}

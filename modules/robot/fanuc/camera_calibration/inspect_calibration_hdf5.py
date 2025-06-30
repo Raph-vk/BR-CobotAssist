@@ -5,32 +5,16 @@ import matplotlib.pyplot as plt
 import random
 from datetime import datetime
 
-def inspect_calibration(calibration_type="single_pos"):
+def inspect_calibration():
     """
-    Inspects calibration data by finding the latest created folder in tos_app_data/camera_calibration,
+    Inspects calibration data by finding the latest created folder in data/calibration,
     selecting a random image from the HDF5 files, and visualizing it with imshow.
     Also prints the data format information.
-    
-    Args:
-        calibration_type (str): Type of calibration to inspect. Options:
-                              "single_pos" for single position calibration
-                              "multi_pos" for multi-position calibration
     """
     
-    # Define the calibration directory path in tos_app_data
+    # Define the calibration directory path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(script_dir, "../../../../"))
-    
-    if calibration_type == "multi_pos":
-        calibration_dir = os.path.join(project_root, "tos_app_data", "camera_calibration", "multi_pos_calibration")
-    else:
-        calibration_dir = os.path.join(project_root, "tos_app_data", "camera_calibration", "single_pos_calibration")
-    
-    # Check if calibration directory exists
-    if not os.path.exists(calibration_dir):
-        print(f"Calibration directory does not exist: {calibration_dir}")
-        print("Make sure you have run the calibration script at least once.")
-        return
+    calibration_dir = os.path.join(script_dir, "single_pos_calibration")
     
     # Get all subdirectories (excluding files)
     folders = [d for d in os.listdir(calibration_dir) 
@@ -203,17 +187,4 @@ def inspect_calibration(calibration_type="single_pos"):
         plt.show()
 
 if __name__ == "__main__":
-    import sys
-    
-    # Check if calibration type is provided as command line argument
-    if len(sys.argv) > 1:
-        calibration_type = sys.argv[1]
-        if calibration_type not in ["single_pos", "multi_pos"]:
-            print("Invalid calibration type. Use 'single_pos' or 'multi_pos'")
-            print("Usage: python inspect_calibration_hdf5.py [single_pos|multi_pos]")
-            sys.exit(1)
-    else:
-        calibration_type = "single_pos"  # Default to single position
-    
-    print(f"Inspecting {calibration_type} calibration data...")
-    inspect_calibration(calibration_type)
+    inspect_calibration()

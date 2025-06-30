@@ -1,27 +1,23 @@
+
+# Consider dependencies only in project.
+set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
+
 # The set of languages for which implicit dependencies are needed:
 set(CMAKE_DEPENDS_LANGUAGES
-  "CXX"
-  )
-# The set of files for implicit dependencies of each language:
-set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/teun/tos_app/modules/robot/fanuc/cpp/control_loop.cpp" "/home/teun/tos_app/modules/robot/fanuc/cpp/build/CMakeFiles/control_loop_module.dir/control_loop.cpp.o"
-  "/home/teun/tos_app/modules/robot/fanuc/cpp/control_loop_pybind.cpp" "/home/teun/tos_app/modules/robot/fanuc/cpp/build/CMakeFiles/control_loop_module.dir/control_loop_pybind.cpp.o"
-  )
-set(CMAKE_CXX_COMPILER_ID "GNU")
-
-# Preprocessor definitions for this target.
-set(CMAKE_TARGET_DEFINITIONS_CXX
-  "control_loop_module_EXPORTS"
   )
 
-# The include file search paths:
-set(CMAKE_CXX_TARGET_INCLUDE_PATH
-  "/usr/include/python3.8"
-  "/opt/ros/noetic/include"
+# The set of dependency files which are needed:
+set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/home/tos-pc3/Desktop/tos_app/modules/robot/fanuc/cpp/control_loop.cpp" "CMakeFiles/control_loop_module.dir/control_loop.cpp.o" "gcc" "CMakeFiles/control_loop_module.dir/control_loop.cpp.o.d"
+  "/home/tos-pc3/Desktop/tos_app/modules/robot/fanuc/cpp/control_loop_pybind.cpp" "CMakeFiles/control_loop_module.dir/control_loop_pybind.cpp.o" "gcc" "CMakeFiles/control_loop_module.dir/control_loop_pybind.cpp.o.d"
   )
 
-# Targets to which this target links.
-set(CMAKE_TARGET_LINKED_INFO_FILES
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.

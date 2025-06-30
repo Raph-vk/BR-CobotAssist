@@ -9,9 +9,10 @@
 # Usage: chmod +x install_tos.sh && ./install_tos.sh [OPTIONS]
 #
 # Options:
-#   --force-env-recreate    Force recreation of TOS environment if it exists
-#   --keep-existing-env     Keep existing TOS environment if it exists
-#   --help                  Show this help message
+#   --env-name <name>         Set the conda environment name (default: TOS)
+#   --force-env-recreate      Force recreation of environment if it exists
+#   --keep-existing-env       Keep existing environment if it exists
+#   --help                    Show this help message
 #
 # Author: TOS Development Team
 # Date: 2025-06-26
@@ -23,9 +24,16 @@ set -e  # Exit on any error
 FORCE_ENV_RECREATE=false
 KEEP_EXISTING_ENV=false
 
+# Set the name of the conda environment (change this variable to customize)
+ENV_NAME="TOS"
+
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --env-name)
+            ENV_NAME="$2"
+            shift 2
+            ;;
         --force-env-recreate)
             FORCE_ENV_RECREATE=true
             shift
@@ -40,9 +48,10 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --force-env-recreate    Force recreation of TOS environment if it exists"
-            echo "  --keep-existing-env     Keep existing TOS environment if it exists" 
-            echo "  --help                  Show this help message"
+            echo "  --env-name <name>         Set the conda environment name (default: TOS)"
+            echo "  --force-env-recreate      Force recreation of environment if it exists"
+            echo "  --keep-existing-env       Keep existing environment if it exists" 
+            echo "  --help                    Show this help message"
             echo ""
             exit 0
             ;;
@@ -243,14 +252,14 @@ setup_conda_env() {
     export PATH="$CONDA_BIN_PATH:$PATH"
     
     # Check if TOS environment already exists
-    if conda env list | grep -q "^TOS "; then
+    if conda env list | grep -q "^${ENV_NAME} "; then
         log_warning "TOS conda environment already exists!"
         
         if [[ "$FORCE_ENV_RECREATE" == "true" ]]; then
             log_info "Force recreating TOS environment (--force-env-recreate flag set)..."
-            conda env remove -n TOS -y
+            conda env remove -n "${ENV_NAME}" -y
             log_info "Creating new TOS environment..."
-            conda create -n TOS python=3.8 -y
+            conda create -n "${ENV_NAME}" python=3.9 -y
             log_success "New TOS conda environment created using $CONDA_TYPE"
         elif [[ "$KEEP_EXISTING_ENV" == "true" ]]; then
             log_info "Keeping existing TOS environment (--keep-existing-env flag set)..."
@@ -266,9 +275,9 @@ setup_conda_env() {
             case $choice in
                 1)
                     log_info "Removing existing TOS environment..."
-                    conda env remove -n TOS -y
+                    conda env remove -n "${ENV_NAME}" -y
                     log_info "Creating new TOS environment..."
-                    conda create -n TOS python=3.8 -y
+                    conda create -n "${ENV_NAME}" python=3.9 -y
                     log_success "New TOS conda environment created using $CONDA_TYPE"
                     ;;
                 2)
@@ -288,7 +297,7 @@ setup_conda_env() {
     else
         # Create environment with Python 3.8
         log_info "Creating new TOS environment..."
-        conda create -n TOS python=3.8 -y
+        conda create -n "${ENV_NAME}" python=3.9 -y
         log_success "TOS conda environment created using $CONDA_TYPE"
     fi
 }
@@ -299,7 +308,7 @@ install_python_packages() {
     
     # Activate conda environment using detected path
     source "$CONDA_PROFILE_PATH"
-    conda activate TOS
+    conda activate "${ENV_NAME}"
     
     # Install development tools via conda (instead of system packages)
     log_info "Installing development tools via conda..."
@@ -338,8 +347,11 @@ install_python_packages() {
     
     # PyTorch (CPU version - can be changed to GPU if needed)
     log_info "Installing PyTorch..."
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    
+    # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    # pip install torch torchvision torchaudio
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
     # Intel RealSense SDK
     log_info "Installing Intel RealSense Python SDK..."
     pip install pyrealsense2
@@ -360,7 +372,15 @@ install_ruckig() {
     
     # First activate conda environment
     source "$CONDA_PROFILE_PATH"
-    conda activate TOS
+    conda activate "${ENV_NAME}"
+
+    local packages=(
+        "build-essential"  # Compiler toolchain
+        # ...existing code...
+    )
+
+    export CC=$(which gcc)
+    export CXX=$(which g++)
     
     # Try to install ruckig from conda-forge first
     log_info "Attempting to install Ruckig from conda-forge..."
@@ -513,7 +533,7 @@ install_realsense_sdk() {
     
     # Activate conda environment
     source "$CONDA_PROFILE_PATH"
-    conda activate TOS
+    conda activate "${ENV_NAME}"
     
     # Try to install librealsense from conda-forge first
     log_info "Attempting to install Intel RealSense from conda-forge..."
@@ -546,7 +566,7 @@ build_cpp_modules() {
     
     # Activate conda environment to ensure all tools are available
     source "$CONDA_PROFILE_PATH"
-    conda activate TOS
+    conda activate "${ENV_NAME}"
     
     # Set conda environment paths for building
     export CMAKE_PREFIX_PATH="$CONDA_PREFIX:$CMAKE_PREFIX_PATH"
@@ -697,7 +717,7 @@ Type=simple
 User=$USER
 Group=$USER
 WorkingDirectory=$tos_root
-Environment=PATH=$CONDA_BASE_PATH/envs/TOS/bin:$PATH
+Environment=PATH=$CONDA_BASE_PATH/envs/TOS_new/bin:$PATH
 Environment=RABBITMQ_DEFAULT_USER=admin
 Environment=RABBITMQ_DEFAULT_PASS=admin
 ExecStart=$CONDA_BASE_PATH/envs/TOS/bin/python applications/robot_controller/main.py
@@ -965,7 +985,7 @@ verify_installation() {
     
     # Activate conda environment using detected path
     source "$CONDA_PROFILE_PATH"
-    conda activate TOS
+    conda activate "${ENV_NAME}"
     
     # Test imports
     local test_script="/tmp/test_tos_imports.py"

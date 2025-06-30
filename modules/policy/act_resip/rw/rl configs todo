@@ -1,0 +1,5 @@
+steps_per_run: int = 500
+num_runs: int = 200
+update_interval: int = 5
+num_cameras: int = 4
+steps_ahead: int = 1

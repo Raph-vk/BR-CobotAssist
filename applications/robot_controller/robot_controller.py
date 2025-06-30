@@ -542,6 +542,7 @@ class RobotController:
         # Policy interface module
         try:
             policy_module_name = f"modules.policy.{self.policy_name}.policy_{self.policy_name}"
+            self.logger_tc.info(f"Importing policy module: {policy_module_name}")
             policy_module = importlib.import_module(policy_module_name)
             self.run_policy_interface = policy_module.run_policy_interface
             self.logger_tc.info(f"Imported {policy_module_name} for policy_type={self.policy_name}")
@@ -1397,10 +1398,28 @@ class RobotController:
 
         self.logger_tc.info("All CAMERA_INTERFACE processes are ready for commands.")
 
+    def _get_buffer_info_dict(self, buffer_dict):
+            """
+            Convert a dict of CameraRingBuffer objects to a dict of buffer info dicts.
+            """
+            return {
+                name: {
+                    "name": buf.name,
+                    "width": buf.width,
+                    "height": buf.height,
+                    "channels": buf.channels,
+                    "capacity": buf.capacity
+                }
+                for name, buf in buffer_dict.items()
+            }
+
     def connect_policy_interface(self):
         """
         Start the policy interface process.
         """
+
+        self.logger_tc.info("Connecting to POLICY_INTERFACE...")
+
         if self.policy_interface_process is not None:
             self.logger_tc.info("POLICY_INTERFACE is already running.")
             return
@@ -1409,14 +1428,17 @@ class RobotController:
 
         shm_target_pos2_info = self.get_shm_target_pos2_info()
         shm_cpp_joint_data2_info = self.get_shm_cpp_joint_data2_info()
+        
 
         self.logger_tc.info("Starting POLICY_INTERFACE process.")
+        color_buffers2_info = self._get_buffer_info_dict(self.color_buffers2)
+        depth_buffers2_info = self._get_buffer_info_dict(self.depth_buffers2)
         self.policy_interface_process = multiprocessing.Process(
             target=self.run_policy_interface,
             args=(self.policy_interface_commup,
                   self.policy_interface_commdown,
-                  self.color_buffers2,  # Policy image buffers
-                  self.depth_buffers2,  # Policy depth buffers
+                  color_buffers2_info,  # Pass buffer info dict
+                  depth_buffers2_info,  # Pass buffer info dict
                   shm_target_pos2_info,
                   self.shm_joint_data2,  # Python queue or None for C++ mode
                   shm_cpp_joint_data2_info)  # C++ shared memory info or None for Python mode

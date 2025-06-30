@@ -1,0 +1,1568 @@
+{
+    "timestamp": "2025-06-26T20:36:07.673855",
+    "target_position": [
+        0,
+        0,
+        0,
+        0,
+        -90,
+        180,
+        0
+    ],
+    "num_photos": 50,
+    "photos_taken": [
+        {
+            "photo_index": 1,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_01.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:14.952208"
+        },
+        {
+            "photo_index": 2,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_02.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:20.208249"
+        },
+        {
+            "photo_index": 3,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_03.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:22.144332"
+        },
+        {
+            "photo_index": 4,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_04.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:23.968082"
+        },
+        {
+            "photo_index": 5,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_05.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:26.528356"
+        },
+        {
+            "photo_index": 6,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_06.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:28.208303"
+        },
+        {
+            "photo_index": 7,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_07.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:30.032429"
+        },
+        {
+            "photo_index": 8,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_08.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:31.832402"
+        },
+        {
+            "photo_index": 9,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_09.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:33.928537"
+        },
+        {
+            "photo_index": 10,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_10.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:36.472571"
+        },
+        {
+            "photo_index": 11,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_11.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:38.072770"
+        },
+        {
+            "photo_index": 12,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_12.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:39.576780"
+        },
+        {
+            "photo_index": 13,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_13.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:41.160803"
+        },
+        {
+            "photo_index": 14,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_14.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:42.928792"
+        },
+        {
+            "photo_index": 15,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_15.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:44.088894"
+        },
+        {
+            "photo_index": 16,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_16.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:45.360946"
+        },
+        {
+            "photo_index": 17,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_17.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:47.081021"
+        },
+        {
+            "photo_index": 18,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_18.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:49.208888"
+        },
+        {
+            "photo_index": 19,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_19.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:51.305028"
+        },
+        {
+            "photo_index": 20,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_20.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:53.256866"
+        },
+        {
+            "photo_index": 21,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_21.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:55.193160"
+        },
+        {
+            "photo_index": 22,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_22.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:36:56.665078"
+        },
+        {
+            "photo_index": 23,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_23.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:00.340413"
+        },
+        {
+            "photo_index": 24,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_24.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:03.449470"
+        },
+        {
+            "photo_index": 25,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_25.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:04.833349"
+        },
+        {
+            "photo_index": 26,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_26.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:06.561511"
+        },
+        {
+            "photo_index": 27,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_27.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:08.673574"
+        },
+        {
+            "photo_index": 28,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_28.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:10.345798"
+        },
+        {
+            "photo_index": 29,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_29.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:11.801538"
+        },
+        {
+            "photo_index": 30,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_30.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:16.841818"
+        },
+        {
+            "photo_index": 31,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_31.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:18.409753"
+        },
+        {
+            "photo_index": 32,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_32.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:19.625980"
+        },
+        {
+            "photo_index": 33,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_33.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:21.746003"
+        },
+        {
+            "photo_index": 34,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_34.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:23.946012"
+        },
+        {
+            "photo_index": 35,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_35.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:25.778060"
+        },
+        {
+            "photo_index": 36,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_36.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:27.946162"
+        },
+        {
+            "photo_index": 37,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_37.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:29.546198"
+        },
+        {
+            "photo_index": 38,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_38.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:31.226321"
+        },
+        {
+            "photo_index": 39,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_39.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:33.522077"
+        },
+        {
+            "photo_index": 40,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_40.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:35.770455"
+        },
+        {
+            "photo_index": 41,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_41.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:39.994556"
+        },
+        {
+            "photo_index": 42,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_42.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:41.930514"
+        },
+        {
+            "photo_index": 43,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_43.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:44.325726"
+        },
+        {
+            "photo_index": 44,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_44.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:46.234523"
+        },
+        {
+            "photo_index": 45,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_45.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:47.562816"
+        },
+        {
+            "photo_index": 46,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_46.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:49.717864"
+        },
+        {
+            "photo_index": 47,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_47.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:54.956120"
+        },
+        {
+            "photo_index": 48,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_48.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:56.714929"
+        },
+        {
+            "photo_index": 49,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_49.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:37:58.242871"
+        },
+        {
+            "photo_index": 50,
+            "hdf5_file": "/home/teun/tos_app/modules/robot/fanuc/camera_calibration/single_pos_calibration/20250626_203607/photo_50.h5",
+            "cameras": [
+                "218622271391",
+                "218622271425",
+                "218622271529"
+            ],
+            "timestamp": "2025-06-26T20:38:01.370958"
+        }
+    ],
+    "robot_states": [
+        {
+            "photo_index": 1,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:14.952208"
+        },
+        {
+            "photo_index": 2,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:20.208249"
+        },
+        {
+            "photo_index": 3,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:22.144332"
+        },
+        {
+            "photo_index": 4,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:23.968082"
+        },
+        {
+            "photo_index": 5,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:26.528356"
+        },
+        {
+            "photo_index": 6,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:28.208303"
+        },
+        {
+            "photo_index": 7,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:30.032429"
+        },
+        {
+            "photo_index": 8,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:31.832402"
+        },
+        {
+            "photo_index": 9,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:33.928537"
+        },
+        {
+            "photo_index": 10,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:36.472571"
+        },
+        {
+            "photo_index": 11,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:38.072770"
+        },
+        {
+            "photo_index": 12,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:39.576780"
+        },
+        {
+            "photo_index": 13,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:41.160803"
+        },
+        {
+            "photo_index": 14,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:42.928792"
+        },
+        {
+            "photo_index": 15,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:44.088894"
+        },
+        {
+            "photo_index": 16,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:45.360946"
+        },
+        {
+            "photo_index": 17,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:47.081021"
+        },
+        {
+            "photo_index": 18,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:49.208888"
+        },
+        {
+            "photo_index": 19,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:51.305028"
+        },
+        {
+            "photo_index": 20,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:53.256866"
+        },
+        {
+            "photo_index": 21,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:55.193160"
+        },
+        {
+            "photo_index": 22,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:36:56.665078"
+        },
+        {
+            "photo_index": 23,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:00.340413"
+        },
+        {
+            "photo_index": 24,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:03.449470"
+        },
+        {
+            "photo_index": 25,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:04.833349"
+        },
+        {
+            "photo_index": 26,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:06.561511"
+        },
+        {
+            "photo_index": 27,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:08.673574"
+        },
+        {
+            "photo_index": 28,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:10.345798"
+        },
+        {
+            "photo_index": 29,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:11.801538"
+        },
+        {
+            "photo_index": 30,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:16.841818"
+        },
+        {
+            "photo_index": 31,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:18.409753"
+        },
+        {
+            "photo_index": 32,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:19.625980"
+        },
+        {
+            "photo_index": 33,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:21.746003"
+        },
+        {
+            "photo_index": 34,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:23.946012"
+        },
+        {
+            "photo_index": 35,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:25.778060"
+        },
+        {
+            "photo_index": 36,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:27.946162"
+        },
+        {
+            "photo_index": 37,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:29.546198"
+        },
+        {
+            "photo_index": 38,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:31.226321"
+        },
+        {
+            "photo_index": 39,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:33.522077"
+        },
+        {
+            "photo_index": 40,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:35.770455"
+        },
+        {
+            "photo_index": 41,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:39.994556"
+        },
+        {
+            "photo_index": 42,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:41.930514"
+        },
+        {
+            "photo_index": 43,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:44.325726"
+        },
+        {
+            "photo_index": 44,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:46.234523"
+        },
+        {
+            "photo_index": 45,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:47.562816"
+        },
+        {
+            "photo_index": 46,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:49.717864"
+        },
+        {
+            "photo_index": 47,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:54.956120"
+        },
+        {
+            "photo_index": 48,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:56.714929"
+        },
+        {
+            "photo_index": 49,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:37:58.242871"
+        },
+        {
+            "photo_index": 50,
+            "joint_positions": [
+                0,
+                0,
+                0,
+                0,
+                -90,
+                180
+            ],
+            "cartesian_position": {
+                "x": 470.0,
+                "y": 5.4802944261844055e-14,
+                "z": 395.0,
+                "w": 180.0,
+                "p": -0.0,
+                "r": 180.0
+            },
+            "gripper_state": 0,
+            "timestamp": "2025-06-26T20:38:01.370958"
+        }
+    ],
+    "camera_data": {}
+}
