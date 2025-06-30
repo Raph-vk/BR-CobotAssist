@@ -684,7 +684,7 @@ setup_tos_config() {
     
     # Create necessary directories
     mkdir -p logs
-    mkdir -p data
+    # mkdir -p data
     
     # Set permissions for log directory
     chmod 755 logs
@@ -844,87 +844,12 @@ EOF
     log_info "TOS UI script updated to use $CONDA_TYPE conda installation"
     log_info "TOS UI application should appear in your system menu under 'Engineering'"
     log_info "You can now launch TOS UI directly from the desktop menu!"
-    log_info "Manual activation with ./activate_tos.sh is still available for command line usage"
     
     if [ -f "$icon_path" ]; then
         log_success "TOS icon created: $icon_path"
     else
         log_warning "Could not create TOS icon. Using system default: $icon_path"
     fi
-}
-
-# Create activation script
-create_activation_script() {
-    log_info "Creating environment activation script..."
-    
-    # Get the absolute path to the TOS application root
-    # Use the current working directory since that's where the install script should be run from
-    local tos_root="$(pwd)"
-    
-    # Verify we're in the right directory by checking for key files
-    if [[ ! -f "applications/tos_ui/main.py" ]] || [[ ! -f "config/config.yaml" ]]; then
-        log_error "This script must be run from the TOS application root directory!"
-        log_error "Current directory: $tos_root"
-        log_error "Please cd to the TOS application directory and run the script from there."
-        exit 1
-    fi
-    
-    # Change to TOS root directory
-    cd "$tos_root"
-    
-    cat > activate_tos.sh << EOF
-#!/bin/bash
-# TOS Environment Activation Script
-
-# Get the directory where this script is located
-TOS_ROOT="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-cd "\$TOS_ROOT"
-
-# Activate conda environment (using detected conda installation)
-source "$CONDA_PROFILE_PATH"
-conda activate TOS
-
-# Add current directory to Python path
-export PYTHONPATH="\$TOS_ROOT:\$PYTHONPATH"
-
-# Set environment variables for TOS
-export TOS_ROOT="\$TOS_ROOT"
-export TOS_CONFIG_PATH="\$TOS_ROOT/config"
-export TOS_LOG_PATH="\$TOS_ROOT/logs"
-export TOS_DATA_PATH="\$TOS_ROOT/../tos_app_data"
-
-# Set RabbitMQ environment variables (for system-wide installation)
-export RABBITMQ_DEFAULT_USER=admin
-export RABBITMQ_DEFAULT_PASS=admin
-
-    echo "TOS environment activated using $CONDA_TYPE!"
-    echo "Conda installation: $CONDA_BASE_PATH"
-    echo "Conda environment: $CONDA_PREFIX" 
-    echo "TOS root directory: \$TOS_ROOT"
-    echo "Python path: \$PYTHONPATH"
-    echo ""
-    echo "Environment isolation info:"
-    echo "  All dependencies installed in conda environment"
-    echo "  CMAKE tools: \$CONDA_PREFIX/bin/cmake"
-    echo "  Libraries: \$CONDA_PREFIX/lib"
-    echo "  Headers: \$CONDA_PREFIX/include"
-    echo ""
-    echo "RabbitMQ commands (system-wide installation):"
-    echo "  Start RabbitMQ: sudo systemctl start rabbitmq-server"
-    echo "  Stop RabbitMQ: sudo systemctl stop rabbitmq-server"
-    echo "  Check status: sudo systemctl status rabbitmq-server"
-    echo "  Management UI: http://localhost:15672 (admin/admin)"
-    echo ""
-    echo "To run TOS applications:"
-    echo "  Robot Controller: python applications/robot_controller/main.py"
-    echo "  TOS UI: python applications/tos_ui/main.py"
-    echo ""
-    echo "To deactivate: conda deactivate"
-EOF
-    
-    chmod +x activate_tos.sh
-    
-    log_success "Activation script created: ./activate_tos.sh"
 }
 
 # Create requirements.txt for future reference
@@ -1068,11 +993,6 @@ main() {
     build_cpp_modules
     log_info "Setting up TOS application configuration..."
     setup_tos_config
-    log_info "Creating activation script..."
-    create_activation_script
-
-    # log_info "Creating requirements.txt file..."
-    # create_requirements_file
     
     # Optional steps
     log_info "Setting up systemd services..."
@@ -1100,7 +1020,6 @@ main() {
     echo "   - No manual activation needed! The desktop launcher handles everything."
     echo ""
     echo "Alternative command line usage:"
-    echo "   - Manual environment activation: ./activate_tos.sh"
     echo "   - Direct robot controller: python applications/robot_controller/main.py"
     echo "   - Direct TOS UI: python applications/tos_ui/main.py"
     echo ""

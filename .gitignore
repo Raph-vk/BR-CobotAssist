@@ -52,3 +52,6 @@ config_local.yaml
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# wandb runs
+wandb/
