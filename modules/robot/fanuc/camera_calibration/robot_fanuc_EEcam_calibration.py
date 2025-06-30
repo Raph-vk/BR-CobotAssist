@@ -134,6 +134,8 @@ class FanucCameraCalibration:
         # Setup logging
         self.logger = setup_logging("FANUC_CAM_CALIBRATION")
         self.logger.info("Initializing Fanuc Camera Calibration...")
+
+        #hallo
         
         # Load configuration
         self.config = load_config(config_path) if config_path else load_config()
