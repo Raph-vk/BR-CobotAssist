@@ -230,6 +230,12 @@ class PolicyInterface:
                 # 4. Run the policy on the joint information and images (simplified version)
                 predicted_actions = self.execute_policy(joint_position, latest_images)
                 
+
+                # log all predicted actions
+                if predicted_actions is not None:
+                    self.logger_pi.debug(f"Predicted actions for frame {frame_count}: {predicted_actions}")
+
+
                 # 5. interpolated actions
                 interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
 
@@ -314,7 +320,6 @@ class PolicyInterface:
 
         # Use C++ shared memory if available, otherwise use Python queue
         if self.shm_cpp_joint_data2_reader is not None:
-            # Read from C++ shared memory
             try:
                 # Read all available entries from C++ shared memory ring buffer
                 all_entries = self.shm_cpp_joint_data2_reader.read_available()
@@ -348,6 +353,8 @@ class PolicyInterface:
                         # Get joint data from queue (non-blocking)
                         joint_data = self.shm_joint_data2.get_nowait()
                         
+                        self.logger_pi.debug(f"Received joint data: {joint_data}")
+
                         # Extract relevant information
                         seq_id = joint_data.get("seq_id", 0)
                         timestamp = joint_data.get("robot_position_timestamp", current_time)
@@ -688,10 +695,10 @@ class PolicyInterface:
             lr = 1e-5
             kl_weight = 100
             hidden_dim = 1024
-            dim_feedforward = 2048
+            dim_feedforward = 1024
             state_dim = 7
             enc_layers = 6
-            dec_layers = 9
+            dec_layers = 8
             nheads = 32
             
             # Backbone parameters (will be saved to config.json)

@@ -402,11 +402,6 @@ class UDPStreaming:
         if self.seq_id_sent == 0:
             self.seq_id_sent = self.seq_id_received - 1
 
-        self.logger.debug(
-            "send_joint_pos, position=%s, gripper_on=%s, gripper_off=%s",
-            position, gripper_on, gripper_off
-        )
-
         packet_type = 1
         version_no = 1
         self.seq_id_sent += 1

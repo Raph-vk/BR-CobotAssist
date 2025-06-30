@@ -76,6 +76,16 @@ class DummyTeachbot(TeachbotInterface):
         self._joint_min = -30
         self._joint_max = 30
         self.step_size = 30  # degrees per second
+        
+        # State for the new movement pattern
+        self._movement_sequence = [
+            (0, -30),  # joint 1 to -30
+            (2, -30),  # joint 3 to -30
+            (0, 30),   # joint 1 to 30
+            (2, 0),   # joint 3 to 30
+        ]
+        self._current_step = 0
+        self._target_reached = False
 
         self._stop_flag = False
         self.status_thread = None
@@ -125,20 +135,34 @@ class DummyTeachbot(TeachbotInterface):
 
     def _joint_target_thread_fn(self):
         """
-        Runs at ~100Hz. Moves joint1 from -30 to +30 degrees
-        back and forth. Puts the 'current_joints_deg' array
-        into shm_target_pos1 to simulate real robot data.
+        Moves joints in a specific sequence: joint1 to -30, joint3 to -30, 
+        joint1 to 30, joint3 to 30, and repeats this pattern.
+        Puts the 'current_joints_deg' array into shm_target_pos1 to simulate real robot data.
         """
         while self.joint_target_streaming:
             if self.connected:
-                # Update joint 1
-                current_j1 = self.current_joints_deg[0]
-                if current_j1 >= self._joint_max:
-                    self._direction = -1
-                elif current_j1 <= self._joint_min:
-                    self._direction = 1
-
-                self.current_joints_deg[0] += self._direction * self.step_size * self.joint_target_period
+                # Get current target from sequence
+                target_joint_index, target_position = self._movement_sequence[self._current_step]
+                current_position = self.current_joints_deg[target_joint_index]
+                
+                # Calculate movement towards target
+                position_diff = target_position - current_position
+                
+                # Check if we've reached the target (within a small tolerance)
+                if abs(position_diff) < 0.5:  # 0.5 degree tolerance
+                    # Target reached, move to next step in sequence
+                    self._current_step = (self._current_step + 1) % len(self._movement_sequence)
+                    self._target_reached = True
+                else:
+                    # Move towards target
+                    move_direction = 1 if position_diff > 0 else -1
+                    movement_step = move_direction * self.step_size * self.joint_target_period
+                    
+                    # Don't overshoot the target
+                    if abs(movement_step) > abs(position_diff):
+                        movement_step = position_diff
+                    
+                    self.current_joints_deg[target_joint_index] += movement_step
 
                 # Push the joint values into the shared memory
                 try:
