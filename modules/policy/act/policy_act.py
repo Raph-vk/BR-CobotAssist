@@ -516,7 +516,7 @@ class PolicyInterface:
                     next_action = next_action[:self.total_dof]
             
             # Generate interpolated steps between prev_action and next_action
-            for step in range(self.record_divisor):
+            for step in range(1, self.record_divisor):
                 # Linear interpolation factor (0.0 to 1.0)
                 alpha = step / self.record_divisor
                 
@@ -1019,11 +1019,10 @@ class PolicyInterface:
         # Prepare joint positions
         qpos = torch.tensor(joint_position, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
         
-        # Normalize inputs using dataset stats
-        if 'qpos_mean' in self.dataset_stats and 'qpos_std' in self.dataset_stats:
-            qpos_mean = torch.tensor(self.dataset_stats['qpos_mean'], dtype=torch.float32)
-            qpos_std = torch.tensor(self.dataset_stats['qpos_std'], dtype=torch.float32)
-            qpos = (qpos - qpos_mean) / qpos_std
+        stats = self.dataset_stats
+        mean = torch.tensor(stats['joint_pos_mean'])
+        std  = torch.tensor(stats['joint_pos_std'])
+        qpos = (qpos - mean) / std
         
         # Move to device
         device = next(self.policy_model.parameters()).device
