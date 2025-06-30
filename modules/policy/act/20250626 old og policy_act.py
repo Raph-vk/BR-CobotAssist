@@ -630,7 +630,7 @@ class PolicyInterface:
             lr = 1e-5
             kl_weight = 100
             hidden_dim = 1024
-            dim_feedforward = 2048
+            dim_feedforward = 1024
             state_dim = 7
             enc_layers = 6
             dec_layers = 9

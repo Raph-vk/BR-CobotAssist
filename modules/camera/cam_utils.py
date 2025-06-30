@@ -43,11 +43,7 @@ class CameraRingBuffer:
         self.height = height
         self.channels = channels
         self.capacity = capacity
-        
-        # Validate capacity is power of 2
-        if not (capacity & (capacity - 1)) == 0:
-            raise ValueError(f"Capacity must be power of 2, got {capacity}")
-            
+               
         # Calculate sizes
         self.image_data_size = width * height * channels
         if channels == 1:  # Depth images use 16-bit values
@@ -59,6 +55,21 @@ class CameraRingBuffer:
         # Create or attach to shared memory
         try:
             if create:
+                # Validate capacity is power of 2 and > 0
+                if capacity <= 0 or not (capacity & (capacity - 1)) == 0:
+                    raise ValueError(f"Capacity must be a positive power of 2, got {capacity}")
+                
+                # Check if shared memory with same name exists and delete it
+                try:
+                    existing_shm = shared_memory.SharedMemory(name=name, create=False)
+                    existing_shm.unlink()  # Delete the existing shared memory
+                    existing_shm.close()
+                except FileNotFoundError:
+                    pass  # No existing shared memory, which is fine
+                except Exception:
+                    pass  # Ignore other errors during cleanup
+                
+                # Create new shared memory buffer
                 self.shm = shared_memory.SharedMemory(name=name, create=True, size=self.total_size)
                 self.buf = self.shm.buf
                 self.view = memoryview(self.buf)
@@ -68,19 +79,33 @@ class CameraRingBuffer:
                 self.buf = self.shm.buf
                 self.view = memoryview(self.buf)
                 # Read capacity from existing buffer header
-                _, _, self.capacity, self.slot_size = self._get_header()
-                # Recalculate sizes based on actual capacity
-                self.total_size = self.HEADER_SIZE + (self.capacity * self.slot_size)
-        except FileExistsError:
-            # If create=True but memory already exists, attach to it
-            self.shm = shared_memory.SharedMemory(name=name, create=False)
-            self.buf = self.shm.buf
-            self.view = memoryview(self.buf)
-            # Read capacity from existing buffer header
-            _, _, self.capacity, self.slot_size = self._get_header()
-            # Recalculate sizes based on actual capacity
-            self.total_size = self.HEADER_SIZE + (self.capacity * self.slot_size)
-    
+                _, _, header_capacity, header_slot_size = self._get_header()
+                
+                # If capacity was 0 (placeholder), use the one from header
+                if self.capacity == 0:
+                    self.capacity = header_capacity
+                    # Recalculate sizes with the correct capacity
+                    self.slot_size = self.SLOT_HEADER_SIZE + self.image_data_size
+                    self.total_size = self.HEADER_SIZE + (self.capacity * self.slot_size)
+                    
+                    # Validate the capacity is power of 2
+                    if self.capacity <= 0 or not (self.capacity & (self.capacity - 1)) == 0:
+                        raise ValueError(f"Existing buffer has invalid capacity: {self.capacity}")
+                
+                # Validate that existing buffer matches our requirements
+                if header_capacity == self.capacity and header_slot_size == self.slot_size:
+                    pass
+                else:
+                    # Buffer size mismatch - this shouldn't happen in normal operation
+                    self._initialize_header()
+        except Exception as e:
+            # Handle shared memory creation errors
+            if create:
+                raise RuntimeError(f"Failed to create shared memory '{name}': {e}")
+            else:
+                raise RuntimeError(f"Failed to attach to shared memory '{name}': {e}")
+
+        
     def _initialize_header(self):
         """Initialize header with zeros."""
         struct.pack_into(self.HEADER_FORMAT, self.view, 0, 0, 0, self.capacity, self.slot_size)
@@ -90,26 +115,31 @@ class CameraRingBuffer:
         return struct.unpack_from(self.HEADER_FORMAT, self.view, 0)
     
     def _get_write_idx(self) -> int:
-        """Get current write index."""
-        return struct.unpack_from("I", self.view, 0)[0]
+        """Get current write index, ensuring it's within bounds."""
+        idx = struct.unpack_from("I", self.view, 0)[0]
+        return idx & (self.capacity - 1)  # Ensure it's within bounds
     
     def _get_read_idx(self) -> int:
-        """Get current read index."""
-        return struct.unpack_from("I", self.view, 4)[0]
+        """Get current read index, ensuring it's within bounds."""
+        idx = struct.unpack_from("I", self.view, 4)[0]
+        return idx & (self.capacity - 1)  # Ensure it's within bounds
     
     def _set_write_idx(self, idx: int):
-        """Set write index."""
-        struct.pack_into("I", self.view, 0, idx)
+        """Set write index, ensuring it's within bounds."""
+        bounded_idx = idx & (self.capacity - 1)
+        struct.pack_into("I", self.view, 0, bounded_idx)
     
     def _set_read_idx(self, idx: int):
-        """Set read index.""" 
-        struct.pack_into("I", self.view, 4, idx)
+        """Set read index, ensuring it's within bounds.""" 
+        bounded_idx = idx & (self.capacity - 1)
+        struct.pack_into("I", self.view, 4, bounded_idx)
     
     def write(self, image: np.ndarray, timestamp: float, camera_name: str = "", 
               serial_number: str = "", frame_type: str = "") -> bool:
         """
         Write image data to ring buffer.
-        When buffer is full, automatically overwrites the oldest entry.
+        Always overwrites the current write position, handling circular buffer behavior.
+        When buffer is full, the oldest images are automatically overwritten.
         
         Args:
             image: Image data as numpy array
@@ -124,17 +154,28 @@ class CameraRingBuffer:
         write_idx = self._get_write_idx()
         read_idx = self._get_read_idx()
         
-        # Check if buffer is full (leave one slot empty to distinguish full from empty)
-        next_write = (write_idx + 1) & (self.capacity - 1)
-        buffer_was_full = (next_write == read_idx)
+        # Ensure write_idx is within bounds (fix any corrupted indices)
+        write_idx = write_idx & (self.capacity - 1)
+        read_idx = read_idx & (self.capacity - 1)
         
-        if buffer_was_full:
-            # Buffer is full - advance read pointer to overwrite oldest entry
-            next_read = (read_idx + 1) & (self.capacity - 1)
-            self._set_read_idx(next_read)
+        # Calculate next write position using circular buffer logic
+        next_write = (write_idx + 1) & (self.capacity - 1)
+        
+        # Check if this write will overwrite unread data
+        if self.capacity > 1:
+            # Standard ring buffer: check if next write would catch up to read pointer
+            if next_write == read_idx:
+                # Buffer is full - advance read pointer to discard oldest entry
+                new_read_idx = (read_idx + 1) & (self.capacity - 1)
+                self._set_read_idx(new_read_idx)
+        # For capacity = 1, we always overwrite the single slot
             
-        # Calculate slot offset
+        # Calculate slot offset for current write position
         slot_offset = self.HEADER_SIZE + (write_idx * self.slot_size)
+        
+        # Validate slot offset is within buffer bounds
+        if slot_offset + self.slot_size > self.total_size:
+            raise ValueError(f"Slot offset {slot_offset} + slot size {self.slot_size} exceeds buffer size {self.total_size}. write_idx={write_idx}, capacity={self.capacity}")
         
         # Validate image dimensions
         if len(image.shape) == 3:
@@ -146,30 +187,40 @@ class CameraRingBuffer:
         if w != self.width or h != self.height or c != self.channels:
             raise ValueError(f"Image dimensions {(h,w,c)} don't match buffer {(self.height,self.width,self.channels)}")
         
-        # Write slot header
+        # Write slot header with timestamp and dimensions
         struct.pack_into(self.SLOT_HEADER_FORMAT, self.view, slot_offset, 
                         timestamp, w, h, c)
         
         # Write image data
         image_offset = slot_offset + self.SLOT_HEADER_SIZE
         
-        # Handle different data types
+        # Handle different data types and ensure proper byte conversion
         if image.dtype == np.uint8:
             image_bytes = image.tobytes()
         elif image.dtype == np.uint16:
             image_bytes = image.tobytes()
         else:
-            # Convert to appropriate type
-            if self.channels == 1:  # Depth
+            # Convert to appropriate type based on buffer configuration
+            if self.channels == 1:  # Depth images use 16-bit
                 image_bytes = image.astype(np.uint16).tobytes()
-            else:  # Color
+            else:  # Color images use 8-bit
                 image_bytes = image.astype(np.uint8).tobytes()
                 
+        # Write image data to shared memory buffer
+        if len(image_bytes) != self.image_data_size:
+            raise ValueError(f"Image data size {len(image_bytes)} doesn't match expected {self.image_data_size}")
+            
+        # Validate image data will fit in buffer
+        if image_offset + len(image_bytes) > self.total_size:
+            raise ValueError(f"Image data at offset {image_offset} + size {len(image_bytes)} exceeds buffer size {self.total_size}")
+            
         self.view[image_offset:image_offset + len(image_bytes)] = image_bytes
         
-        # Update write index
+        # Always advance write index to next position (circular) and ensure it's bounded
         self._set_write_idx(next_write)
         return True
+        
+
     
     def read(self) -> Optional[Dict[str, Any]]:
         """
@@ -221,7 +272,6 @@ class CameraRingBuffer:
             }
         
         # Standard ring buffer logic for capacity > 1
-        # Check if buffer is empty
         if read_idx == write_idx:
             return None
             
@@ -276,14 +326,19 @@ class CameraRingBuffer:
         if read_idx == write_idx:
             return results
             
-        # Iterate through all available data without modifying read pointer
+        # Calculate how many items are available in the buffer
+        available_count = (write_idx - read_idx) & (self.capacity - 1)
+        
+        # Start from the oldest available data
         current_idx = read_idx
-        while current_idx != write_idx:
+        items_checked = 0
+        
+        while items_checked < available_count:
             slot_offset = self.HEADER_SIZE + (current_idx * self.slot_size)
             
             # Read just the timestamp first
             timestamp = struct.unpack_from("d", self.view, slot_offset)[0]
-            
+
             # Check if timestamp is in range
             if min_timestamp <= timestamp <= max_timestamp:
                 # Read full slot header
@@ -307,6 +362,7 @@ class CameraRingBuffer:
                 })
                 
             current_idx = (current_idx + 1) & (self.capacity - 1)
+            items_checked += 1
         
         return results
     
@@ -338,21 +394,36 @@ class CameraRingBuffer:
         self._set_read_idx(write_idx)
     
     def close(self, unlink: bool = False):
-        """Close shared memory."""
-        # Close the memory view first to release references
-        if hasattr(self, 'view') and self.view:
-            self.view.release()
-            self.view = None
+        """Close shared memory properly."""
+        try:
+            # Close the memory view first to release references
+            if hasattr(self, 'view') and self.view:
+                self.view.release()
+                self.view = None
+        except Exception:
+            pass
         
-        # Close the shared memory
-        if hasattr(self, 'shm') and self.shm:
-            self.shm.close()
-            
-        if unlink:
-            try:
-                self.shm.unlink()
-            except FileNotFoundError:
-                pass  # Already unlinked
+        try:
+            # Clear buffer reference
+            if hasattr(self, 'buf'):
+                self.buf = None
+        except Exception:
+            pass
+        
+        try:
+            # Close the shared memory
+            if hasattr(self, 'shm') and self.shm:
+                self.shm.close()
+                
+            if unlink and hasattr(self, 'shm') and self.shm:
+                try:
+                    self.shm.unlink()
+                except FileNotFoundError:
+                    pass  # Already unlinked
+                except Exception:
+                    pass
+        except Exception:
+            pass
     
     def empty(self) -> bool:
         """Compatibility method for queue interface."""
@@ -396,6 +467,8 @@ class CameraRingBuffer:
         return False
     
 
+
+
 class CameraRingBufferManager:
     """
     Manages multiple camera ring buffers.
@@ -435,7 +508,7 @@ class CameraRingBufferManager:
             capacity1 = 1
             while capacity1 < desired_capacity * 2:  # Extra headroom
                 capacity1 *= 2
-            
+
             # Policy buffers have a fixed small capacity
             capacity2 = policy_img_buffer_size
             
@@ -508,3 +581,5 @@ class CameraRingBufferManager:
         self.depth_buffers1.clear()
         self.color_buffers2.clear()
         self.depth_buffers2.clear()
+    
+
