@@ -55,6 +55,3 @@ config_local.yaml
 
 # wandb runs
 wandb/
-
-# scrap file
-scrap.py
