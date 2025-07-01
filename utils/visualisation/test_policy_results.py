@@ -148,6 +148,7 @@ def evaluate_episode(
     stats: Dict[str, np.ndarray],
     device: torch.device,
     chunk: int,
+    record_divisor: int = 4,
 ):
     """Predict *chunk* future actions at a random t₀ inside one episode."""
 
@@ -211,6 +212,11 @@ def evaluate_episode(
         out = out[0]
     
     print('first prediction pre process ', out[0])
+    print('action_mean:', stats['action_mean'])
+    print('action_std:', stats['action_std'])
+    print('stats', stats)
+    
+    
     # preds = out.cpu().numpy().squeeze(0)
     preds = post_process_action(out.cpu().numpy().squeeze(0), stats)
     print('preds after pre process', preds[0])
@@ -261,7 +267,7 @@ def main(
     sampled = random.sample(episodes_files, min(episodes, len(episodes_files)))
     for ep in sampled:
         with h5py.File(ep, "r") as h5:
-            evaluate_episode(h5, cam_names, policy, stats, device, chunk)
+            evaluate_episode(h5, cam_names, policy, stats, device, chunk, record_divisor=4)
 
 
 if __name__ == "__main__":

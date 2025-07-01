@@ -136,7 +136,7 @@ hardware:
     # Camera settings
     brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
     info:
-      - name: "dummy_cam_1"
+      - name: "cam_1"
         serial_number: "DUMMY_001"
         fps: 90
         color_width: 424
@@ -144,13 +144,30 @@ hardware:
         depth_width: 424
         depth_height: 240
 
-      - name: "dummy_cam_2"
+      - name: "cam_2"
         serial_number: "DUMMY_002"
         fps: 90
         color_width: 424
         color_height: 240
         depth_width: 424
         depth_height: 240
+
+      - name: "cam_3"
+        serial_number: "DUMMY_001"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
+      - name: "cam_4"
+        serial_number: "DUMMY_002"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
 
   # camera:
   #   # Camera settings
@@ -213,7 +230,7 @@ general:
   app_directory: "."
   data_directory: "../tos_app_data"
 
-  record_duration: 10
+  record_duration: 5
   record_divisor: 4
   
   # Policy interface buffer settings
