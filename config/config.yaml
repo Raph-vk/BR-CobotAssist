@@ -236,7 +236,7 @@ general:
   # Policy interface buffer settings
   policy_img_buffer_size: 1  # Size of policy interface camera buffers
 
-  control_loop_language: "cpp"  # Options: "cpp", "python"
+  control_loop_language: "python"  # Options: "cpp", "python"
 
 
 
