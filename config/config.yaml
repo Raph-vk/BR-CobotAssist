@@ -5,36 +5,10 @@
 hardware:
 
 # --------------------------------------Robot Configuration--------------------------------
-  robot:
-    # Dummy robot settings (same as FANUC but without actual communication)
-    brand: "dummy"
-    model: "Dummy Robot"
-    control_dt : 0.004
-    utool_no: 1 #not used yet
-    uframe_no: 1 #not used yet
-    payload_weight: 2
-    max_payload: 7
-    j3_limit: 59
-    j3_interaction: True
-    dof: 6
-    dof_ee: 1
-    server_address: 
-      - "127.0.0.1"  # Localhost for dummy
-      - 8001  # IP and port of the cpp connects to  port + 1
-    robot_address: 
-      - "127.0.0.1"  # Localhost for dummy
-      - 60015
-    rmi_port: 16001
-    upper_limits: [165, 140, 208, 185, 120, 355]
-    lower_limits: [-165, -95, -65, -185, -120, -355]
-    velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
-
   # robot:
-  #   # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
-  #   brand: "fanuc"
-  #   model: "LRMate 200iD 7l"
+  #   # Dummy robot settings (same as FANUC but without actual communication)
+  #   brand: "dummy"
+  #   model: "Dummy Robot"
   #   control_dt : 0.004
   #   utool_no: 1 #not used yet
   #   uframe_no: 1 #not used yet
@@ -45,10 +19,10 @@ hardware:
   #   dof: 6
   #   dof_ee: 1
   #   server_address: 
-  #     - "192.168.1.201"
+  #     - "127.0.0.1"  # Localhost for dummy
   #     - 8001  # IP and port of the cpp connects to  port + 1
   #   robot_address: 
-  #     - "192.168.1.202"
+  #     - "127.0.0.1"  # Localhost for dummy
   #     - 60015
   #   rmi_port: 16001
   #   upper_limits: [165, 140, 208, 185, 120, 355]
@@ -56,6 +30,32 @@ hardware:
   #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
   #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
   #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+
+  robot:
+    # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
+    brand: "fanuc"
+    model: "LRMate 200iD 7l"
+    control_dt : 0.004
+    utool_no: 1 #not used yet
+    uframe_no: 1 #not used yet
+    payload_weight: 2
+    max_payload: 7
+    j3_limit: 59
+    j3_interaction: True
+    dof: 6
+    dof_ee: 1
+    server_address: 
+      - "192.168.1.201"
+      - 8001  # IP and port of the cpp connects to  port + 1
+    robot_address: 
+      - "192.168.1.202"
+      - 60015
+    rmi_port: 16001
+    upper_limits: [165, 140, 208, 185, 120, 355]
+    lower_limits: [-165, -95, -65, -185, -120, -355]
+    velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
   # robot:
   #   # Robot settings
@@ -89,7 +89,7 @@ hardware:
     # Teachbot settings
     brand: "dummy"
     model: "_"
-    joint_target_period: 0.01
+    joint_target_period: 0.004
     j6_min_angle: -140
     j6_max_angle: 220
     j6_multiplier: 1
@@ -136,7 +136,7 @@ hardware:
     # Camera settings
     brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
     info:
-      - name: "dummy_cam_1"
+      - name: "cam_1"
         serial_number: "DUMMY_001"
         fps: 90
         color_width: 424
@@ -144,13 +144,30 @@ hardware:
         depth_width: 424
         depth_height: 240
 
-      - name: "dummy_cam_2"
+      - name: "cam_2"
         serial_number: "DUMMY_002"
         fps: 90
         color_width: 424
         color_height: 240
         depth_width: 424
         depth_height: 240
+
+      - name: "cam_3"
+        serial_number: "DUMMY_001"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
+      - name: "cam_4"
+        serial_number: "DUMMY_002"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
 
   # camera:
   #   # Camera settings

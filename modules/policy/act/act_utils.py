@@ -31,22 +31,27 @@ class EpisodicDataset(torch.utils.data.Dataset):
                     self.logger.warning(f"Metadata 'record_divisor' not found in episode {episode_id}. Using default value {record_divisor}.")
 
             # Get joint data - these are the action targets (send_position_robot)
-            actions = root['send_position_robots'][()].astype(np.float32)  # Action targets (includes gripper as last joint)
+            master_positions = root['master_positions'][()].astype(np.float32)  # Action targets (includes gripper as last joint)
+            original_actions_shape = master_positions.shape
             robot_positions = root['robot_positions'][()].astype(np.float32)  # Robot observations (includes gripper as last joint)  
             timestamps = root['robot_position_timestamps'][()].astype(np.float32)
             
             # Images are sampled every record_divisor steps
             # So image[n] corresponds to joint_state[n * record_divisor]
             num_images = len(root[f'images/{self.camera_names[0]}/color'])
-            episode_len = len(actions)
+            episode_len = len(master_positions)
         
             # Choose a random start point, but ensure we have aligned image data
             max_image_start = max(0, num_images - 1) 
             image_start_idx = np.random.choice(max_image_start + 1)
+
+            # print('start index:', image_start_idx, 'of', num_images, 'images')
             
             # Calculate corresponding joint state index
             joint_start_idx = image_start_idx * record_divisor
             
+            # print('this means joint start index:', joint_start_idx, 'of', episode_len, 'joint states')
+
             # Make sure we don't go beyond available joint states
             if joint_start_idx >= episode_len:
                 joint_start_idx = episode_len - 1
@@ -55,6 +60,9 @@ class EpisodicDataset(torch.utils.data.Dataset):
             # Retrieve joint states (robot position at the selected timestep)
             # joint_pos now includes gripper as last element: [j1, j2, j3, j4, j5, j6, gripper]
             joint_pos = robot_positions[joint_start_idx]
+
+            # print('joint position at start index:', joint_pos)
+            # print('master positions at start index:', master_positions[joint_start_idx])
             
             # Make sure joint 4 is always 0 when predicting (j4 is at index 3)
             j4_locked = self.config["general"]["j4_locked"]
@@ -63,8 +71,10 @@ class EpisodicDataset(torch.utils.data.Dataset):
 
             # Retrieve action data from the selected start point
             # action now includes gripper as last element: [j1, j2, j3, j4, j5, j6, gripper]
-            action = actions[joint_start_idx:]
+            actions = master_positions[joint_start_idx:]
             action_len = episode_len - joint_start_idx
+
+            # print('action length over to predict:', action_len)
 
             # ------------------------------------------------
             # 1) Load color images for each camera - using new structure
@@ -132,14 +142,28 @@ class EpisodicDataset(torch.utils.data.Dataset):
         # The rest is unchanged from your original logic
         # ------------------------------------------------
         # Create padded action array with the original episode length
-        padded_action = np.zeros((episode_len, action.shape[1]), dtype=np.float32)
-        padded_action[joint_start_idx:joint_start_idx + action_len] = action
+        padded_action = np.zeros(original_actions_shape, dtype=np.float32)
+        padded_action[joint_start_idx:joint_start_idx + action_len] = actions
+
+        # print(f"padded from {joint_start_idx} to {joint_start_idx + action_len} with zeros")
+
         is_pad = np.zeros(episode_len)
         is_pad[joint_start_idx + action_len:] = 1
 
         joint_pos_data = torch.from_numpy(joint_pos).float()
         action_data = torch.from_numpy(padded_action).float()
         is_pad = torch.from_numpy(is_pad).bool()
+
+
+        # for i in range(len(master_positions)):
+        #     # if action not padded, print the action
+        #     if np.isscalar(padded_action[i]) or padded_action[i].shape == ():
+        #         if padded_action[i] != 1:
+        #             print(f"Action at index {i}: {master_positions[i]}")
+        #     else:
+        #         if not np.all(padded_action[i] == 1):
+        #             print(f"Action at index {i}: {master_positions[i]}")
+
 
         # Normalize joint_pos and action
         action_data = (action_data - self.norm_stats["action_mean"]) / self.norm_stats["action_std"]
@@ -159,7 +183,7 @@ def get_norm_stats(dataset_dir, num_episodes):
             with h5py.File(dataset_path, 'r') as root:
                 # Use new structure: robot_positions and send_position_robots
                 robot_positions = root['robot_positions'][()].astype(np.float32)  # Joint positions (observations)
-                actions = root['send_position_robots'][()].astype(np.float32)     # Actions (targets)
+                actions = root['master_positions'][()].astype(np.float32)     # Actions (targets)
                 
             all_joint_pos_data.append(torch.from_numpy(robot_positions))
             all_action_data.append(torch.from_numpy(actions))

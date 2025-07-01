@@ -520,10 +520,6 @@ class SaveInterface:
         # Iterate through joint data and align images
         for i, joint_data in enumerate(joint_buffer):
             try:
-                # Only process every record_divisor-th joint data item
-                if i % record_divisor != 0:
-                    continue
-                
                 # Extract joint data fields
                 robot_position_timestamp = joint_data['robot_position_timestamp']
                 robot_position = joint_data['robot_position']
@@ -541,6 +537,10 @@ class SaveInterface:
                 # Add to the joint data list
                 data_dict['joint_data'].append(joint_entry)
 
+                # Only process every record_divisor-th joint data item
+                if i % record_divisor != 0:
+                    continue
+                
                 # Align images for this timestamp
                 for cam_name in camera_names:
                     color_images = color_image_buffers.get(cam_name, [])
@@ -557,6 +557,7 @@ class SaveInterface:
                     if closest_depth_image is not None:
                         data_dict['images'][cam_name]['depth'].append(closest_depth_image['image'])
                         data_dict['images'][cam_name]['depth_timestamps'].append(closest_depth_image['timestamp'])
+
             except Exception as e:
                 self.logger_si.error(f"Error processing joint data item {i}: {e}")
                 import traceback

@@ -40,8 +40,32 @@ class PolicyInterface:
     def __init__(self, policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi):
         self.policy_interface_commup = policy_interface_commup
         self.policy_interface_commdown = policy_interface_commdown
-        self.color_buffers2 = color_buffers2
-        self.depth_buffers2 = depth_buffers2
+        
+        # Recreate actual CameraRingBuffer objects from info dictionaries
+        from modules.camera.cam_utils import CameraRingBuffer
+        
+        self.color_buffers2 = {}
+        for camera_name, buffer_info in color_buffers2.items():
+            self.color_buffers2[camera_name] = CameraRingBuffer(
+                name=buffer_info["name"],
+                width=buffer_info["width"],
+                height=buffer_info["height"],
+                channels=buffer_info["channels"],
+                capacity=buffer_info["capacity"],
+                create=False  # Connect to existing buffer
+            )
+            
+        self.depth_buffers2 = {}
+        for camera_name, buffer_info in depth_buffers2.items():
+            self.depth_buffers2[camera_name] = CameraRingBuffer(
+                name=buffer_info["name"],
+                width=buffer_info["width"],
+                height=buffer_info["height"],
+                channels=buffer_info["channels"],
+                capacity=buffer_info["capacity"],
+                create=False  # Connect to existing buffer
+            )
+
         self.shm_joint_data2 = shm_joint_data2
         self.shm_cpp_joint_data2_info = shm_cpp_joint_data2_info
         self.config = config
@@ -184,6 +208,26 @@ class PolicyInterface:
             self.training_thread.join(timeout=2.0)
             
         # Clean up shared memory to prevent BufferError
+        # Close camera buffers first
+        if hasattr(self, 'color_buffers2'):
+            for camera_name, buffer in self.color_buffers2.items():
+                try:
+                    buffer.close()
+                    self.logger_pi.debug(f"Closed color buffer for {camera_name}")
+                except Exception as e:
+                    self.logger_pi.warning(f"Error closing color buffer for {camera_name}: {e}")
+            self.color_buffers2.clear()
+            
+        if hasattr(self, 'depth_buffers2'):
+            for camera_name, buffer in self.depth_buffers2.items():
+                try:
+                    buffer.close()
+                    self.logger_pi.debug(f"Closed depth buffer for {camera_name}")
+                except Exception as e:
+                    self.logger_pi.warning(f"Error closing depth buffer for {camera_name}: {e}")
+            self.depth_buffers2.clear()
+        
+        # Close other shared memory
         if self.shm_target_pos2:
             try:
                 self.shm_target_pos2.close()
@@ -191,6 +235,15 @@ class PolicyInterface:
                 self.logger_pi.info("Shared memory cleaned up successfully")
             except Exception as e:
                 self.logger_pi.warning(f"Error cleaning up shared memory: {e}")
+                
+        # Close C++ shared memory if exists
+        if hasattr(self, 'shm_cpp_joint_data2') and self.shm_cpp_joint_data2:
+            try:
+                self.shm_cpp_joint_data2.close()
+                self.shm_cpp_joint_data2 = None
+                self.logger_pi.info("C++ shared memory cleaned up successfully")
+            except Exception as e:
+                self.logger_pi.warning(f"Error cleaning up C++ shared memory: {e}")
         
         self.logger_pi.info("Policy execution stopped")
         
@@ -230,6 +283,11 @@ class PolicyInterface:
                 # 4. Run the policy on the joint information and images (simplified version)
                 predicted_actions = self.execute_policy(joint_position, latest_images)
                 
+
+                # log all predicted actions
+                if predicted_actions is not None:
+                    self.logger_pi.debug(f"Predicted actions for frame {frame_count}: {predicted_actions}")
+
                 # 5. interpolated actions
                 interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
 
@@ -243,9 +301,14 @@ class PolicyInterface:
                 # 8. Increment frame
                 self.logger_pi.debug(f"Policy cycle {frame_count} completed: seq_id {start_seq_id}-{end_seq_id}")
                 frame_count += 1
+
+                # Sleep to control execution rate
+                time.sleep(0.06)  # Adjust sleep time as needed for your application
                 
             except Exception as e:
                 self.logger_pi.error(f"Error in policy execution cycle {frame_count}: {e}")
+                # print traceback of the error
+
                 time.sleep(0.1)
                 
         self.logger_pi.info(f"Policy execution loop ended after {frame_count} cycles")
@@ -253,6 +316,7 @@ class PolicyInterface:
 
     def _init_execution_logging(self):
         """Initialize execution logging files."""
+
         # Add execution logging path with proper timestamp format (no colons)
         start_time = datetime.now().replace(microsecond=0).strftime("%Y-%m-%d_%H-%M-%S")
         self.execution_log_hdf5 = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.hdf5")
@@ -384,7 +448,6 @@ class PolicyInterface:
 
         # Use C++ shared memory if available, otherwise use Python queue
         if self.shm_cpp_joint_data2_reader is not None:
-            # Read from C++ shared memory
             try:
                 # Read all available entries from C++ shared memory ring buffer
                 all_entries = self.shm_cpp_joint_data2_reader.read_available()
@@ -418,6 +481,8 @@ class PolicyInterface:
                         # Get joint data from queue (non-blocking)
                         joint_data = self.shm_joint_data2.get_nowait()
                         
+                        self.logger_pi.debug(f"Received joint data: {joint_data}")
+
                         # Extract relevant information
                         seq_id = joint_data.get("seq_id", 0)
                         timestamp = joint_data.get("robot_position_timestamp", current_time)
@@ -579,7 +644,7 @@ class PolicyInterface:
                     next_action = next_action[:self.total_dof]
             
             # Generate interpolated steps between prev_action and next_action
-            for step in range(self.record_divisor):
+            for step in range(1, self.record_divisor):
                 # Linear interpolation factor (0.0 to 1.0)
                 alpha = step / self.record_divisor
                 
@@ -758,10 +823,10 @@ class PolicyInterface:
             lr = 1e-5
             kl_weight = 100
             hidden_dim = 1024
-            dim_feedforward = 2048
+            dim_feedforward = 1024
             state_dim = 7
             enc_layers = 6
-            dec_layers = 9
+            dec_layers = 8
             nheads = 32
             
             # Backbone parameters (will be saved to config.json)
@@ -1079,14 +1144,18 @@ class PolicyInterface:
             num_cameras = len(camera_names)
             images = torch.zeros(1, num_cameras, 4, 240, 424)
         
-        # Prepare joint positions
+        # Prepare joint positions - preprocessing like the working code
         qpos = torch.tensor(joint_position, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
         
-        # Normalize inputs using dataset stats
-        if 'qpos_mean' in self.dataset_stats and 'qpos_std' in self.dataset_stats:
-            qpos_mean = torch.tensor(self.dataset_stats['qpos_mean'], dtype=torch.float32)
-            qpos_std = torch.tensor(self.dataset_stats['qpos_std'], dtype=torch.float32)
-            qpos = (qpos - qpos_mean) / qpos_std
+        # Normalize joint positions using dataset stats
+        stats = self.dataset_stats
+        joint_pos_mean = np.array(stats['joint_pos_mean'])
+        joint_pos_std = np.array(stats['joint_pos_std'])
+        
+        # Convert to torch tensors and normalize (following the working code pattern)
+        mean = torch.tensor(joint_pos_mean, dtype=torch.float32)
+        std = torch.tensor(joint_pos_std, dtype=torch.float32)
+        qpos = (qpos - mean) / std
         
         # Move to device
         device = next(self.policy_model.parameters()).device
@@ -1095,18 +1164,28 @@ class PolicyInterface:
         
         # Run inference
         with torch.no_grad():
-            actions = self.policy_model(qpos, images)  # Get predicted actions
+            raw_actions = self.policy_model(qpos, images)  # Get predicted actions
+            actions = raw_actions
             
         # Convert back to numpy and denormalize
         actions = actions.cpu().numpy()[0]  # Remove batch dimension
         
-        # Denormalize actions if stats available
+        # Denormalize actions using the same method as the working code
+        # Check for both possible key formats in dataset_stats
         if 'action_mean' in self.dataset_stats and 'action_std' in self.dataset_stats:
             action_mean = np.array(self.dataset_stats['action_mean'])
             action_std = np.array(self.dataset_stats['action_std'])
             actions = actions * action_std + action_mean
+            # self.logger_pi.debug(f"Denormalized actions using action_mean/action_std: mean={action_mean}, std={action_std}")
+        elif 'action_pos_mean' in self.dataset_stats and 'action_pos_std' in self.dataset_stats:
+            action_mean = np.array(self.dataset_stats['action_pos_mean'])
+            action_std = np.array(self.dataset_stats['action_pos_std'])
+            actions = actions * action_std + action_mean
+            # self.logger_pi.debug(f"Denormalized actions using action_pos_mean/action_pos_std: mean={action_mean}, std={action_std}")
+        else:
+            self.logger_pi.error(f"No action normalization stats found. Available keys: {list(self.dataset_stats.keys())}")
+            self.logger_pi.error(f"Raw actions (non-denormalized): {actions}")
 
-        # self.logger_pi.debug(f"ACT policy generated {len(actions)} actions")
         return actions  # Return numpy array directly - more efficient
 
 
