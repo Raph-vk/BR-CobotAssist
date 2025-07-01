@@ -231,16 +231,18 @@ class RMIConnection:
             "Speed": speed,
             "TermType": term_type,
             "TermValue": term_val,
-            "ACC": 100,
+            "ACC": 0,
             "NoBlend": "ON"
         }
-        nr_try = 10
+        nr_try = 15
+        self._send_json(self.tcp_socket, data)
         while nr_try > 0:
-            self._send_json(self.tcp_socket, data)
             resp = self._recv_json(self.tcp_socket)
             if not resp:
-                self.logger.error("RMIConnection.push_joint_motion: No response (timeout).")
-                return False
+                self.logger.error("RMIConnection.push_joint_motion: No response (timeout). Retrying...")
+                nr_try -= 1
+                continue
+
             self.logger.info(
                 "RMIConnection.push_joint_motion: Received response: %s, instr=%s, seqID=%s",
                 resp, resp.get("Instruction"), resp.get("SequenceID")
@@ -248,12 +250,15 @@ class RMIConnection:
             if resp.get("Instruction") == "FRC_JointMotionJRep":
                 self.logger.info("RMIConnection.push_joint_motion: Confirmed FRC_JointMotionJRep response.")
                 break
-            nr_try -= 1
 
-        err_id = resp.get("ErrorID", -1)
-        if err_id != 0:
-            self.logger.error("RMIConnection.push_joint_motion: ErrorID=%d", err_id)
+        if not resp:
+            self.logger.error("RMIConnection.push_joint_motion: No valid response after retries.")
             return False
+        else:
+            err_id = resp.get("ErrorID", -1)
+            if err_id != 0:
+                self.logger.error("RMIConnection.push_joint_motion: ErrorID=%d", err_id)
+                return False
 
         self.logger.info("RMIConnection.push_joint_motion: Moved to %s", position)
         return True

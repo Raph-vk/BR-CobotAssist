@@ -503,7 +503,9 @@ class FanucRobot():
         6) Send 'stop' response if in playback mode.
         """
         # move to start position
-        self._move_to_start_position()
+        if not self._move_to_start_position():
+            self.logger_ri.error("_control_robot, could not move to start position.")
+            return 
 
         # check if start position is alright
         self._check_start_position(full_message)
@@ -557,7 +559,6 @@ class FanucRobot():
             return True
         
         if message == "run_policy":
-            time.sleep(1)
             return True
 
     def _prepare_robot(self, full_message):
