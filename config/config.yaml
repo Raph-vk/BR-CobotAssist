@@ -132,49 +132,12 @@ hardware:
 # --------------------------------------Camera Configuration--------------------------------
 
 
-  camera:
-    # Camera settings
-    brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
-    info:
-      - name: "cam_1"
-        serial_number: "DUMMY_001"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-      - name: "cam_2"
-        serial_number: "DUMMY_002"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-      - name: "cam_3"
-        serial_number: "DUMMY_001"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-      - name: "cam_4"
-        serial_number: "DUMMY_002"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-
   # camera:
   #   # Camera settings
-  #   brand: "inteld405" 
+  #   brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
   #   info:
   #     - name: "cam_1"
-  #       serial_number: "218622271425"
+  #       serial_number: "DUMMY_001"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
@@ -182,7 +145,7 @@ hardware:
   #       depth_height: 240
 
   #     - name: "cam_2"
-  #       serial_number: "218622271391"
+  #       serial_number: "DUMMY_002"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
@@ -190,7 +153,7 @@ hardware:
   #       depth_height: 240
 
   #     - name: "cam_3"
-  #       serial_number: "130322272626"
+  #       serial_number: "DUMMY_001"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
@@ -198,12 +161,49 @@ hardware:
   #       depth_height: 240
 
   #     - name: "cam_4"
-  #       serial_number: "218622271529"
+  #       serial_number: "DUMMY_002"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
   #       depth_width: 424
   #       depth_height: 240
+
+
+  camera:
+    # Camera settings
+    brand: "inteld405" 
+    info:
+      - name: "cam_1"
+        serial_number: "218622271425"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
+      - name: "cam_2"
+        serial_number: "218622271391"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
+      - name: "cam_3"
+        serial_number: "130322272626"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
+      - name: "cam_4"
+        serial_number: "218622271529"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
 
 
 
@@ -220,7 +220,7 @@ general:
   start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
   start_joint_tolerance: 10
   joint_synchronization: False
-  default_recording_speed: 0.5
+  default_recording_speed: 0.25
   gripper_delay: 0.3 # In seconds on robot speed 1
   gripper_treshold: 0.5
   action_buffer_length: 3
