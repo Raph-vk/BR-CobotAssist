@@ -1,0 +1,6 @@
+dt_plot: 0.02
+joint_names: ["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"]
+state_names: ["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate", "gripper"]
+
+urdf_path : 'utils/visualization/lrmate200id7l/lrmate200id7l.urdf'
+dt_robot : 0.016
