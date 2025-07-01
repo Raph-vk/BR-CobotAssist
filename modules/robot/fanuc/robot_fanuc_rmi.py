@@ -210,7 +210,7 @@ class RMIConnection:
 
         return True
 
-    def push_joint_motion(self, position, speed=20, term_type="FINE", term_val=0):
+    def push_joint_motion(self, position, speed=10, term_type="FINE", term_val=0):
         """
         Example of FRC_JointMotionJRep.
         Expects 'position' (already processed, e.g. J3_interaction, etc.).
@@ -234,7 +234,7 @@ class RMIConnection:
             "ACC": 100,
             "NoBlend": "ON"
         }
-        nr_try = 3
+        nr_try = 10
         while nr_try > 0:
             self._send_json(self.tcp_socket, data)
             resp = self._recv_json(self.tcp_socket)

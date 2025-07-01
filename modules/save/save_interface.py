@@ -287,12 +287,10 @@ class SaveInterface:
                 while self.recording and first_data_item is None:
                     try:
                         if self.control_loop_language == "cpp":
-                            self.logger_si.debug("Attempting to read from C++ shared memory reader")
                             if self.shm_reader is None:
                                 self.logger_si.error("shm_reader is None in C++ mode!")
                                 break
                             first_data_item = next(self.shm_reader)
-                            self.logger_si.debug("Successfully read data from C++ shared memory: %s", type(first_data_item))
                         else:
                             first_data_item = self.shm_joint_data.get(timeout=2)
                     except Exception as e:

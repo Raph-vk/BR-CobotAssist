@@ -265,6 +265,7 @@ ControlLoop::ControlLoop(
     gripper_on_                 = gripper_on;
     gripper_off_                = gripper_off;
     gripper_state_              = gripper_state;
+    gripper_state_change_time_  = getEpochTimeSeconds();  // Initialize to current time
 
     seq_id_received_            = 0;
     seq_id_sent_                = 0;
@@ -855,8 +856,8 @@ bool ControlLoop::sendJointPos(const std::vector<double>& in_position,
         sizeof(remote_addr)
     );
     if (rc < 0) {
-        std::cerr << currentTimeFormatted() 
-                  << " [C++] sendJointPos, error sending packet: errno=" << errno << std::endl;
+        // std::cerr << currentTimeFormatted() 
+        //           << " [C++] sendJointPos, error sending packet: errno=" << errno << std::endl;
         return false;
     }
 
@@ -1143,23 +1144,39 @@ bool ControlLoop::stopRobot(ruckig::Ruckig<0>& otg,
 void ControlLoop::determineGripperState(double gripper_state_val)
 {
     double now = getEpochTimeSeconds();
+    gripper_on_ = false;
+    gripper_off_ = false;
 
-    if (gripper_state_val > gripper_treshold_ && !gripper_state_) {
+    // Turn ON
+    if (gripper_state_val >= gripper_treshold_ && !gripper_state_) {
+        std::cout << currentTimeFormatted() << " [C++] Gripper turning ON: value=" 
+                  << gripper_state_val << " >= threshold=" << gripper_treshold_ << "\n";
         if (gripper_delay_ > 0.0) {
             gripper_state_change_time_threshold_ = gripper_delay_ / robot_speed_;
-            // if we are within that time window...
-            if ((gripper_state_change_time_ + gripper_state_change_time_threshold_) > now) {
+            // Check if enough time HAS passed since last state change
+            if ((now - gripper_state_change_time_) >= gripper_state_change_time_threshold_) {
                 gripper_on_ = true;
+                gripper_state_ = true;
+                double elapsed_time = now - gripper_state_change_time_;
+                gripper_state_change_time_ = now;
+                std::cout << currentTimeFormatted() << " [C++] Gripper ON activated after delay of " 
+                          << elapsed_time << "s\n";
             } else {
-                gripper_on_ = false;
+                std::cout << currentTimeFormatted() << " [C++] Gripper ON delayed: " 
+                          << (now - gripper_state_change_time_) << "s < " 
+                          << gripper_state_change_time_threshold_ << "s required\n";
             }
         } else {
             gripper_on_ = true;
+            gripper_state_ = true;
+            gripper_state_change_time_ = now;
+            std::cout << currentTimeFormatted() << " [C++] Gripper ON activated immediately (no delay)\n";
         }
-        gripper_state_ = true;
-        gripper_state_change_time_ = now;
     } 
+    // Turn OFF
     else if (gripper_state_val < gripper_treshold_ && gripper_state_) {
+        std::cout << currentTimeFormatted() << " [C++] Gripper turning OFF: value=" 
+                  << gripper_state_val << " < threshold=" << gripper_treshold_ << "\n";
         gripper_off_ = true;
         gripper_state_ = false;
         gripper_state_change_time_ = now;
@@ -1247,9 +1264,9 @@ std::vector<double> ControlLoop::getNextPolicyAction()
         auto [seq_id, joint_positions] = read_buffer_entry(expected_index);
         
         if (seq_id == next_seq_id) {
-            std::cout << currentTimeFormatted() 
-                      << " [C++] Found policy action for seq_id " << seq_id 
-                      << " at expected index " << expected_index << std::endl;
+            // std::cout << currentTimeFormatted() 
+            //           << " [C++] Found policy action for seq_id " << seq_id 
+            //           << " at expected index " << expected_index << std::endl;
             return joint_positions;
         }
         

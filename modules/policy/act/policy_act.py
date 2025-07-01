@@ -126,7 +126,17 @@ class PolicyInterface:
         self.policy_config = None
         self.dataset_stats = None
 
-        self.start_position = self.config["general"]["start_position"]       
+        self.start_position = self.config["general"]["start_position"]
+        
+        # Temporal ensemble configuration
+        self.enable_temporal_ensemble = self.config.get("policy", {}).get("temporal_ensemble", {}).get("enabled", True)
+        self.ensemble_overlap_weight = self.config.get("policy", {}).get("temporal_ensemble", {}).get("overlap_weight", 0.5)  # 50% weight for overlapping actions
+        
+        # Initialize temporal ensemble state variables
+        self.prev_ensemble_seq_id = None
+        self.prev_ensemble_actions = None
+        
+        self.logger_pi.info(f"Temporal ensemble: enabled={self.enable_temporal_ensemble}, overlap_weight={self.ensemble_overlap_weight}")    
 
     ###################################################################
     # Commands for policy interface
@@ -212,7 +222,6 @@ class PolicyInterface:
             for camera_name, buffer in self.color_buffers2.items():
                 try:
                     buffer.close()
-                    self.logger_pi.debug(f"Closed color buffer for {camera_name}")
                 except Exception as e:
                     self.logger_pi.warning(f"Error closing color buffer for {camera_name}: {e}")
             self.color_buffers2.clear()
@@ -221,7 +230,6 @@ class PolicyInterface:
             for camera_name, buffer in self.depth_buffers2.items():
                 try:
                     buffer.close()
-                    self.logger_pi.debug(f"Closed depth buffer for {camera_name}")
                 except Exception as e:
                     self.logger_pi.warning(f"Error closing depth buffer for {camera_name}: {e}")
             self.depth_buffers2.clear()
@@ -263,6 +271,10 @@ class PolicyInterface:
         self.logger_pi.info("Policy execution loop started")
         frame_count = 0
 
+        # Initialize temporal ensemble variables
+        self.prev_ensemble_seq_id = None
+        self.prev_ensemble_actions = None
+
         if write_chunks_to_csv:
             # Initialize execution logging
             self._init_execution_logging()
@@ -281,27 +293,27 @@ class PolicyInterface:
                 # 4. Run the policy on the joint information and images (simplified version)
                 predicted_actions = self.execute_policy(joint_position, latest_images)
                 
-
-                # log all predicted actions
-                if predicted_actions is not None:
-                    self.logger_pi.debug(f"Predicted actions for frame {frame_count}: {predicted_actions}")
-
                 # 5. interpolated actions
                 interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
 
-                # 6. Update the shm_target_pos2 with predictions
-                end_seq_id = self._update_target_positions(start_seq_id, interpolated_actions)
+                # 6. If temporal ensemble is enabled, perform ensemble averaging
+                temporal_ensemble_actions = self.temporal_ensemble_actions(start_seq_id, interpolated_actions, self.prev_ensemble_seq_id, self.prev_ensemble_actions)
+                self.prev_ensemble_actions = temporal_ensemble_actions
+                self.prev_ensemble_seq_id = start_seq_id
 
-                # 7. Log execution data if wanted
+                # 7. Update the shm_target_pos2 with ensemble predictions
+                ensemble_seq_ids = np.arange(start_seq_id, start_seq_id + len(temporal_ensemble_actions))
+                self._update_target_positions_with_seq_ids(ensemble_seq_ids, temporal_ensemble_actions)
+
+                # 8. Log execution data if wanted
                 if write_chunks_to_csv:
                     self._log_execution_data(frame_count, start_seq_id, latest_images, joint_position, predicted_actions)
 
-                # 8. Increment frame
-                self.logger_pi.debug(f"Policy cycle {frame_count} completed: seq_id {start_seq_id}-{end_seq_id}")
+                # 9. Increment frame
                 frame_count += 1
 
                 # Sleep to control execution rate
-                time.sleep(0.06)  # Adjust sleep time as needed for your application
+                time.sleep(0.05)  # Adjust sleep time as needed for your application
                 
             except Exception as e:
                 self.logger_pi.error(f"Error in policy execution cycle {frame_count}: {e}")
@@ -371,7 +383,6 @@ class PolicyInterface:
         
         joint_data_window = []
         current_time = time.time()
-        # self.logger_pi.debug("Gathering joint data for the last 0.1 seconds")
 
         # Use C++ shared memory if available, otherwise use Python queue
         if self.shm_cpp_joint_data2_reader is not None:
@@ -392,9 +403,7 @@ class PolicyInterface:
                             'timestamp': timestamp,
                             'positions': positions,
                         })
-                        
-                # self.logger_pi.debug(f"Gathered {len(joint_data_window)} joint data entries from C++ shared memory")
-                        
+                                                
             except Exception as e:
                 self.logger_pi.error(f"Failed to gather joint data from C++ shared memory: {e}")
                 return []
@@ -408,8 +417,6 @@ class PolicyInterface:
                         # Get joint data from queue (non-blocking)
                         joint_data = self.shm_joint_data2.get_nowait()
                         
-                        self.logger_pi.debug(f"Received joint data: {joint_data}")
-
                         # Extract relevant information
                         seq_id = joint_data.get("seq_id", 0)
                         timestamp = joint_data.get("robot_position_timestamp", current_time)
@@ -434,7 +441,6 @@ class PolicyInterface:
             self.logger_pi.warning("No joint data source available (neither C++ shared memory nor Python queue)")
             return []
         
-        # self.logger_pi.debug(f"Gathered {len(joint_data_window)} joint data entries from the last 0.1 seconds")
         return joint_data_window
 
     def _retrieve_latest_images(self):
@@ -444,11 +450,8 @@ class PolicyInterface:
         latest_images = {}
         image_timestamps = {}
         
-        # self.logger_pi.debug("Retrieving latest images from buffers")
-
         # Get images from color buffers
         if hasattr(self, 'color_buffers2') and self.color_buffers2:
-            # self.logger_pi.debug("Retrieving color images from buffers")
             for camera_name, color_buffer in self.color_buffers2.items():
                 try:
                     color_data = color_buffer.read()
@@ -457,7 +460,6 @@ class PolicyInterface:
                         color_timestamp = color_data["timestamp"]
                         latest_images[f"{camera_name}_color"] = color_image
                         image_timestamps[f"{camera_name}_color"] = color_timestamp
-                        # self.logger_pi.debug(f"Retrieved color image from {camera_name} at {color_timestamp}")
                 except Exception as e:
                     self.logger_pi.warning(f"Failed to read color image from {camera_name}: {e}")
         
@@ -528,12 +530,49 @@ class PolicyInterface:
                 self.shm_target_pos2.buf[offset:offset+len(data)] = data
             
             end_seq_id = predicted_actions[-1]['seq_id']
-            # self.logger_pi.debug(f"Updated shm_target_pos2 with actions {start_seq_id} to {end_seq_id}")
             return end_seq_id
             
         except Exception as e:
             self.logger_pi.error(f"Failed to update shm_target_pos2: {e}")
             return start_seq_id
+
+    def _update_target_positions_with_seq_ids(self, seq_ids, actions):
+        """
+        Update the shm_target_pos2 with predictions using explicit sequence IDs.
+        
+        Args:
+            seq_ids: np.ndarray of sequence IDs
+            actions: np.ndarray of actions corresponding to each sequence ID
+        """
+        if not self.shm_target_pos2 or actions is None or len(actions) == 0:
+            return seq_ids[0] if len(seq_ids) > 0 else 0
+        
+        try:
+            # Write predicted actions to shared memory
+            for seq_id, action in zip(seq_ids, actions):
+                # Convert to int if needed
+                seq_id = int(seq_id)
+                
+                # Validate action dimensions before packing
+                if len(action) != self.total_dof:  # Expected: joints + gripper
+                    self.logger_pi.warning(f"Action has {len(action)} elements, expected {self.total_dof} ({self.robot_dof} joints + {self.robot_dof_ee} gripper)")
+                
+                # Pack data according to format: sequence_id (I) + joint positions (d each)
+                data = struct.pack(self.shm_target_pos2_entry_format, seq_id, *action)
+                
+                # Calculate buffer position (circular buffer)
+                buffer_index = seq_id % self.shm_target_pos2_capacity
+                offset = buffer_index * self.shm_target_pos2_entry_size
+                
+                # Write to shared memory
+                self.shm_target_pos2.buf[offset:offset+len(data)] = data
+            
+            end_seq_id = int(seq_ids[-1])
+            return end_seq_id
+            
+        except Exception as e:
+            self.logger_pi.error(f"Failed to update shm_target_pos2 with ensemble: {e}")
+            return int(seq_ids[0]) if len(seq_ids) > 0 else 0
 
     def _interpolate_actions(self, start_seq_id, predicted_actions, current_joint_position):
         """
@@ -588,7 +627,6 @@ class PolicyInterface:
             # Update prev_action for next iteration
             prev_action = next_action
         
-        # self.logger_pi.debug(f"Interpolated {len(predicted_actions)} predicted actions into {len(interpolated_actions)} smooth actions (DOF: {self.robot_dof}+{self.robot_dof_ee}={self.total_dof})")
         return interpolated_actions
 
     ###################################################################
@@ -1047,7 +1085,6 @@ class PolicyInterface:
                         color_image = color_image.astype(np.float32)
                     # Convert to torch and normalize to [0,1] range
                     color_image = torch.from_numpy(color_image).float().permute(2, 0, 1) / 255.0
-                    self.logger_pi.debug(f"Color image for {cam_name}: shape={color_image.shape}, range=[{color_image.min():.3f}, {color_image.max():.3f}]")
             else:
                 color_image = torch.zeros(3, 240, 424)  # RGB dummy
                 self.logger_pi.warning(f"No color image data for {cam_name}, using dummy")
@@ -1063,7 +1100,6 @@ class PolicyInterface:
                     if len(depth_image.shape) == 3:
                         depth_image = depth_image[:, :, 0]  # Take first channel if multi-channel
                     depth_image = torch.from_numpy(depth_image).float().unsqueeze(0) / 65535.0  # Normalize depth by max 16-bit value
-                    self.logger_pi.debug(f"Depth image for {cam_name}: shape={depth_image.shape}, range=[{depth_image.min():.3f}, {depth_image.max():.3f}]")
             else:
                 depth_image = torch.zeros(1, 240, 424)  # Depth dummy
                 self.logger_pi.warning(f"No depth image data for {cam_name}, using dummy")
@@ -1114,7 +1150,6 @@ class PolicyInterface:
         std = torch.clamp(std, min=1e-6)
         
         qpos = (qpos - mean) / std
-        self.logger_pi.debug(f"Normalized joint positions: original range=[{torch.tensor(joint_position).min():.3f}, {torch.tensor(joint_position).max():.3f}], normalized range=[{qpos.min():.3f}, {qpos.max():.3f}]")
         
         # Move to GPU - using .cuda() to match training pattern
         if torch.cuda.is_available():
@@ -1128,9 +1163,7 @@ class PolicyInterface:
             
         # Convert back to numpy and denormalize
         actions = actions.cpu().numpy()[0]  # Remove batch dimension
-        
-        self.logger_pi.debug(f"Raw model output shape: {actions.shape}, range=[{actions.min():.3f}, {actions.max():.3f}]")
-        
+                
         # Denormalize actions using the same method as the working code
         # Check for both possible key formats in dataset_stats
         if 'action_mean' in self.dataset_stats and 'action_std' in self.dataset_stats:
@@ -1165,9 +1198,7 @@ class PolicyInterface:
             else:
                 # Single dimension: direct elementwise operation
                 actions = actions * action_std + action_mean
-            
-            self.logger_pi.debug(f"Denormalized actions using action_mean/action_std: mean shape={action_mean.shape}, std shape={action_std.shape}")
-            
+                        
         elif 'action_pos_mean' in self.dataset_stats and 'action_pos_std' in self.dataset_stats:
             action_mean = np.array(self.dataset_stats['action_pos_mean'])
             action_std = np.array(self.dataset_stats['action_pos_std'])
@@ -1200,16 +1231,23 @@ class PolicyInterface:
             else:
                 # Single dimension: direct elementwise operation
                 actions = actions * action_std + action_mean
-            
-            self.logger_pi.debug(f"Denormalized actions using action_pos_mean/action_pos_std: mean shape={action_mean.shape}, std shape={action_std.shape}")
-            
+                        
         else:
             self.logger_pi.error(f"No action normalization stats found. Available keys: {list(self.dataset_stats.keys())}")
             self.logger_pi.error(f"Raw actions (non-denormalized): {actions}")
             # Return raw actions if no normalization stats available
             self.logger_pi.warning("Returning non-denormalized actions - this may cause issues!")
         
-        self.logger_pi.debug(f"Final denormalized actions shape: {actions.shape}, range=[{actions.min():.3f}, {actions.max():.3f}]")
+        # Post-process gripper state to ensure binary values (0 or 1)
+        if len(actions.shape) > 1 and actions.shape[-1] > 6:  # Multi-dimensional with gripper
+            gripper_values = actions[:, -1]
+            # Round gripper values to nearest 0 or 1
+            actions[:, -1] = np.round(np.clip(gripper_values, 0, 1))
+        elif len(actions.shape) == 1 and len(actions) > 6:  # Single-dimensional with gripper
+            gripper_value = actions[-1]
+            # Round gripper value to nearest 0 or 1
+            actions[-1] = round(np.clip(gripper_value, 0, 1))
+        
         
         # Validate final actions for common issues
         if np.any(np.isnan(actions)):
@@ -1224,12 +1262,6 @@ class PolicyInterface:
             actions = np.clip(actions, -10.0, 10.0)
             self.logger_pi.warning("Clipped infinite values to [-10, 10] range")
         
-        # Log the action dimensions for debugging
-        if len(actions.shape) > 1:
-            self.logger_pi.debug(f"Returning multi-dimensional actions: {actions.shape[0]} time steps, {actions.shape[1]} joints")
-        else:
-            self.logger_pi.debug(f"Returning single-dimensional actions: {len(actions)} values")
-
         return actions  # Return numpy array directly - more efficient
 
 
@@ -1395,10 +1427,68 @@ class PolicyInterface:
             
         return policy(joint_pos_data, image_data, action_data, is_pad)
 
-
-
-
-
+    def temporal_ensemble_actions(self, seq1_id, actions_new, seq2_id, actions_old):
+        """
+        Ensemble two action sequences based on their sequence IDs.
+        For overlapping IDs, average the actions. For non-overlapping, use the available action.
+        
+        Args:
+            seq1_id: Starting sequence ID for new actions
+            actions_new: List of dicts with {'seq_id': ..., 'action': ...} OR np.ndarray
+            seq2_id: Starting sequence ID for old actions (can be None)
+            actions_old: np.ndarray of old actions (can be None)
+        
+        Returns:
+            ensemble_actions: np.ndarray of ensembled actions
+        """
+        # Handle different input formats for actions_new
+        if isinstance(actions_new, list) and len(actions_new) > 0 and isinstance(actions_new[0], dict):
+            # Extract actions from interpolated_actions format
+            actions_new_array = np.array([item['action'] for item in actions_new])
+        else:
+            # Already in numpy array format
+            actions_new_array = actions_new
+        
+        if seq2_id is None or actions_old is None:
+            # No previous sequence, return new actions as-is
+            return actions_new_array
+        
+        # Create sequence ID arrays for both sequences
+        seq1_ids = np.arange(seq1_id, seq1_id + len(actions_new_array))
+        seq2_ids = np.arange(seq2_id, seq2_id + len(actions_old))
+        
+        # Build dictionaries mapping seq_id to action
+        dict_new = {seq_id: action for seq_id, action in zip(seq1_ids, actions_new_array)}
+        dict_old = {seq_id: action for seq_id, action in zip(seq2_ids, actions_old)}
+        
+        # Only use sequence IDs from the NEW prediction range (discard old non-overlapping actions)
+        # This ensures we don't use outdated actions from the old prediction
+        all_seq_ids = sorted(seq1_ids)  # Only use new sequence range
+        
+        ensemble_actions = []
+        for seq_id in all_seq_ids:
+            in_new = seq_id in dict_new
+            in_old = seq_id in dict_old
+            
+            if in_new and in_old:
+                # Both sequences have this seq_id - average them (50% + 50%)
+                act = 0.5 * dict_new[seq_id] + 0.5 * dict_old[seq_id]
+                # Ensure gripper state (last element) remains 0 or 1 after averaging
+                if len(act) > 6:  # Has gripper state
+                    act[-1] = round(act[-1])
+            elif in_new:
+                # Only new sequence has this seq_id - use 100% from new
+                act = dict_new[seq_id]
+            else:
+                # This shouldn't happen since we only iterate over new seq_ids
+                self.logger_pi.warning(f"Unexpected: seq_id {seq_id} not in new sequence")
+                continue
+            
+            ensemble_actions.append(act)
+        
+        ensemble_actions = np.stack(ensemble_actions, axis=0)
+                
+        return ensemble_actions
 
 def send_response(logger_si, policy_interface_commup, payload, error="None", **kwargs):
     """

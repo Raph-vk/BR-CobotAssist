@@ -201,13 +201,6 @@ class EpisodicDataset(torch.utils.data.Dataset):
             joint_pos_std_tensor = torch.from_numpy(self.norm_stats["joint_pos_std"]).float()
             joint_pos_data = (joint_pos_data - joint_pos_mean_tensor) / joint_pos_std_tensor
 
-        # print some stats about the action data
-        if self.logger:
-            self.logger.debug(f"Episode {episode_id} | Action data shape: {action_data.shape}, Joint pos data shape: {joint_pos_data.shape}, Is pad shape: {is_pad.shape}")
-            self.logger.debug(f"self.norm_stats['action_mean'] shape: {self.norm_stats['action_mean']}, self.norm_stats['action_std'] shape: {self.norm_stats['action_std']}")
-            self.logger.debug(f"Action data stats - Mean: {action_data.mean().item()}, Std: {action_data.std().item()}")
-            self.logger.debug(f"Joint pos data stats - Mean: {joint_pos_data.mean().item()}, Std: {joint_pos_data.std().item()}")
-
         return image_data, joint_pos_data, action_data, is_pad
 
 
@@ -245,13 +238,36 @@ def get_norm_stats(dataset_dir, num_episodes):
     print(f"Stacked action data shape: {all_action_data.shape}")
 
     # Compute normalization statistics
-    action_mean = all_action_data.mean(dim=[0, 1], keepdim=True)
-    action_std = all_action_data.std(dim=[0, 1], keepdim=True)
-    action_std = torch.clip(action_std, 1e-2, np.inf)  # Prevent division by zero
-
+    # Handle gripper state (last dimension) separately from joint actions
+    if all_action_data.shape[-1] > 6:  # Has gripper state
+        # Separate joint actions and gripper states
+        joint_actions = all_action_data[..., :-1]  # All except last
+        gripper_states = all_action_data[..., -1:]  # Last dimension only
+        
+        # Normalize joint actions only
+        action_mean_joints = joint_actions.mean(dim=[0, 1], keepdim=True)
+        action_std_joints = joint_actions.std(dim=[0, 1], keepdim=True)
+        action_std_joints = torch.clip(action_std_joints, 1e-2, np.inf)
+        
+        # For gripper: use identity normalization (mean=0, std=1)
+        action_mean_gripper = torch.zeros_like(gripper_states.mean(dim=[0, 1], keepdim=True))
+        action_std_gripper = torch.ones_like(gripper_states.std(dim=[0, 1], keepdim=True))
+        
+        # Combine joint and gripper normalization stats
+        action_mean = torch.cat([action_mean_joints, action_mean_gripper], dim=-1)
+        action_std = torch.cat([action_std_joints, action_std_gripper], dim=-1)
+        
+        print(f"Separate normalization: Joint actions mean/std computed, gripper kept as identity (mean=0, std=1)")
+    else:
+        # No gripper state, normalize all actions normally
+        action_mean = all_action_data.mean(dim=[0, 1], keepdim=True)
+        action_std = all_action_data.std(dim=[0, 1], keepdim=True)
+        action_std = torch.clip(action_std, 1e-2, np.inf)
+    
+    # Joint positions normalization (unchanged)
     joint_pos_mean = all_joint_pos_data.mean(dim=[0, 1], keepdim=True)
     joint_pos_std = all_joint_pos_data.std(dim=[0, 1], keepdim=True)
-    joint_pos_std = torch.clip(joint_pos_std, 1e-2, np.inf)  # Prevent division by zero
+    joint_pos_std = torch.clip(joint_pos_std, 1e-2, np.inf)
 
     # Squeeze to remove unnecessary dimensions but preserve the correct shape
     action_mean_squeezed = action_mean.squeeze()

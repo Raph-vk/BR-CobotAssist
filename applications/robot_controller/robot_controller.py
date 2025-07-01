@@ -831,7 +831,6 @@ class RobotController:
                         try:
                             if hasattr(buffer_obj, 'close'):
                                 buffer_obj.close(unlink=False)  # Don't unlink here as manager already did it
-                                self.logger_tc.debug(f"Closed {attr_name} buffer for {camera_name}")
                         except Exception as e:
                             self.logger_tc.error(f"Error closing {attr_name} buffer for {camera_name}: {e}")
                 
@@ -1605,9 +1604,6 @@ class RobotController:
         total_cameras = len(self.camera_cfgs)
         
         while self.checking_status:
-            if not self.camera_interface_commup.empty():
-                self.logger_tc.debug("Camera status thread is processing messages...")
-            
             while not self.camera_interface_commup.empty():
                 payload = self.camera_interface_commup.get()
                 self.logger_tc.info("Received message from camera interface: %s", payload)
