@@ -252,7 +252,6 @@ class PolicyInterface:
             self.logger_pi.info("Policy thread stopped")
 
 
-
     ###################################################################
     # Data gathering and processing run policy
     ###################################################################
@@ -1043,7 +1042,12 @@ class PolicyInterface:
             if color_key in latest_images:
                 color_image = latest_images[color_key]
                 if isinstance(color_image, np.ndarray):
+                    # Ensure correct dtype and shape
+                    if color_image.dtype != np.float32:
+                        color_image = color_image.astype(np.float32)
+                    # Convert to torch and normalize to [0,1] range
                     color_image = torch.from_numpy(color_image).float().permute(2, 0, 1) / 255.0
+                    self.logger_pi.debug(f"Color image for {cam_name}: shape={color_image.shape}, range=[{color_image.min():.3f}, {color_image.max():.3f}]")
             else:
                 color_image = torch.zeros(3, 240, 424)  # RGB dummy
                 self.logger_pi.warning(f"No color image data for {cam_name}, using dummy")
@@ -1052,10 +1056,14 @@ class PolicyInterface:
             if depth_key in latest_images:
                 depth_image = latest_images[depth_key]
                 if isinstance(depth_image, np.ndarray):
-                    # Convert depth to single channel and normalize
+                    # Ensure correct dtype
+                    if depth_image.dtype != np.float32:
+                        depth_image = depth_image.astype(np.float32)
+                    # Convert depth to single channel and normalize to [0,1] range
                     if len(depth_image.shape) == 3:
                         depth_image = depth_image[:, :, 0]  # Take first channel if multi-channel
                     depth_image = torch.from_numpy(depth_image).float().unsqueeze(0) / 65535.0  # Normalize depth by max 16-bit value
+                    self.logger_pi.debug(f"Depth image for {cam_name}: shape={depth_image.shape}, range=[{depth_image.min():.3f}, {depth_image.max():.3f}]")
             else:
                 depth_image = torch.zeros(1, 240, 424)  # Depth dummy
                 self.logger_pi.warning(f"No depth image data for {cam_name}, using dummy")
@@ -1080,10 +1088,33 @@ class PolicyInterface:
         joint_pos_mean = np.array(stats['joint_pos_mean'])
         joint_pos_std = np.array(stats['joint_pos_std'])
         
+        # Validate joint position normalization stats dimensions
+        if len(joint_pos_mean) != len(joint_position):
+            self.logger_pi.error(f"Joint position mean dimension mismatch: expected {len(joint_position)}, got {len(joint_pos_mean)}")
+            self.logger_pi.error(f"Joint position: {joint_position}")
+            self.logger_pi.error(f"Joint pos mean: {joint_pos_mean}")
+            # Try to fix by padding or truncating
+            if len(joint_pos_mean) < len(joint_position):
+                # Pad with zeros
+                pad_size = len(joint_position) - len(joint_pos_mean)
+                joint_pos_mean = np.pad(joint_pos_mean, (0, pad_size), 'constant')
+                joint_pos_std = np.pad(joint_pos_std, (0, pad_size), 'constant', constant_values=1.0)
+                self.logger_pi.warning(f"Padded joint pos stats to match dimension: {len(joint_pos_mean)}")
+            else:
+                # Truncate
+                joint_pos_mean = joint_pos_mean[:len(joint_position)]
+                joint_pos_std = joint_pos_std[:len(joint_position)]
+                self.logger_pi.warning(f"Truncated joint pos stats to match dimension: {len(joint_pos_mean)}")
+        
         # Convert to torch tensors and normalize (following the working code pattern)
         mean = torch.tensor(joint_pos_mean, dtype=torch.float32)
         std = torch.tensor(joint_pos_std, dtype=torch.float32)
+        
+        # Avoid division by zero
+        std = torch.clamp(std, min=1e-6)
+        
         qpos = (qpos - mean) / std
+        self.logger_pi.debug(f"Normalized joint positions: original range=[{torch.tensor(joint_position).min():.3f}, {torch.tensor(joint_position).max():.3f}], normalized range=[{qpos.min():.3f}, {qpos.max():.3f}]")
         
         # Move to GPU - using .cuda() to match training pattern
         if torch.cuda.is_available():
@@ -1098,21 +1129,106 @@ class PolicyInterface:
         # Convert back to numpy and denormalize
         actions = actions.cpu().numpy()[0]  # Remove batch dimension
         
+        self.logger_pi.debug(f"Raw model output shape: {actions.shape}, range=[{actions.min():.3f}, {actions.max():.3f}]")
+        
         # Denormalize actions using the same method as the working code
         # Check for both possible key formats in dataset_stats
         if 'action_mean' in self.dataset_stats and 'action_std' in self.dataset_stats:
             action_mean = np.array(self.dataset_stats['action_mean'])
             action_std = np.array(self.dataset_stats['action_std'])
-            actions = actions * action_std + action_mean
-            # self.logger_pi.debug(f"Denormalized actions using action_mean/action_std: mean={action_mean}, std={action_std}")
+            
+            # For multi-dimensional actions (time_steps, joint_dims), validate against the last dimension
+            action_dim = actions.shape[-1] if len(actions.shape) > 1 else len(actions)
+            
+            # Validate action normalization stats dimensions
+            if len(action_mean) != action_dim:
+                self.logger_pi.error(f"Action mean dimension mismatch: action dim {action_dim}, stats dim {len(action_mean)}")
+                self.logger_pi.error(f"Action shape: {actions.shape}, Action mean shape: {action_mean.shape}")
+                # Try to fix by padding or truncating the stats
+                if len(action_mean) < action_dim:
+                    pad_size = action_dim - len(action_mean)
+                    action_mean = np.pad(action_mean, (0, pad_size), 'constant')
+                    action_std = np.pad(action_std, (0, pad_size), 'constant', constant_values=1.0)
+                    self.logger_pi.warning(f"Padded action stats to match dimension: {len(action_mean)}")
+                else:
+                    action_mean = action_mean[:action_dim]
+                    action_std = action_std[:action_dim]
+                    self.logger_pi.warning(f"Truncated action stats to match dimension: {len(action_mean)}")
+            
+            # Avoid division by zero in case std is very small
+            action_std = np.clip(action_std, 1e-6, np.inf)
+            
+            # Apply denormalization with proper broadcasting
+            if len(actions.shape) > 1:
+                # Multi-dimensional: broadcast stats across the first dimension (time steps)
+                actions = actions * action_std[np.newaxis, :] + action_mean[np.newaxis, :]
+            else:
+                # Single dimension: direct elementwise operation
+                actions = actions * action_std + action_mean
+            
+            self.logger_pi.debug(f"Denormalized actions using action_mean/action_std: mean shape={action_mean.shape}, std shape={action_std.shape}")
+            
         elif 'action_pos_mean' in self.dataset_stats and 'action_pos_std' in self.dataset_stats:
             action_mean = np.array(self.dataset_stats['action_pos_mean'])
             action_std = np.array(self.dataset_stats['action_pos_std'])
-            actions = actions * action_std + action_mean
-            # self.logger_pi.debug(f"Denormalized actions using action_pos_mean/action_pos_std: mean={action_mean}, std={action_std}")
+            
+            # For multi-dimensional actions (time_steps, joint_dims), validate against the last dimension
+            action_dim = actions.shape[-1] if len(actions.shape) > 1 else len(actions)
+            
+            # Validate action normalization stats dimensions
+            if len(action_mean) != action_dim:
+                self.logger_pi.error(f"Action pos mean dimension mismatch: action dim {action_dim}, stats dim {len(action_mean)}")
+                self.logger_pi.error(f"Action shape: {actions.shape}, Action pos mean shape: {action_mean.shape}")
+                # Try to fix by padding or truncating the stats
+                if len(action_mean) < action_dim:
+                    pad_size = action_dim - len(action_mean)
+                    action_mean = np.pad(action_mean, (0, pad_size), 'constant')
+                    action_std = np.pad(action_std, (0, pad_size), 'constant', constant_values=1.0)
+                    self.logger_pi.warning(f"Padded action pos stats to match dimension: {len(action_mean)}")
+                else:
+                    action_mean = action_mean[:action_dim]
+                    action_std = action_std[:action_dim]
+                    self.logger_pi.warning(f"Truncated action pos stats to match dimension: {len(action_mean)}")
+            
+            # Avoid division by zero in case std is very small
+            action_std = np.clip(action_std, 1e-6, np.inf)
+            
+            # Apply denormalization with proper broadcasting
+            if len(actions.shape) > 1:
+                # Multi-dimensional: broadcast stats across the first dimension (time steps)
+                actions = actions * action_std[np.newaxis, :] + action_mean[np.newaxis, :]
+            else:
+                # Single dimension: direct elementwise operation
+                actions = actions * action_std + action_mean
+            
+            self.logger_pi.debug(f"Denormalized actions using action_pos_mean/action_pos_std: mean shape={action_mean.shape}, std shape={action_std.shape}")
+            
         else:
             self.logger_pi.error(f"No action normalization stats found. Available keys: {list(self.dataset_stats.keys())}")
             self.logger_pi.error(f"Raw actions (non-denormalized): {actions}")
+            # Return raw actions if no normalization stats available
+            self.logger_pi.warning("Returning non-denormalized actions - this may cause issues!")
+        
+        self.logger_pi.debug(f"Final denormalized actions shape: {actions.shape}, range=[{actions.min():.3f}, {actions.max():.3f}]")
+        
+        # Validate final actions for common issues
+        if np.any(np.isnan(actions)):
+            self.logger_pi.error(f"NaN values detected in final actions: {actions}")
+            # Replace NaN with zeros as fallback
+            actions = np.nan_to_num(actions, nan=0.0)
+            self.logger_pi.warning("Replaced NaN values with zeros")
+        
+        if np.any(np.isinf(actions)):
+            self.logger_pi.error(f"Infinite values detected in final actions: {actions}")
+            # Replace inf with reasonable bounds
+            actions = np.clip(actions, -10.0, 10.0)
+            self.logger_pi.warning("Clipped infinite values to [-10, 10] range")
+        
+        # Log the action dimensions for debugging
+        if len(actions.shape) > 1:
+            self.logger_pi.debug(f"Returning multi-dimensional actions: {actions.shape[0]} time steps, {actions.shape[1]} joints")
+        else:
+            self.logger_pi.debug(f"Returning single-dimensional actions: {len(actions)} values")
 
         return actions  # Return numpy array directly - more efficient
 

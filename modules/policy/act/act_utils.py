@@ -146,8 +146,60 @@ class EpisodicDataset(torch.utils.data.Dataset):
 
 
         # Normalize joint_pos and action
-        action_data = (action_data - self.norm_stats["action_mean"]) / self.norm_stats["action_std"]
-        joint_pos_data = (joint_pos_data - self.norm_stats["joint_pos_mean"]) / self.norm_stats["joint_pos_std"]
+        # Validate normalization dimensions before applying
+        if action_data.shape[-1] != len(self.norm_stats["action_mean"]):
+            if self.logger:
+                self.logger.error(f"Action data dimension mismatch: data has {action_data.shape[-1]} dims, stats have {len(self.norm_stats['action_mean'])}")
+                self.logger.error(f"Action data shape: {action_data.shape}")
+                self.logger.error(f"Action mean shape: {self.norm_stats['action_mean'].shape}")
+            # Try to fix by padding/truncating the stats, not the data
+            if action_data.shape[-1] > len(self.norm_stats["action_mean"]):
+                # Data has more dimensions than stats - pad stats
+                pad_size = action_data.shape[-1] - len(self.norm_stats["action_mean"])
+                action_mean_padded = np.pad(self.norm_stats["action_mean"], (0, pad_size), 'constant')
+                action_std_padded = np.pad(self.norm_stats["action_std"], (0, pad_size), 'constant', constant_values=1.0)
+                action_data = (action_data - torch.from_numpy(action_mean_padded).float()) / torch.from_numpy(action_std_padded).float()
+                if self.logger:
+                    self.logger.warning(f"Padded action normalization stats to match data dimensions")
+            else:
+                # Data has fewer dimensions than stats - truncate stats
+                action_mean_truncated = self.norm_stats["action_mean"][:action_data.shape[-1]]
+                action_std_truncated = self.norm_stats["action_std"][:action_data.shape[-1]]
+                action_data = (action_data - torch.from_numpy(action_mean_truncated).float()) / torch.from_numpy(action_std_truncated).float()
+                if self.logger:
+                    self.logger.warning(f"Truncated action normalization stats to match data dimensions")
+        else:
+            # Convert normalization stats to tensors for proper broadcasting
+            action_mean_tensor = torch.from_numpy(self.norm_stats["action_mean"]).float()
+            action_std_tensor = torch.from_numpy(self.norm_stats["action_std"]).float()
+            action_data = (action_data - action_mean_tensor) / action_std_tensor
+        
+        if joint_pos_data.shape[-1] != len(self.norm_stats["joint_pos_mean"]):
+            if self.logger:
+                self.logger.error(f"Joint pos data dimension mismatch: data has {joint_pos_data.shape[-1]} dims, stats have {len(self.norm_stats['joint_pos_mean'])}")
+                self.logger.error(f"Joint pos data shape: {joint_pos_data.shape}")
+                self.logger.error(f"Joint pos mean shape: {self.norm_stats['joint_pos_mean'].shape}")
+            # Try to fix by padding/truncating the stats, not the data
+            if joint_pos_data.shape[-1] > len(self.norm_stats["joint_pos_mean"]):
+                # Data has more dimensions than stats - pad stats
+                pad_size = joint_pos_data.shape[-1] - len(self.norm_stats["joint_pos_mean"])
+                joint_pos_mean_padded = np.pad(self.norm_stats["joint_pos_mean"], (0, pad_size), 'constant')
+                joint_pos_std_padded = np.pad(self.norm_stats["joint_pos_std"], (0, pad_size), 'constant', constant_values=1.0)
+                joint_pos_data = (joint_pos_data - torch.from_numpy(joint_pos_mean_padded).float()) / torch.from_numpy(joint_pos_std_padded).float()
+                if self.logger:
+                    self.logger.warning(f"Padded joint pos normalization stats to match data dimensions")
+            else:
+                # Data has fewer dimensions than stats - truncate stats
+                joint_pos_mean_truncated = self.norm_stats["joint_pos_mean"][:joint_pos_data.shape[-1]]
+                joint_pos_std_truncated = self.norm_stats["joint_pos_std"][:joint_pos_data.shape[-1]]
+                joint_pos_data = (joint_pos_data - torch.from_numpy(joint_pos_mean_truncated).float()) / torch.from_numpy(joint_pos_std_truncated).float()
+                if self.logger:
+                    self.logger.warning(f"Truncated joint pos normalization stats to match data dimensions")
+        else:
+            # Convert normalization stats to tensors for proper broadcasting
+            joint_pos_mean_tensor = torch.from_numpy(self.norm_stats["joint_pos_mean"]).float()
+            joint_pos_std_tensor = torch.from_numpy(self.norm_stats["joint_pos_std"]).float()
+            joint_pos_data = (joint_pos_data - joint_pos_mean_tensor) / joint_pos_std_tensor
 
         # print some stats about the action data
         if self.logger:
@@ -163,8 +215,11 @@ class EpisodicDataset(torch.utils.data.Dataset):
 def get_norm_stats(dataset_dir, num_episodes):
     all_joint_pos_data = []
     all_action_data = []
+    
+    print(f"Computing normalization statistics from {num_episodes} episodes...")
+    
     for episode_idx in range(num_episodes):
-        print('given episodes:', num_episodes, '    | loaded:', episode_idx+1)
+        print(f'Processing episode {episode_idx+1}/{num_episodes}')
         dataset_path = os.path.join(dataset_dir, f'episode_{episode_idx}.hdf5')
         try:
             with h5py.File(dataset_path, 'r') as root:
@@ -172,30 +227,77 @@ def get_norm_stats(dataset_dir, num_episodes):
                 robot_positions = root['robot_positions'][()].astype(np.float32)  # Joint positions (observations)
                 actions = root['master_positions'][()].astype(np.float32)     # Actions (targets)
                 
+                print(f"Episode {episode_idx}: robot_positions shape: {robot_positions.shape}, actions shape: {actions.shape}")
+                
             all_joint_pos_data.append(torch.from_numpy(robot_positions))
             all_action_data.append(torch.from_numpy(actions))
         except Exception as e:
-            print('ERROR episode', episode_idx, e)
+            print(f'ERROR loading episode {episode_idx}: {e}')
             break
+
+    if not all_joint_pos_data or not all_action_data:
+        raise ValueError("No valid episodes found for computing normalization statistics")
 
     all_joint_pos_data = torch.stack(all_joint_pos_data)
     all_action_data = torch.stack(all_action_data)
 
+    print(f"Stacked joint pos data shape: {all_joint_pos_data.shape}")
+    print(f"Stacked action data shape: {all_action_data.shape}")
+
+    # Compute normalization statistics
     action_mean = all_action_data.mean(dim=[0, 1], keepdim=True)
     action_std = all_action_data.std(dim=[0, 1], keepdim=True)
-    action_std = torch.clip(action_std, 1e-2, np.inf)
+    action_std = torch.clip(action_std, 1e-2, np.inf)  # Prevent division by zero
 
     joint_pos_mean = all_joint_pos_data.mean(dim=[0, 1], keepdim=True)
     joint_pos_std = all_joint_pos_data.std(dim=[0, 1], keepdim=True)
-    joint_pos_std = torch.clip(joint_pos_std, 1e-2, np.inf)
+    joint_pos_std = torch.clip(joint_pos_std, 1e-2, np.inf)  # Prevent division by zero
+
+    # Squeeze to remove unnecessary dimensions but preserve the correct shape
+    action_mean_squeezed = action_mean.squeeze()
+    action_std_squeezed = action_std.squeeze()
+    joint_pos_mean_squeezed = joint_pos_mean.squeeze()
+    joint_pos_std_squeezed = joint_pos_std.squeeze()
+    
+    # Ensure they're 1D arrays
+    if action_mean_squeezed.dim() == 0:
+        action_mean_squeezed = action_mean_squeezed.unsqueeze(0)
+    if action_std_squeezed.dim() == 0:
+        action_std_squeezed = action_std_squeezed.unsqueeze(0)
+    if joint_pos_mean_squeezed.dim() == 0:
+        joint_pos_mean_squeezed = joint_pos_mean_squeezed.unsqueeze(0)
+    if joint_pos_std_squeezed.dim() == 0:
+        joint_pos_std_squeezed = joint_pos_std_squeezed.unsqueeze(0)
 
     stats = {
-        "action_mean": action_mean.numpy().squeeze(),
-        "action_std": action_std.numpy().squeeze(),
-        "joint_pos_mean": joint_pos_mean.numpy().squeeze(),
-        "joint_pos_std": joint_pos_std.numpy().squeeze(),
+        "action_mean": action_mean_squeezed.numpy(),
+        "action_std": action_std_squeezed.numpy(),
+        "joint_pos_mean": joint_pos_mean_squeezed.numpy(),
+        "joint_pos_std": joint_pos_std_squeezed.numpy(),
         "example_joint_pos": robot_positions[0] if len(robot_positions) > 0 else None
     }
+
+    print(f"Computed normalization statistics:")
+    print(f"  Raw data shapes - Actions: {all_action_data.shape}, Joint positions: {all_joint_pos_data.shape}")
+    print(f"  Action mean shape: {stats['action_mean'].shape}, values: {stats['action_mean']}")
+    print(f"  Action std shape: {stats['action_std'].shape}, values: {stats['action_std']}")
+    print(f"  Joint pos mean shape: {stats['joint_pos_mean'].shape}, values: {stats['joint_pos_mean']}")
+    print(f"  Joint pos std shape: {stats['joint_pos_std'].shape}, values: {stats['joint_pos_std']}")
+    print(f"  Action value ranges - Min: {all_action_data.min().item():.6f}, Max: {all_action_data.max().item():.6f}")
+    print(f"  Joint pos value ranges - Min: {all_joint_pos_data.min().item():.6f}, Max: {all_joint_pos_data.max().item():.6f}")
+
+    # Validate computed statistics
+    for key, value in stats.items():
+        if key != "example_joint_pos" and value is not None:
+            if np.any(np.isnan(value)):
+                print(f"WARNING: NaN values found in {key}: {value}")
+            if np.any(np.isinf(value)):
+                print(f"WARNING: Infinite values found in {key}: {value}")
+            if key.endswith('_std') and np.any(value <= 0):
+                print(f"WARNING: Non-positive std values found in {key}: {value}")
+                # Fix by setting minimum std to prevent division by zero
+                value = np.clip(value, 1e-6, np.inf)
+                stats[key] = value
 
     return stats
 
