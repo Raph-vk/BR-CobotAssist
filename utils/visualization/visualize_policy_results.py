@@ -268,13 +268,19 @@ def test_policy_chunk_prediction(
             robot_front, robot_side = visualizer.move_joints(np.array(raw_joints).reshape(1,7), extract_frame=True)
     
             ax = fig.add_subplot(gs[0:2, 4])
-            robot_front_cropped = robot_front[300:-500, 600:-600, :3]
+            height = robot_front.shape[0]
+            min_height = round(height/2) - 350
+            max_height = round(height/2) + 150
+            width = robot_front.shape[1]
+            min_width = round(width/2) - 250
+            max_width = round(width/2) + 250
+            robot_front_cropped = robot_front[min_height:max_height, min_width:max_width, :3]
             ax.imshow(robot_front_cropped)  # Show RGB part of the robot visualizer, and crop image
             ax.set_title(f"Robot Front View")
             ax.axis('off')
 
             ax = fig.add_subplot(gs[0:2, 5])
-            robot_side_cropped = robot_side[300:-500, 600:-600, :3]
+            robot_side_cropped = robot_side[min_height:max_height, min_width:max_width, :3]
             ax.imshow(robot_side_cropped)  # Show RGB part of the robot visualizer, and crop image
             ax.set_title(f"Robot Side View")
             ax.axis('off')

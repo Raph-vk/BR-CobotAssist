@@ -118,19 +118,19 @@ def save_joints_graph(plot_path, action_master, action_puppet, joint_states, act
     # plot joint state
     for dim_idx in range(num_dim):
         ax = axs[dim_idx]
-        ax.plot(joint_pos[:, dim_idx], label='joint_pos')
+        ax.plot(joint_pos[:, dim_idx], label='robot')
         ax.set_title(f'Joint {dim_idx}: {joint_names[dim_idx]}')
         ax.legend()
 
     # plot arm command
     for dim_idx in range(num_dim):
         ax = axs[dim_idx]
-        ax.plot(action_puppet[:, dim_idx], label='action robot')
+        ax.plot(action_puppet[:, dim_idx], label='buffer robot')
         ax.legend()
 
     for dim_idx in range(num_dim):
         ax = axs[dim_idx]
-        ax.plot(action_master[:, dim_idx], label='action teachbot')
+        ax.plot(action_master[:, dim_idx], label='teachbot')
         ax.legend()
 
     for dim_idx in range(num_dim):
@@ -351,7 +351,7 @@ def save_videos(video_path, color_videos, depth_videos = {}, dt=62.5, include_de
 if __name__ == "__main__":
     # datadir = '/run/user/1000/gvfs/smb-share:server=tos-nas01.local,share=lore_workspace/tests/ballen_2_vaste_locatie/second_test'
     datadir = '../tos_app_data/second_test'
-    episode_idx = 106
+    episode_idx = 129
     main(datadir, episode_idx,
          save_plot=True,
          save_plot_dropoff=True, 
