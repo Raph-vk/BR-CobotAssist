@@ -284,7 +284,7 @@ class FanucRobot():
             self.logger_ri.error("play_recording, robot not connected.")
             return False
 
-        # Set robot speed for policy execution
+        # Set robot speed for policy execution TODO
         self.robot_speed = self.default_recording_speed
 
         # create thread that controls the robot

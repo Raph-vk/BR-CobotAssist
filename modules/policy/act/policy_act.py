@@ -29,6 +29,8 @@ from utils.utils import setup_logging, load_config, get_data_path
 from .act_utils import load_data, compute_dict_mean, detach_dict, set_seed
 from .detr.models import ACTPolicy
 
+# Recreate actual CameraRingBuffer objects from info dictionaries
+from modules.camera.cam_utils import CameraRingBuffer
 
 class PolicyInterface:
     """
@@ -40,10 +42,8 @@ class PolicyInterface:
     def __init__(self, policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi):
         self.policy_interface_commup = policy_interface_commup
         self.policy_interface_commdown = policy_interface_commdown
-        
-        # Recreate actual CameraRingBuffer objects from info dictionaries
-        from modules.camera.cam_utils import CameraRingBuffer
-        
+        self.logger_pi = logger_pi
+
         self.color_buffers2 = {}
         for camera_name, buffer_info in color_buffers2.items():
             self.color_buffers2[camera_name] = CameraRingBuffer(
@@ -69,7 +69,6 @@ class PolicyInterface:
         self.shm_joint_data2 = shm_joint_data2
         self.shm_cpp_joint_data2_info = shm_cpp_joint_data2_info
         self.config = config
-        self.logger_pi = logger_pi
 
         # Attach to shm_target_pos2 shared memory segment
         self.shm_target_pos2_info = shm_target_pos2_info
@@ -312,7 +311,6 @@ class PolicyInterface:
                 time.sleep(0.1)
                 
         self.logger_pi.info(f"Policy execution loop ended after {frame_count} cycles")
-
 
     def _init_execution_logging(self):
         """Initialize execution logging files."""
@@ -953,11 +951,11 @@ class PolicyInterface:
                         self.logger_pi.info(f'Saved best ckpt to {best_ckpt_path}, val loss {min_val_loss:.6f} @ epoch{best_epoch}')
                         
                         # Clean up previous best checkpoint
-                        if previous_best_epoch >= 0 and previous_best_epoch != best_epoch:
+                        if best_epoch > 0:
                             previous_best_ckpt_path = os.path.join(ckpt_dir, f'policy_best_epoch_{previous_best_epoch}.ckpt')
                             if os.path.exists(previous_best_ckpt_path):
+                                self.logger_pi.info(f'Deleting previous best ckpt {previous_best_ckpt_path}')
                                 os.remove(previous_best_ckpt_path)
-                                self.logger_pi.info(f'Deleted previous best ckpt {previous_best_ckpt_path}')
                         previous_best_epoch = best_epoch
 
                 self.logger_pi.info(f'Val loss:   {epoch_val_loss:.5f}')
@@ -1087,10 +1085,10 @@ class PolicyInterface:
         std = torch.tensor(joint_pos_std, dtype=torch.float32)
         qpos = (qpos - mean) / std
         
-        # Move to device
-        device = next(self.policy_model.parameters()).device
-        images = images.to(device)
-        qpos = qpos.to(device)
+        # Move to GPU - using .cuda() to match training pattern
+        if torch.cuda.is_available():
+            images = images.cuda()
+            qpos = qpos.cuda()
         
         # Run inference
         with torch.no_grad():

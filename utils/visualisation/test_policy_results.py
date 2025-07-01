@@ -159,6 +159,8 @@ def evaluate_episode(
         joints = robot_pos
         actions = master_pos
 
+    
+
     if len(actions) < chunk:
         print("Episode too short → skip")
         return
@@ -248,11 +250,12 @@ def main(
 ) -> None:
     device = torch.device(device_str)
 
-    latest_run = most_recent_subdir(data_root)           # e.g. 20250630_182048
-    latest_model_dir = most_recent_subdir(latest_run / "Models")
+    # Use hardcoded paths for specific model/dataset
+    latest_run = Path("/home/teun/tos_app_data/converted_20250701_112712")
+    latest_model_dir = Path("/home/teun/tos_app_data/converted_20250701_112712/20250701")
 
     config_path = latest_model_dir / "config.json"
-    stats_path = latest_model_dir / "dataset_stats.pkl"
+    stats_path = latest_model_dir / "dataset_stats.pkl"  # Using stats.pkl instead of dataset_stats.pkl
 
     policy, cfg = load_policy(config_path, device)
     stats = load_stats(stats_path)
@@ -260,9 +263,9 @@ def main(
     cam_names: List[str] = cfg.get("camera_names", cfg["policy_config"]["camera_names"])
     dataset_dir = latest_run / "Dataset"
 
-    episodes_files = sorted(latest_run.glob("*.hdf5"))
+    episodes_files = sorted(Path(latest_run).glob("episode_*.hdf5"))
     if not episodes_files:
-        raise FileNotFoundError(f"No *.hdf5 episodes in {dataset_dir}")
+        raise FileNotFoundError(f"No episode_*.hdf5 files in {latest_run}")
 
     sampled = random.sample(episodes_files, min(episodes, len(episodes_files)))
     for ep in sampled:

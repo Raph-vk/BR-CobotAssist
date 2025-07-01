@@ -60,9 +60,6 @@ class EpisodicDataset(torch.utils.data.Dataset):
             # Retrieve joint states (robot position at the selected timestep)
             # joint_pos now includes gripper as last element: [j1, j2, j3, j4, j5, j6, gripper]
             joint_pos = robot_positions[joint_start_idx]
-
-            # print('joint position at start index:', joint_pos)
-            # print('master positions at start index:', master_positions[joint_start_idx])
             
             # Make sure joint 4 is always 0 when predicting (j4 is at index 3)
             j4_locked = self.config["general"]["j4_locked"]
@@ -70,11 +67,8 @@ class EpisodicDataset(torch.utils.data.Dataset):
                 joint_pos[3] = 0
 
             # Retrieve action data from the selected start point
-            # action now includes gripper as last element: [j1, j2, j3, j4, j5, j6, gripper]
             actions = master_positions[joint_start_idx:]
             action_len = episode_len - joint_start_idx
-
-            # print('action length over to predict:', action_len)
 
             # ------------------------------------------------
             # 1) Load color images for each camera - using new structure
@@ -135,8 +129,6 @@ class EpisodicDataset(torch.utils.data.Dataset):
         image_data = torch.from_numpy(all_cam_images)
         image_data = image_data.permute(0, 3, 1, 2)  # shape: (num_cams, 4, H, W)
 
-        # Debug final shape
-        # print("Final image_data shape:", tuple(image_data.shape), "\n")
 
         # ------------------------------------------------
         # The rest is unchanged from your original logic
@@ -144,8 +136,6 @@ class EpisodicDataset(torch.utils.data.Dataset):
         # Create padded action array with the original episode length
         padded_action = np.zeros(original_actions_shape, dtype=np.float32)
         padded_action[joint_start_idx:joint_start_idx + action_len] = actions
-
-        # print(f"padded from {joint_start_idx} to {joint_start_idx + action_len} with zeros")
 
         is_pad = np.zeros(episode_len)
         is_pad[joint_start_idx + action_len:] = 1
@@ -155,19 +145,16 @@ class EpisodicDataset(torch.utils.data.Dataset):
         is_pad = torch.from_numpy(is_pad).bool()
 
 
-        # for i in range(len(master_positions)):
-        #     # if action not padded, print the action
-        #     if np.isscalar(padded_action[i]) or padded_action[i].shape == ():
-        #         if padded_action[i] != 1:
-        #             print(f"Action at index {i}: {master_positions[i]}")
-        #     else:
-        #         if not np.all(padded_action[i] == 1):
-        #             print(f"Action at index {i}: {master_positions[i]}")
-
-
         # Normalize joint_pos and action
         action_data = (action_data - self.norm_stats["action_mean"]) / self.norm_stats["action_std"]
         joint_pos_data = (joint_pos_data - self.norm_stats["joint_pos_mean"]) / self.norm_stats["joint_pos_std"]
+
+        # print some stats about the action data
+        if self.logger:
+            self.logger.debug(f"Episode {episode_id} | Action data shape: {action_data.shape}, Joint pos data shape: {joint_pos_data.shape}, Is pad shape: {is_pad.shape}")
+            self.logger.debug(f"self.norm_stats['action_mean'] shape: {self.norm_stats['action_mean']}, self.norm_stats['action_std'] shape: {self.norm_stats['action_std']}")
+            self.logger.debug(f"Action data stats - Mean: {action_data.mean().item()}, Std: {action_data.std().item()}")
+            self.logger.debug(f"Joint pos data stats - Mean: {joint_pos_data.mean().item()}, Std: {joint_pos_data.std().item()}")
 
         return image_data, joint_pos_data, action_data, is_pad
 

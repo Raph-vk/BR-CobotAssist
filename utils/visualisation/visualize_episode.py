@@ -267,5 +267,5 @@ def load_hdf5(dataset_dir, dataset_name):
 
 if __name__ == '__main__':
     # Set dataset_name to None to use the most recent dataset, or set to a string to use a specific one
-    dataset_name = None  # e.g., 'episode_001' or None
+    dataset_name = ""  # e.g., 'episode_001' or None
     main(dataset_name)
