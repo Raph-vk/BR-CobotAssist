@@ -22,13 +22,14 @@ import multiprocessing.shared_memory as shared_memory
 import struct
 import threading
 import queue
-import csv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 from utils.utils import setup_logging, load_config, get_data_path
 from .act_utils import load_data, compute_dict_mean, detach_dict, set_seed
 from .detr.models import ACTPolicy
 
+# Recreate actual CameraRingBuffer objects from info dictionaries
+from modules.camera.cam_utils import CameraRingBuffer
 
 class PolicyInterface:
     """
@@ -40,12 +41,33 @@ class PolicyInterface:
     def __init__(self, policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi):
         self.policy_interface_commup = policy_interface_commup
         self.policy_interface_commdown = policy_interface_commdown
-        self.color_buffers2 = color_buffers2
-        self.depth_buffers2 = depth_buffers2
+        self.logger_pi = logger_pi
+
+        self.color_buffers2 = {}
+        for camera_name, buffer_info in color_buffers2.items():
+            self.color_buffers2[camera_name] = CameraRingBuffer(
+                name=buffer_info["name"],
+                width=buffer_info["width"],
+                height=buffer_info["height"],
+                channels=buffer_info["channels"],
+                capacity=buffer_info["capacity"],
+                create=False  # Connect to existing buffer
+            )
+            
+        self.depth_buffers2 = {}
+        for camera_name, buffer_info in depth_buffers2.items():
+            self.depth_buffers2[camera_name] = CameraRingBuffer(
+                name=buffer_info["name"],
+                width=buffer_info["width"],
+                height=buffer_info["height"],
+                channels=buffer_info["channels"],
+                capacity=buffer_info["capacity"],
+                create=False  # Connect to existing buffer
+            )
+
         self.shm_joint_data2 = shm_joint_data2
         self.shm_cpp_joint_data2_info = shm_cpp_joint_data2_info
         self.config = config
-        self.logger_pi = logger_pi
 
         # Attach to shm_target_pos2 shared memory segment
         self.shm_target_pos2_info = shm_target_pos2_info
@@ -103,7 +125,17 @@ class PolicyInterface:
         self.policy_config = None
         self.dataset_stats = None
 
-        self.start_position = self.config["general"]["start_position"]       
+        self.start_position = self.config["general"]["start_position"]
+        
+        # Temporal ensemble configuration
+        self.enable_temporal_ensemble = self.config.get("policy", {}).get("temporal_ensemble", {}).get("enabled", True)
+        self.ensemble_overlap_weight = self.config.get("policy", {}).get("temporal_ensemble", {}).get("overlap_weight", 0.5)  # 50% weight for overlapping actions
+        
+        # Initialize temporal ensemble state variables
+        self.prev_ensemble_seq_id = None
+        self.prev_ensemble_actions = None
+        
+        self.logger_pi.info(f"Temporal ensemble: enabled={self.enable_temporal_ensemble}, overlap_weight={self.ensemble_overlap_weight}")    
 
     ###################################################################
     # Commands for policy interface
@@ -184,6 +216,24 @@ class PolicyInterface:
             self.training_thread.join(timeout=2.0)
             
         # Clean up shared memory to prevent BufferError
+        # Close camera buffers first
+        if hasattr(self, 'color_buffers2'):
+            for camera_name, buffer in self.color_buffers2.items():
+                try:
+                    buffer.close()
+                except Exception as e:
+                    self.logger_pi.warning(f"Error closing color buffer for {camera_name}: {e}")
+            self.color_buffers2.clear()
+            
+        if hasattr(self, 'depth_buffers2'):
+            for camera_name, buffer in self.depth_buffers2.items():
+                try:
+                    buffer.close()
+                except Exception as e:
+                    self.logger_pi.warning(f"Error closing depth buffer for {camera_name}: {e}")
+            self.depth_buffers2.clear()
+        
+        # Close other shared memory
         if self.shm_target_pos2:
             try:
                 self.shm_target_pos2.close()
@@ -191,6 +241,15 @@ class PolicyInterface:
                 self.logger_pi.info("Shared memory cleaned up successfully")
             except Exception as e:
                 self.logger_pi.warning(f"Error cleaning up shared memory: {e}")
+                
+        # Close C++ shared memory if exists
+        if hasattr(self, 'shm_cpp_joint_data2') and self.shm_cpp_joint_data2:
+            try:
+                self.shm_cpp_joint_data2.close()
+                self.shm_cpp_joint_data2 = None
+                self.logger_pi.info("C++ shared memory cleaned up successfully")
+            except Exception as e:
+                self.logger_pi.warning(f"Error cleaning up C++ shared memory: {e}")
         
         self.logger_pi.info("Policy execution stopped")
         
@@ -200,26 +259,29 @@ class PolicyInterface:
             self.logger_pi.info("Policy thread stopped")
 
 
-
     ###################################################################
     # Data gathering and processing run policy
     ###################################################################
 
-    def _policy_execution_loop(self, write_chunks_to_csv=True):
+    def _policy_execution_loop(self, write_to_hdf5=True):
         """
         Main policy execution loop that runs in a separate thread.
         """
         self.logger_pi.info("Policy execution loop started")
         frame_count = 0
 
-        if write_chunks_to_csv:
+        # Initialize temporal ensemble variables
+        self.prev_ensemble_seq_id = None
+        self.prev_ensemble_actions = None
+
+        if write_to_hdf5:
             # Initialize execution logging
             self._init_execution_logging()
         
         while self.running:
             try:
                 # 1. Receive joint information from shm_joint_data2 and gather the last 0.1 seconds of position data
-                joint_data_window = self._gather_joint_data()
+                joint_data_window = self._gather_joint_data(write_to_hdf5=write_to_hdf5)
                 
                 # 2. Retrieve the latest images from the color_buffers2 and depth_buffers2
                 latest_images, image_timestamps = self._retrieve_latest_images()
@@ -230,77 +292,148 @@ class PolicyInterface:
                 # 4. Run the policy on the joint information and images (simplified version)
                 predicted_actions = self.execute_policy(joint_position, latest_images)
                 
-
-                # log all predicted actions
-                if predicted_actions is not None:
-                    self.logger_pi.debug(f"Predicted actions for frame {frame_count}: {predicted_actions}")
-
-
                 # 5. interpolated actions
                 interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
 
-                # 6. Update the shm_target_pos2 with predictions
-                end_seq_id = self._update_target_positions(start_seq_id, interpolated_actions)
+                # 6. If temporal ensemble is enabled, perform ensemble averaging
+                temporal_ensemble_actions = self.temporal_ensemble_actions(start_seq_id, interpolated_actions, self.prev_ensemble_seq_id, self.prev_ensemble_actions)
+                self.prev_ensemble_actions = temporal_ensemble_actions
+                self.prev_ensemble_seq_id = start_seq_id
 
-                # 7. Log execution data if wanted
-                if write_chunks_to_csv:
+                # 7. Update the shm_target_pos2 with ensemble predictions
+                ensemble_seq_ids = np.arange(start_seq_id, start_seq_id + len(temporal_ensemble_actions))
+                self._update_target_positions_with_seq_ids(ensemble_seq_ids, temporal_ensemble_actions)
+
+                # 8. Log execution data if wanted
+                if write_to_hdf5:
                     self._log_execution_data(frame_count, start_seq_id, latest_images, joint_position, predicted_actions)
 
-                # 8. Increment frame
-                self.logger_pi.debug(f"Policy cycle {frame_count} completed: seq_id {start_seq_id}-{end_seq_id}")
+                # 9. Increment frame
                 frame_count += 1
+
+                # Sleep to control execution rate
+                time.sleep(0.05)  # Adjust sleep time as needed for your application
                 
             except Exception as e:
                 self.logger_pi.error(f"Error in policy execution cycle {frame_count}: {e}")
+                # print traceback of the error
+
                 time.sleep(0.1)
                 
         self.logger_pi.info(f"Policy execution loop ended after {frame_count} cycles")
 
-
     def _init_execution_logging(self):
         """Initialize execution logging files."""
-        # Add execution logging path
-        start_time = datetime.now().replace(microsecond=0).isoformat()
-        self.execution_log_csv = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.csv")
+
+        # Add execution logging path with proper timestamp format (no colons)
+        start_time = datetime.now().replace(microsecond=0).strftime("%Y-%m-%d_%H-%M-%S")
+        self.execution_log_hdf5 = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.hdf5")
 
         try:
-            # Create CSV file with headers
-            with open(self.execution_log_csv, 'w', newline='') as f:
-                csv_writer = csv.writer(f)
-                # Write CSV headers
-                headers = [
-                    'frame_count',
-                    'timestamp',
-                    'start_seq_id',
-                    'latest_images',
-                    'joint_position',
-                    'predicted_actions'
-                ]
-                csv_writer.writerow(headers)
+            import h5py
             
+            # Create HDF5 file with initial structure
+            with h5py.File(self.execution_log_hdf5, 'w') as f:
+                # Create groups for different data types
+                f.create_group('metadata')
+                f.create_group('actions')
+                f.create_group('images')
+                f.create_group('joint_data')
+
+                # Store metadata about the logging session
+                metadata = f['metadata']
+                metadata.attrs['start_time'] = start_time
+                metadata.attrs['robot_dof'] = self.robot_dof
+                metadata.attrs['robot_dof_ee'] = self.robot_dof_ee
+                metadata.attrs['total_dof'] = self.total_dof
+                metadata.attrs['record_divisor'] = self.record_divisor
+                
+                # Create expandable datasets for frame data
+                actions = f['actions']
+                actions.create_dataset('frame_count', (0,), maxshape=(None,), dtype='i8')
+                actions.create_dataset('timestamp', (0,), maxshape=(None,), dtype='f8')
+                actions.create_dataset('start_seq_id', (0,), maxshape=(None,), dtype='i8')
+                actions.create_dataset('joint_position', (0, self.total_dof), maxshape=(None, self.total_dof), dtype='f8')
+                # Start with a reasonable chunk size estimate for predicted actions (will resize dynamically)
+                chunk_size_estimate = 75  # Common ACT chunk size
+                actions.create_dataset('predicted_actions', (0, chunk_size_estimate, self.total_dof), maxshape=(None, None, self.total_dof), dtype='f8')
+                # Images group will be populated dynamically as we don't know image shapes yet
+
+                joint_data = f['joint_data']
+                joint_data.create_dataset('seq_id', (0,), maxshape=(None,), dtype='i8')
+                joint_data.create_dataset('timestamp', (0,), maxshape=(None,), dtype='f8')
+                joint_data.create_dataset('positions', (0, self.total_dof), maxshape=(None, self.total_dof), dtype='f8')
+                
             self.logger_pi.info(f"Execution logging initialized:")
-            self.logger_pi.info(f"  CSV log path:  {self.execution_log_csv}")
-            
+            self.logger_pi.info(f"  HDF5 log path:  {self.execution_log_hdf5}")
+
         except Exception as e:
             self.logger_pi.error(f"Failed to initialize execution logging: {e}")
 
     def _log_execution_data(self, frame_count, start_seq_id, latest_images, joint_position, predicted_actions):
+
         """Log execution data for this cycle."""
         try:
+            import h5py
+
             timestamp = time.time()
             
-            # Write to CSV file
-            with open(self.execution_log_csv, 'a', newline='') as f:
-                csv_writer = csv.writer(f)
-                csv_row = [
-                    frame_count,
-                    timestamp,
-                    start_seq_id,
-                    latest_images,
-                    joint_position,
-                    predicted_actions
-                ]
-                csv_writer.writerow(csv_row)
+            # Open HDF5 file and append data
+            with h5py.File(self.execution_log_hdf5, 'a') as f:
+                actions = f['actions']
+                images = f['images']
+                
+                # Resize action datasets to accommodate new data
+                current_size = actions['frame_count'].shape[0]
+                new_size = current_size + 1
+                actions['frame_count'].resize((new_size,))
+                actions['timestamp'].resize((new_size,))
+                actions['start_seq_id'].resize((new_size,))
+                actions['joint_position'].resize((new_size, self.total_dof))
+                actions['predicted_actions'].resize((new_size, predicted_actions.shape[0], self.total_dof))
+                # Store actions data
+                actions['frame_count'][current_size] = frame_count
+                actions['timestamp'][current_size] = timestamp
+                actions['start_seq_id'][current_size] = start_seq_id
+                actions['joint_position'][current_size] = joint_position  
+                actions['predicted_actions'][current_size] = predicted_actions
+                
+                # Store images with actual image data
+                frame_group_name = f'frame_{frame_count:06d}'
+                if frame_group_name not in images:
+                    frame_group = images.create_group(frame_group_name)
+                else:
+                    frame_group = images[frame_group_name]
+                
+                # Store each image with its metadata
+                for image_key, image_data in latest_images.items():
+                    if image_data is not None:
+                        try:
+                            # Convert image to numpy array if it isn't already
+                            if not isinstance(image_data, np.ndarray):
+                                image_array = np.array(image_data)
+                            else:
+                                image_array = image_data
+                            
+                            # Create dataset for this image
+                            if image_key not in frame_group:
+                                # Create new dataset
+                                img_dataset = frame_group.create_dataset(
+                                    image_key, 
+                                    data=image_array,
+                                    compression='gzip',
+                                    compression_opts=1  # Light compression for speed
+                                )
+                                # Store image metadata as attributes
+                                img_dataset.attrs['shape'] = image_array.shape
+                                img_dataset.attrs['dtype'] = str(image_array.dtype)
+                                img_dataset.attrs['camera_type'] = 'color' if 'color' in image_key else 'depth'
+                            else:
+                                # Update existing dataset
+                                frame_group[image_key][:] = image_array
+                                
+                        except Exception as img_error:
+                            self.logger_pi.warning(f"Failed to store image {image_key} for frame {frame_count}: {img_error}")
             
             # Log every 100 frames to main logger
             if frame_count % 100 == 0:
@@ -309,14 +442,13 @@ class PolicyInterface:
         except Exception as e:
             self.logger_pi.error(f"Failed to log execution data for frame {frame_count}: {e}")
 
-    def _gather_joint_data(self):
+    def _gather_joint_data(self, write_to_hdf5=False):
         """
         Gather joint information from shm_joint_data2 (Python queue) or shm_cpp_joint_data2 (C++ shared memory) for the last 0.1 seconds.
         """
         
         joint_data_window = []
         current_time = time.time()
-        # self.logger_pi.debug("Gathering joint data for the last 0.1 seconds")
 
         # Use C++ shared memory if available, otherwise use Python queue
         if self.shm_cpp_joint_data2_reader is not None:
@@ -337,9 +469,23 @@ class PolicyInterface:
                             'timestamp': timestamp,
                             'positions': positions,
                         })
-                        
-                # self.logger_pi.debug(f"Gathered {len(joint_data_window)} joint data entries from C++ shared memory")
-                        
+                        if write_to_hdf5:
+                            with h5py.File(self.execution_log_hdf5, 'a') as f:
+                                joint_data = f['joint_data']
+                                # Resize datasets to accommodate new data
+                                current_size = joint_data['seq_id'].shape[0]
+                                new_size = current_size + 1
+                                joint_data['seq_id'].resize((new_size,))
+                                joint_data['timestamp'].resize((new_size,))
+                                joint_data['positions'].resize((new_size, self.total_dof))
+                                # Store joint data
+                                joint_data['seq_id'][current_size] = seq_id
+                                joint_data['timestamp'][current_size] = timestamp
+                                joint_data['positions'][current_size] = positions
+            
+                    # Log the joint data window for debugging but only last entry
+                    # self.logger_pi.info(f'joint_data_window: {joint_data_window[-1]}')
+
             except Exception as e:
                 self.logger_pi.error(f"Failed to gather joint data from C++ shared memory: {e}")
                 return []
@@ -353,8 +499,6 @@ class PolicyInterface:
                         # Get joint data from queue (non-blocking)
                         joint_data = self.shm_joint_data2.get_nowait()
                         
-                        self.logger_pi.debug(f"Received joint data: {joint_data}")
-
                         # Extract relevant information
                         seq_id = joint_data.get("seq_id", 0)
                         timestamp = joint_data.get("robot_position_timestamp", current_time)
@@ -367,6 +511,23 @@ class PolicyInterface:
                                 'timestamp': timestamp,
                                 'positions': positions,
                             })
+
+                            if write_to_hdf5:
+                                with h5py.File(self.execution_log_hdf5, 'a') as f:
+                                    joint_data = f['joint_data']
+                                    # Resize datasets to accommodate new data
+                                    current_size = joint_data['seq_id'].shape[0]
+                                    new_size = current_size + 1
+                                    joint_data['seq_id'].resize((new_size,))
+                                    joint_data['timestamp'].resize((new_size,))
+                                    joint_data['positions'].resize((new_size, self.total_dof))
+                                    # Store joint data
+                                    joint_data['seq_id'][current_size] = seq_id
+                                    joint_data['timestamp'][current_size] = timestamp
+                                    joint_data['positions'][current_size] = positions
+                                    # Log the joint data window for debugging but only last entry
+                            self.logger_pi.info(f'joint_data_window: {joint_data_window[-1]}')
+
                         
                     except queue.Empty:
                         # No more data in queue
@@ -379,7 +540,6 @@ class PolicyInterface:
             self.logger_pi.warning("No joint data source available (neither C++ shared memory nor Python queue)")
             return []
         
-        # self.logger_pi.debug(f"Gathered {len(joint_data_window)} joint data entries from the last 0.1 seconds")
         return joint_data_window
 
     def _retrieve_latest_images(self):
@@ -389,11 +549,8 @@ class PolicyInterface:
         latest_images = {}
         image_timestamps = {}
         
-        # self.logger_pi.debug("Retrieving latest images from buffers")
-
         # Get images from color buffers
         if hasattr(self, 'color_buffers2') and self.color_buffers2:
-            # self.logger_pi.debug("Retrieving color images from buffers")
             for camera_name, color_buffer in self.color_buffers2.items():
                 try:
                     color_data = color_buffer.read()
@@ -402,7 +559,6 @@ class PolicyInterface:
                         color_timestamp = color_data["timestamp"]
                         latest_images[f"{camera_name}_color"] = color_image
                         image_timestamps[f"{camera_name}_color"] = color_timestamp
-                        # self.logger_pi.debug(f"Retrieved color image from {camera_name} at {color_timestamp}")
                 except Exception as e:
                     self.logger_pi.warning(f"Failed to read color image from {camera_name}: {e}")
         
@@ -473,12 +629,49 @@ class PolicyInterface:
                 self.shm_target_pos2.buf[offset:offset+len(data)] = data
             
             end_seq_id = predicted_actions[-1]['seq_id']
-            # self.logger_pi.debug(f"Updated shm_target_pos2 with actions {start_seq_id} to {end_seq_id}")
             return end_seq_id
             
         except Exception as e:
             self.logger_pi.error(f"Failed to update shm_target_pos2: {e}")
             return start_seq_id
+
+    def _update_target_positions_with_seq_ids(self, seq_ids, actions):
+        """
+        Update the shm_target_pos2 with predictions using explicit sequence IDs.
+        
+        Args:
+            seq_ids: np.ndarray of sequence IDs
+            actions: np.ndarray of actions corresponding to each sequence ID
+        """
+        if not self.shm_target_pos2 or actions is None or len(actions) == 0:
+            return seq_ids[0] if len(seq_ids) > 0 else 0
+        
+        try:
+            # Write predicted actions to shared memory
+            for seq_id, action in zip(seq_ids, actions):
+                # Convert to int if needed
+                seq_id = int(seq_id)
+                
+                # Validate action dimensions before packing
+                if len(action) != self.total_dof:  # Expected: joints + gripper
+                    self.logger_pi.warning(f"Action has {len(action)} elements, expected {self.total_dof} ({self.robot_dof} joints + {self.robot_dof_ee} gripper)")
+                
+                # Pack data according to format: sequence_id (I) + joint positions (d each)
+                data = struct.pack(self.shm_target_pos2_entry_format, seq_id, *action)
+                
+                # Calculate buffer position (circular buffer)
+                buffer_index = seq_id % self.shm_target_pos2_capacity
+                offset = buffer_index * self.shm_target_pos2_entry_size
+                
+                # Write to shared memory
+                self.shm_target_pos2.buf[offset:offset+len(data)] = data
+            
+            end_seq_id = int(seq_ids[-1])
+            return end_seq_id
+            
+        except Exception as e:
+            self.logger_pi.error(f"Failed to update shm_target_pos2 with ensemble: {e}")
+            return int(seq_ids[0]) if len(seq_ids) > 0 else 0
 
     def _interpolate_actions(self, start_seq_id, predicted_actions, current_joint_position):
         """
@@ -516,7 +709,7 @@ class PolicyInterface:
                     next_action = next_action[:self.total_dof]
             
             # Generate interpolated steps between prev_action and next_action
-            for step in range(self.record_divisor):
+            for step in range(1, self.record_divisor):
                 # Linear interpolation factor (0.0 to 1.0)
                 alpha = step / self.record_divisor
                 
@@ -533,7 +726,6 @@ class PolicyInterface:
             # Update prev_action for next iteration
             prev_action = next_action
         
-        # self.logger_pi.debug(f"Interpolated {len(predicted_actions)} predicted actions into {len(interpolated_actions)} smooth actions (DOF: {self.robot_dof}+{self.robot_dof_ee}={self.total_dof})")
         return interpolated_actions
 
     ###################################################################
@@ -895,11 +1087,11 @@ class PolicyInterface:
                         self.logger_pi.info(f'Saved best ckpt to {best_ckpt_path}, val loss {min_val_loss:.6f} @ epoch{best_epoch}')
                         
                         # Clean up previous best checkpoint
-                        if previous_best_epoch >= 0 and previous_best_epoch != best_epoch:
+                        if best_epoch > 0:
                             previous_best_ckpt_path = os.path.join(ckpt_dir, f'policy_best_epoch_{previous_best_epoch}.ckpt')
                             if os.path.exists(previous_best_ckpt_path):
+                                self.logger_pi.info(f'Deleting previous best ckpt {previous_best_ckpt_path}')
                                 os.remove(previous_best_ckpt_path)
-                                self.logger_pi.info(f'Deleted previous best ckpt {previous_best_ckpt_path}')
                         previous_best_epoch = best_epoch
 
                 self.logger_pi.info(f'Val loss:   {epoch_val_loss:.5f}')
@@ -987,6 +1179,10 @@ class PolicyInterface:
             if color_key in latest_images:
                 color_image = latest_images[color_key]
                 if isinstance(color_image, np.ndarray):
+                    # Ensure correct dtype and shape
+                    if color_image.dtype != np.float32:
+                        color_image = color_image.astype(np.float32)
+                    # Convert to torch and normalize to [0,1] range
                     color_image = torch.from_numpy(color_image).float().permute(2, 0, 1) / 255.0
             else:
                 color_image = torch.zeros(3, 240, 424)  # RGB dummy
@@ -996,7 +1192,10 @@ class PolicyInterface:
             if depth_key in latest_images:
                 depth_image = latest_images[depth_key]
                 if isinstance(depth_image, np.ndarray):
-                    # Convert depth to single channel and normalize
+                    # Ensure correct dtype
+                    if depth_image.dtype != np.float32:
+                        depth_image = depth_image.astype(np.float32)
+                    # Convert depth to single channel and normalize to [0,1] range
                     if len(depth_image.shape) == 3:
                         depth_image = depth_image[:, :, 0]  # Take first channel if multi-channel
                     depth_image = torch.from_numpy(depth_image).float().unsqueeze(0) / 65535.0  # Normalize depth by max 16-bit value
@@ -1016,34 +1215,152 @@ class PolicyInterface:
             num_cameras = len(camera_names)
             images = torch.zeros(1, num_cameras, 4, 240, 424)
         
-        # Prepare joint positions
+        # Prepare joint positions - preprocessing like the working code
         qpos = torch.tensor(joint_position, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
         
-        # Normalize inputs using dataset stats
-        if 'qpos_mean' in self.dataset_stats and 'qpos_std' in self.dataset_stats:
-            qpos_mean = torch.tensor(self.dataset_stats['qpos_mean'], dtype=torch.float32)
-            qpos_std = torch.tensor(self.dataset_stats['qpos_std'], dtype=torch.float32)
-            qpos = (qpos - qpos_mean) / qpos_std
+        # Normalize joint positions using dataset stats
+        stats = self.dataset_stats
+        joint_pos_mean = np.array(stats['joint_pos_mean'])
+        joint_pos_std = np.array(stats['joint_pos_std'])
         
-        # Move to device
-        device = next(self.policy_model.parameters()).device
-        images = images.to(device)
-        qpos = qpos.to(device)
+        # Validate joint position normalization stats dimensions
+        if len(joint_pos_mean) != len(joint_position):
+            self.logger_pi.error(f"Joint position mean dimension mismatch: expected {len(joint_position)}, got {len(joint_pos_mean)}")
+            self.logger_pi.error(f"Joint position: {joint_position}")
+            self.logger_pi.error(f"Joint pos mean: {joint_pos_mean}")
+            # Try to fix by padding or truncating
+            if len(joint_pos_mean) < len(joint_position):
+                # Pad with zeros
+                pad_size = len(joint_position) - len(joint_pos_mean)
+                joint_pos_mean = np.pad(joint_pos_mean, (0, pad_size), 'constant')
+                joint_pos_std = np.pad(joint_pos_std, (0, pad_size), 'constant', constant_values=1.0)
+                self.logger_pi.warning(f"Padded joint pos stats to match dimension: {len(joint_pos_mean)}")
+            else:
+                # Truncate
+                joint_pos_mean = joint_pos_mean[:len(joint_position)]
+                joint_pos_std = joint_pos_std[:len(joint_position)]
+                self.logger_pi.warning(f"Truncated joint pos stats to match dimension: {len(joint_pos_mean)}")
+        
+        # Convert to torch tensors and normalize (following the working code pattern)
+        mean = torch.tensor(joint_pos_mean, dtype=torch.float32)
+        std = torch.tensor(joint_pos_std, dtype=torch.float32)
+        
+        # Avoid division by zero
+        std = torch.clamp(std, min=1e-6)
+        
+        qpos = (qpos - mean) / std
+        
+        # Move to GPU - using .cuda() to match training pattern
+        if torch.cuda.is_available():
+            images = images.cuda()
+            qpos = qpos.cuda()
         
         # Run inference
         with torch.no_grad():
-            actions = self.policy_model(qpos, images)  # Get predicted actions
+            raw_actions = self.policy_model(qpos, images)  # Get predicted actions
+            actions = raw_actions
             
         # Convert back to numpy and denormalize
         actions = actions.cpu().numpy()[0]  # Remove batch dimension
-        
-        # Denormalize actions if stats available
+                
+        # Denormalize actions using the same method as the working code
+        # Check for both possible key formats in dataset_stats
         if 'action_mean' in self.dataset_stats and 'action_std' in self.dataset_stats:
             action_mean = np.array(self.dataset_stats['action_mean'])
             action_std = np.array(self.dataset_stats['action_std'])
-            actions = actions * action_std + action_mean
-
-        # self.logger_pi.debug(f"ACT policy generated {len(actions)} actions")
+            
+            # For multi-dimensional actions (time_steps, joint_dims), validate against the last dimension
+            action_dim = actions.shape[-1] if len(actions.shape) > 1 else len(actions)
+            
+            # Validate action normalization stats dimensions
+            if len(action_mean) != action_dim:
+                self.logger_pi.error(f"Action mean dimension mismatch: action dim {action_dim}, stats dim {len(action_mean)}")
+                self.logger_pi.error(f"Action shape: {actions.shape}, Action mean shape: {action_mean.shape}")
+                # Try to fix by padding or truncating the stats
+                if len(action_mean) < action_dim:
+                    pad_size = action_dim - len(action_mean)
+                    action_mean = np.pad(action_mean, (0, pad_size), 'constant')
+                    action_std = np.pad(action_std, (0, pad_size), 'constant', constant_values=1.0)
+                    self.logger_pi.warning(f"Padded action stats to match dimension: {len(action_mean)}")
+                else:
+                    action_mean = action_mean[:action_dim]
+                    action_std = action_std[:action_dim]
+                    self.logger_pi.warning(f"Truncated action stats to match dimension: {len(action_mean)}")
+            
+            # Avoid division by zero in case std is very small
+            action_std = np.clip(action_std, 1e-6, np.inf)
+            
+            # Apply denormalization with proper broadcasting
+            if len(actions.shape) > 1:
+                # Multi-dimensional: broadcast stats across the first dimension (time steps)
+                actions = actions * action_std[np.newaxis, :] + action_mean[np.newaxis, :]
+            else:
+                # Single dimension: direct elementwise operation
+                actions = actions * action_std + action_mean
+                        
+        elif 'action_pos_mean' in self.dataset_stats and 'action_pos_std' in self.dataset_stats:
+            action_mean = np.array(self.dataset_stats['action_pos_mean'])
+            action_std = np.array(self.dataset_stats['action_pos_std'])
+            
+            # For multi-dimensional actions (time_steps, joint_dims), validate against the last dimension
+            action_dim = actions.shape[-1] if len(actions.shape) > 1 else len(actions)
+            
+            # Validate action normalization stats dimensions
+            if len(action_mean) != action_dim:
+                self.logger_pi.error(f"Action pos mean dimension mismatch: action dim {action_dim}, stats dim {len(action_mean)}")
+                self.logger_pi.error(f"Action shape: {actions.shape}, Action pos mean shape: {action_mean.shape}")
+                # Try to fix by padding or truncating the stats
+                if len(action_mean) < action_dim:
+                    pad_size = action_dim - len(action_mean)
+                    action_mean = np.pad(action_mean, (0, pad_size), 'constant')
+                    action_std = np.pad(action_std, (0, pad_size), 'constant', constant_values=1.0)
+                    self.logger_pi.warning(f"Padded action pos stats to match dimension: {len(action_mean)}")
+                else:
+                    action_mean = action_mean[:action_dim]
+                    action_std = action_std[:action_dim]
+                    self.logger_pi.warning(f"Truncated action pos stats to match dimension: {len(action_mean)}")
+            
+            # Avoid division by zero in case std is very small
+            action_std = np.clip(action_std, 1e-6, np.inf)
+            
+            # Apply denormalization with proper broadcasting
+            if len(actions.shape) > 1:
+                # Multi-dimensional: broadcast stats across the first dimension (time steps)
+                actions = actions * action_std[np.newaxis, :] + action_mean[np.newaxis, :]
+            else:
+                # Single dimension: direct elementwise operation
+                actions = actions * action_std + action_mean
+                        
+        else:
+            self.logger_pi.error(f"No action normalization stats found. Available keys: {list(self.dataset_stats.keys())}")
+            self.logger_pi.error(f"Raw actions (non-denormalized): {actions}")
+            # Return raw actions if no normalization stats available
+            self.logger_pi.warning("Returning non-denormalized actions - this may cause issues!")
+        
+        # Post-process gripper state to ensure binary values (0 or 1)
+        if len(actions.shape) > 1 and actions.shape[-1] > 6:  # Multi-dimensional with gripper
+            gripper_values = actions[:, -1]
+            # Round gripper values to nearest 0 or 1
+            actions[:, -1] = np.round(np.clip(gripper_values, 0, 1))
+        elif len(actions.shape) == 1 and len(actions) > 6:  # Single-dimensional with gripper
+            gripper_value = actions[-1]
+            # Round gripper value to nearest 0 or 1
+            actions[-1] = round(np.clip(gripper_value, 0, 1))
+        
+        
+        # Validate final actions for common issues
+        if np.any(np.isnan(actions)):
+            self.logger_pi.error(f"NaN values detected in final actions: {actions}")
+            # Replace NaN with zeros as fallback
+            actions = np.nan_to_num(actions, nan=0.0)
+            self.logger_pi.warning("Replaced NaN values with zeros")
+        
+        if np.any(np.isinf(actions)):
+            self.logger_pi.error(f"Infinite values detected in final actions: {actions}")
+            # Replace inf with reasonable bounds
+            actions = np.clip(actions, -10.0, 10.0)
+            self.logger_pi.warning("Clipped infinite values to [-10, 10] range")
+        
         return actions  # Return numpy array directly - more efficient
 
 
@@ -1209,10 +1526,68 @@ class PolicyInterface:
             
         return policy(joint_pos_data, image_data, action_data, is_pad)
 
-
-
-
-
+    def temporal_ensemble_actions(self, seq1_id, actions_new, seq2_id, actions_old):
+        """
+        Ensemble two action sequences based on their sequence IDs.
+        For overlapping IDs, average the actions. For non-overlapping, use the available action.
+        
+        Args:
+            seq1_id: Starting sequence ID for new actions
+            actions_new: List of dicts with {'seq_id': ..., 'action': ...} OR np.ndarray
+            seq2_id: Starting sequence ID for old actions (can be None)
+            actions_old: np.ndarray of old actions (can be None)
+        
+        Returns:
+            ensemble_actions: np.ndarray of ensembled actions
+        """
+        # Handle different input formats for actions_new
+        if isinstance(actions_new, list) and len(actions_new) > 0 and isinstance(actions_new[0], dict):
+            # Extract actions from interpolated_actions format
+            actions_new_array = np.array([item['action'] for item in actions_new])
+        else:
+            # Already in numpy array format
+            actions_new_array = actions_new
+        
+        if seq2_id is None or actions_old is None:
+            # No previous sequence, return new actions as-is
+            return actions_new_array
+        
+        # Create sequence ID arrays for both sequences
+        seq1_ids = np.arange(seq1_id, seq1_id + len(actions_new_array))
+        seq2_ids = np.arange(seq2_id, seq2_id + len(actions_old))
+        
+        # Build dictionaries mapping seq_id to action
+        dict_new = {seq_id: action for seq_id, action in zip(seq1_ids, actions_new_array)}
+        dict_old = {seq_id: action for seq_id, action in zip(seq2_ids, actions_old)}
+        
+        # Only use sequence IDs from the NEW prediction range (discard old non-overlapping actions)
+        # This ensures we don't use outdated actions from the old prediction
+        all_seq_ids = sorted(seq1_ids)  # Only use new sequence range
+        
+        ensemble_actions = []
+        for seq_id in all_seq_ids:
+            in_new = seq_id in dict_new
+            in_old = seq_id in dict_old
+            
+            if in_new and in_old:
+                # Both sequences have this seq_id - average them (50% + 50%)
+                act = 0.5 * dict_new[seq_id] + 0.5 * dict_old[seq_id]
+                # Ensure gripper state (last element) remains 0 or 1 after averaging
+                if len(act) > 6:  # Has gripper state
+                    act[-1] = round(act[-1])
+            elif in_new:
+                # Only new sequence has this seq_id - use 100% from new
+                act = dict_new[seq_id]
+            else:
+                # This shouldn't happen since we only iterate over new seq_ids
+                self.logger_pi.warning(f"Unexpected: seq_id {seq_id} not in new sequence")
+                continue
+            
+            ensemble_actions.append(act)
+        
+        ensemble_actions = np.stack(ensemble_actions, axis=0)
+                
+        return ensemble_actions
 
 def send_response(logger_si, policy_interface_commup, payload, error="None", **kwargs):
     """

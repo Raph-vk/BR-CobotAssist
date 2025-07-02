@@ -73,9 +73,8 @@ class DummyTeachbot(TeachbotInterface):
 
         # Movement direction/state
         self._direction = 1  # +1 or -1
-        self._joint_min = -30
-        self._joint_max = 30
         self.step_size = 30  # degrees per second
+        self.random_degrees = [-1, 1]
         
         # State for the new movement pattern
         self._movement_sequence = [
@@ -164,11 +163,17 @@ class DummyTeachbot(TeachbotInterface):
                     
                     self.current_joints_deg[target_joint_index] += movement_step
 
+                # Add random noise to all 6 joints before sending to shared memory
+                noisy_joints = self.current_joints_deg.copy()
+                for i in range(6):
+                    random_factor = np.random.uniform(self.random_degrees[0], self.random_degrees[1])
+                    noisy_joints[i] += random_factor
+
                 # Push the joint values into the shared memory
                 try:
                     if self.shm_target_pos1.full():
                         self.shm_target_pos1.get_nowait()
-                    self.shm_target_pos1.put(self.current_joints_deg.copy(), timeout=1)
+                    self.shm_target_pos1.put(noisy_joints.copy(), timeout=1)
                 except:
                     pass  # ignoring any queue exceptions
 

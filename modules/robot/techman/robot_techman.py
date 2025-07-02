@@ -142,8 +142,6 @@ def apply_joint_speed_limits(current_position, previous_position, previous_times
                     limited_pos = previous_position[i] - max_change
                 
                 limited_position.append(limited_pos)
-                
-                logger.debug(f"Joint {i}: Limited velocity from {required_velocity:.2f} to {speed_limits[i]:.2f} deg/s")
             else:
                 limited_position.append(current_position[i])
         else:
@@ -522,7 +520,6 @@ class TechmanRobot(RobotInterface):
                 target_pos = self.shm_target_pos1.get(timeout=0.1)
                 self.target_pos_received = target_pos
             except Exception as e:
-                self.logger_ri.debug("receive_target_pos, no position received: %s", e)
                 pass
             time.sleep(self.control_dt / self.check_queue_period_divisor)
 
@@ -695,10 +692,7 @@ class TechmanRobot(RobotInterface):
         while self.robot_running:
             if self.target_pos_received is not None:
                 diff = np.abs(np.array(self.target_pos_received[:self.dof]) - np.array(self.start_position))
-                self.logger_ri.debug(
-                    f"Target position: {self.target_pos_received}, Start position: {self.start_position}, Diff: {diff}"
-                )
-                
+
                 if np.all(diff < self.start_joint_tolerance):
                     self.logger_ri.info("Opening ceremony completed - target position within tolerance")
                     return True
@@ -876,9 +870,6 @@ class TechmanRobot(RobotInterface):
             if self.connected:
                 # Update status information
                 pass
-            self.logger_ri.debug(
-                f"[STATUS][ROBOT_INTERFACE]: connected={self.connected}, running={self.robot_running}"
-            )
             time.sleep(self.status_refresh_period)
 
     ################################################################
