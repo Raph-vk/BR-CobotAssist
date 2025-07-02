@@ -220,7 +220,7 @@ general:
   start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
   start_joint_tolerance: 10
   joint_synchronization: False
-  default_recording_speed: 0.5
+  default_recording_speed: 0.25
   gripper_delay: 0.3 # In seconds on robot speed 1
   gripper_treshold: 0.5
   action_buffer_length: 3

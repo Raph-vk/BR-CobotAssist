@@ -308,11 +308,7 @@ class CameraInterfaceIntelD405:
                 # Step 2: Get individual frames
                 color_frame = frames.get_color_frame()
                 depth_frame = frames.get_depth_frame()
-                
-                if not color_frame or not depth_frame:
-                    self.logger_ci.debug(f"Missing frames, skipping")
-                    continue
-                
+                                
                 # Step 3: Convert frames to numpy arrays
                 color_img = np.asanyarray(color_frame.get_data())
                 depth_img = np.asanyarray(depth_frame.get_data()).astype(np.uint16)
@@ -387,11 +383,7 @@ class CameraInterfaceIntelD405:
                 # Step 2: Get individual frames
                 color_frame = frames.get_color_frame()
                 depth_frame = frames.get_depth_frame()
-                
-                if not color_frame or not depth_frame:
-                    self.logger_ci.debug(f"Missing frames, skipping")
-                    continue
-                
+
                 # Step 3: Convert frames to numpy arrays
                 color_img = np.asanyarray(color_frame.get_data())
                 depth_img = np.asanyarray(depth_frame.get_data()).astype(np.uint16)

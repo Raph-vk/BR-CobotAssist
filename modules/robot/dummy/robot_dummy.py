@@ -142,7 +142,7 @@ class DummyUDPStreaming:
         self.current_position = [0.0] * 6  # Start at zero position
         self.current_velocity = [0.0] * 6
         self.target_position = [0.0] * 6
-        self.gripper_state = False
+        self.gripper_state = 0
         self.seq_id_sent = 0
         self.seq_id_recv = 0
         
@@ -209,7 +209,6 @@ class DummyUDPStreaming:
                         self.current_velocity[i] = diff * 0.1 / self.control_dt
                     else:
                         self.current_velocity[i] = 0.0
-                self.logger.debug(f"Dummy UDP: Current position {self.current_position}, velocity {self.current_velocity}")
                         
             time.sleep(self.control_dt)
             
@@ -309,7 +308,7 @@ class DummyRobot:
         self.total_timesteps = 0
         self.counter = 0
         self.recording = False
-        self.gripper_state = False
+        self.gripper_state = 0
         self.gripper_state_change_time = 0
         self.gripper_on = False
         self.gripper_off = False
@@ -743,7 +742,7 @@ class DummyRobot:
             return False
         self.udp.current_position = self.start_position[:-1]  # Update dummy position (only joint positions)
         # Extract gripper state from start_position (last element)
-        gripper_state = self.start_position[-1] > 0.5 if len(self.start_position) > self.dof else False
+        gripper_state = 1 if (len(self.start_position) > self.dof and self.start_position[-1] > 0.5) else 0
         self.udp.gripper_state = gripper_state
         self.logger_ri.info("Dummy: _move_to_start_position, moved to start position.")
         return True
@@ -820,7 +819,7 @@ class DummyRobot:
             self.logger_ri.info("Dummy: control_loop, streaming started, filling buffer")
             for _ in range(self.action_buffer_length):
                 # Extract gripper state from start_position (last element)
-                gripper_state = self.start_position[-1] > 0.5 if len(self.start_position) > self.dof else False
+                gripper_state = 1 if (len(self.start_position) > self.dof and self.start_position[-1] > 0.5) else 0
                 self.udp.send_joint_pos(self.start_position[:-1], gripper_state, False)
 
             self.logger_ri.info("Dummy: control_loop, starting control loop")
@@ -949,8 +948,6 @@ class DummyRobot:
             while self.robot_running:
                 time.sleep(self.control_dt)
                 step += 1
-                # if step % 100 == 0:  # Log every 100 steps to show it's running
-                #     self.logger_ri.debug(f"Dummy: C++ control loop simulation step {step}")
         else:
             self.logger_ri.error(
                 "Dummy: control_loop, unsupported control loop language: %s", self.control_loop_language
@@ -1112,15 +1109,15 @@ class DummyRobot:
                 self.gripper_state_change_time_threshold = self.gripper_delay / self.robot_speed
                 if (self.gripper_state_change_time + self.gripper_state_change_time_threshold) > now:
                     self.gripper_on = True
-                    self.gripper_state = True
+                    self.gripper_state = 1
             else:
                 self.gripper_on = True
-                self.gripper_state = True
+                self.gripper_state = 1
 
         # Turn OFF
         elif gripper_state < self.gripper_treshold and self.gripper_state:
             self.gripper_off = True
-            self.gripper_state = False
+            self.gripper_state = 0
             self.gripper_state_change_time = now
 
     def adjust_process_priority(self, priority):
@@ -1128,12 +1125,6 @@ class DummyRobot:
         Adjust process priority (dummy implementation).
         """
         self.logger_ri.info(f"Dummy: Simulating process priority adjustment to {priority}")
-
-    def python_callback(self):
-        """
-        Python callback function (dummy implementation).
-        """
-        self.logger_ri.debug("Dummy: Python callback called")
 
 
 def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2):

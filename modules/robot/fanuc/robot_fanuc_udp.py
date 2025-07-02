@@ -428,7 +428,6 @@ class UDPStreaming:
             writing_io_mask = 0x0
             writing_io_value = 0x0
 
-
         # Pad the position with zeros to length 9
         position = np.pad(position, (0, 9 - len(position)), 'constant')
         position = self._J3_interaction(position)

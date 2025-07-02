@@ -160,8 +160,8 @@ class FanucRobot():
         self.total_timesteps = 0
         self.counter = 0
         self.recording = False
-        self.gripper_state = False
-        self.gripper_state_change_time = 0
+        self.gripper_state = 0
+        self.gripper_state_change_time = time.time()  # Initialize to current time
         self.gripper_on = False
         self.gripper_off = False
         self.master_positions = deque()
@@ -284,7 +284,7 @@ class FanucRobot():
             self.logger_ri.error("play_recording, robot not connected.")
             return False
 
-        # Set robot speed for policy execution
+        # Set robot speed for policy execution TODO
         self.robot_speed = self.default_recording_speed
 
         # create thread that controls the robot
@@ -503,7 +503,9 @@ class FanucRobot():
         6) Send 'stop' response if in playback mode.
         """
         # move to start position
-        self._move_to_start_position()
+        if not self._move_to_start_position():
+            self.logger_ri.error("_control_robot, could not move to start position.")
+            return 
 
         # check if start position is alright
         self._check_start_position(full_message)
@@ -554,6 +556,9 @@ class FanucRobot():
                 )
                 return False
             self.logger_ri.info("_check_start_position, checking start position")
+            return True
+        
+        if message == "run_policy":
             return True
 
     def _prepare_robot(self, full_message):
@@ -609,9 +614,11 @@ class FanucRobot():
                 time.sleep(self.control_dt / 4)
 
             self.logger_ri.info("control_loop, streaming started, filling buffer")
-            for _ in range(self.action_buffer_length):
+            for i in range(self.action_buffer_length):
                 # Extract gripper state from start_position (last element)
-                gripper_state = self.start_position[-1] > 0.5 if len(self.start_position) > self.dof else False
+                gripper_state = 1 if (len(self.start_position) > self.dof and self.start_position[-1] > 0.5) else 0
+                if i == 0:
+                    gripper_state = 1
                 self.udp.send_joint_pos(self.start_position[:-1], gripper_state, False)
 
             self.logger_ri.info("control_loop, starting control loop")
@@ -646,6 +653,7 @@ class FanucRobot():
                 previous_action_master = action_master
 
                 success_calc = self.trajectory_calculation(otg, inp, out, current_position)
+                         
                 self.determine_gripper_state(action_master[-1])
                 if not success_calc:
                     self.logger_ri.error("control_loop, trajectory calculation failed")
@@ -1266,17 +1274,20 @@ class FanucRobot():
         if gripper_state >= self.gripper_treshold and not self.gripper_state:
             if self.gripper_delay > 0.0:
                 self.gripper_state_change_time_threshold = self.gripper_delay / self.robot_speed
-                if (self.gripper_state_change_time + self.gripper_state_change_time_threshold) > now:
+                # Check if enough time has passed since last state change
+                if (now - self.gripper_state_change_time) >= self.gripper_state_change_time_threshold:
                     self.gripper_on = True
-                    self.gripper_state = True
+                    self.gripper_state = 1
+                    self.gripper_state_change_time = now
             else:
                 self.gripper_on = True
-                self.gripper_state = True
+                self.gripper_state = 1
+                self.gripper_state_change_time = now
 
         # Turn OFF
         elif gripper_state < self.gripper_treshold and self.gripper_state:
             self.gripper_off = True
-            self.gripper_state = False
+            self.gripper_state = 0
             self.gripper_state_change_time = now
 
     ############################################################################
