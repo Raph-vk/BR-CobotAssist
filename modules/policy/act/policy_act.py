@@ -22,7 +22,6 @@ import multiprocessing.shared_memory as shared_memory
 import struct
 import threading
 import queue
-import csv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 from utils.utils import setup_logging, load_config, get_data_path
@@ -264,7 +263,7 @@ class PolicyInterface:
     # Data gathering and processing run policy
     ###################################################################
 
-    def _policy_execution_loop(self, write_chunks_to_csv=True):
+    def _policy_execution_loop(self, write_chunks_to_hdf5=True):
         """
         Main policy execution loop that runs in a separate thread.
         """
@@ -275,7 +274,7 @@ class PolicyInterface:
         self.prev_ensemble_seq_id = None
         self.prev_ensemble_actions = None
 
-        if write_chunks_to_csv:
+        if write_chunks_to_hdf5:
             # Initialize execution logging
             self._init_execution_logging()
         
@@ -306,7 +305,7 @@ class PolicyInterface:
                 self._update_target_positions_with_seq_ids(ensemble_seq_ids, temporal_ensemble_actions)
 
                 # 8. Log execution data if wanted
-                if write_chunks_to_csv:
+                if write_chunks_to_hdf5:
                     self._log_execution_data(frame_count, start_seq_id, latest_images, joint_position, predicted_actions)
 
                 # 9. Increment frame
@@ -325,49 +324,118 @@ class PolicyInterface:
 
     def _init_execution_logging(self):
         """Initialize execution logging files."""
-        # Add execution logging path
-        start_time = datetime.now().replace(microsecond=0).isoformat()
-        start_time = start_time.replace(":", "-")
-        self.execution_log_csv = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.csv")
+
+        # Add execution logging path with proper timestamp format (no colons)
+        start_time = datetime.now().replace(microsecond=0).strftime("%Y-%m-%d_%H-%M-%S")
+        self.execution_log_hdf5 = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.hdf5")
 
         try:
-            # Create CSV file with headers
-            with open(self.execution_log_csv, 'w', newline='') as f:
-                csv_writer = csv.writer(f)
-                # Write CSV headers
-                headers = [
-                    'frame_count',
-                    'timestamp',
-                    'start_seq_id',
-                    'latest_images',
-                    'joint_position',
-                    'predicted_actions'
-                ]
-                csv_writer.writerow(headers)
+            import h5py
+            
+            # Create HDF5 file with initial structure
+            with h5py.File(self.execution_log_hdf5, 'w') as f:
+                # Create groups for different data types
+                f.create_group('metadata')
+                f.create_group('actions')
+                f.create_group('images')
+                
+                # Store metadata about the logging session
+                metadata = f['metadata']
+                metadata.attrs['start_time'] = start_time
+                metadata.attrs['robot_dof'] = self.robot_dof
+                metadata.attrs['robot_dof_ee'] = self.robot_dof_ee
+                metadata.attrs['total_dof'] = self.total_dof
+                metadata.attrs['record_divisor'] = self.record_divisor
+                
+                # Create expandable datasets for frame data
+                actions = f['actions']
+                actions.create_dataset('frame_count', (0,), maxshape=(None,), dtype='i8')
+                actions.create_dataset('timestamp', (0,), maxshape=(None,), dtype='f8')
+                actions.create_dataset('start_seq_id', (0,), maxshape=(None,), dtype='i8')
+                actions.create_dataset('joint_position', (0, self.total_dof), maxshape=(None, self.total_dof), dtype='f8')
+                # Start with a reasonable chunk size estimate for predicted actions (will resize dynamically)
+                chunk_size_estimate = 75  # Common ACT chunk size
+                actions.create_dataset('predicted_actions', (0, chunk_size_estimate, self.total_dof), maxshape=(None, None, self.total_dof), dtype='f8')
+
+                # Images group will be populated dynamically as we don't know image shapes yet
             
             self.logger_pi.info(f"Execution logging initialized:")
-            self.logger_pi.info(f"  CSV log path:  {self.execution_log_csv}")
-            
+            self.logger_pi.info(f"  HDF5 log path:  {self.execution_log_hdf5}")
+
         except Exception as e:
             self.logger_pi.error(f"Failed to initialize execution logging: {e}")
 
     def _log_execution_data(self, frame_count, start_seq_id, latest_images, joint_position, predicted_actions):
         """Log execution data for this cycle."""
         try:
+            import h5py
+
             timestamp = time.time()
             
-            # Write to CSV file
-            with open(self.execution_log_csv, 'a', newline='') as f:
-                csv_writer = csv.writer(f)
-                csv_row = [
-                    frame_count,
-                    timestamp,
-                    start_seq_id,
-                    list(latest_images),
-                    list(joint_position),
-                    list(predicted_actions)
-                ]
-                csv_writer.writerow(csv_row)
+            # Open HDF5 file and append data
+            with h5py.File(self.execution_log_hdf5, 'a') as f:
+                actions = f['actions']
+                images = f['images']
+                
+                # Resize datasets to accommodate new data
+                current_size = actions['frame_count'].shape[0]
+                new_size = current_size + 1
+
+                actions['frame_count'].resize((new_size,))
+                actions['timestamp'].resize((new_size,))
+                actions['start_seq_id'].resize((new_size,))
+                actions['joint_position'].resize((new_size, self.total_dof))
+                actions['predicted_actions'].resize((new_size, predicted_actions.shape[0], self.total_dof))
+                self.logger_pi.warning(f"Action chunk size {predicted_actions.shape[1]}")
+                self.logger_pi.warning(f"predicted_actions size {predicted_actions.shape}")
+                self.logger_pi.warning(f"predicted_actions hdf5 size {actions['predicted_actions'].shape}")
+                self.logger_pi.warning(f"predicted_actions {predicted_actions}")
+
+
+
+                # Store frame data
+                actions['frame_count'][current_size] = frame_count
+                actions['timestamp'][current_size] = timestamp
+                actions['start_seq_id'][current_size] = start_seq_id
+                actions['joint_position'][current_size] = joint_position  
+                actions['predicted_actions'][current_size] = predicted_actions
+                
+                # Store images with actual image data
+                frame_group_name = f'frame_{frame_count:06d}'
+                if frame_group_name not in images:
+                    frame_group = images.create_group(frame_group_name)
+                else:
+                    frame_group = images[frame_group_name]
+                
+                # Store each image with its metadata
+                for image_key, image_data in latest_images.items():
+                    if image_data is not None:
+                        try:
+                            # Convert image to numpy array if it isn't already
+                            if not isinstance(image_data, np.ndarray):
+                                image_array = np.array(image_data)
+                            else:
+                                image_array = image_data
+                            
+                            # Create dataset for this image
+                            if image_key not in frame_group:
+                                # Create new dataset
+                                img_dataset = frame_group.create_dataset(
+                                    image_key, 
+                                    data=image_array,
+                                    compression='gzip',
+                                    compression_opts=1  # Light compression for speed
+                                )
+                                # Store image metadata as attributes
+                                img_dataset.attrs['shape'] = image_array.shape
+                                img_dataset.attrs['dtype'] = str(image_array.dtype)
+                                img_dataset.attrs['camera_type'] = 'color' if 'color' in image_key else 'depth'
+                            else:
+                                # Update existing dataset
+                                frame_group[image_key][:] = image_array
+                                
+                        except Exception as img_error:
+                            self.logger_pi.warning(f"Failed to store image {image_key} for frame {frame_count}: {img_error}")
             
             # Log every 100 frames to main logger
             if frame_count % 100 == 0:
