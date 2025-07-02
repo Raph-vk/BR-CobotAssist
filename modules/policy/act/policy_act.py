@@ -263,7 +263,7 @@ class PolicyInterface:
     # Data gathering and processing run policy
     ###################################################################
 
-    def _policy_execution_loop(self, write_chunks_to_hdf5=True):
+    def _policy_execution_loop(self, write_to_hdf5=True):
         """
         Main policy execution loop that runs in a separate thread.
         """
@@ -274,14 +274,14 @@ class PolicyInterface:
         self.prev_ensemble_seq_id = None
         self.prev_ensemble_actions = None
 
-        if write_chunks_to_hdf5:
+        if write_to_hdf5:
             # Initialize execution logging
             self._init_execution_logging()
         
         while self.running:
             try:
                 # 1. Receive joint information from shm_joint_data2 and gather the last 0.1 seconds of position data
-                joint_data_window = self._gather_joint_data()
+                joint_data_window = self._gather_joint_data(write_to_hdf5=write_to_hdf5)
                 
                 # 2. Retrieve the latest images from the color_buffers2 and depth_buffers2
                 latest_images, image_timestamps = self._retrieve_latest_images()
@@ -305,7 +305,7 @@ class PolicyInterface:
                 self._update_target_positions_with_seq_ids(ensemble_seq_ids, temporal_ensemble_actions)
 
                 # 8. Log execution data if wanted
-                if write_chunks_to_hdf5:
+                if write_to_hdf5:
                     self._log_execution_data(frame_count, start_seq_id, latest_images, joint_position, predicted_actions)
 
                 # 9. Increment frame
@@ -338,7 +338,8 @@ class PolicyInterface:
                 f.create_group('metadata')
                 f.create_group('actions')
                 f.create_group('images')
-                
+                f.create_group('joint_data')
+
                 # Store metadata about the logging session
                 metadata = f['metadata']
                 metadata.attrs['start_time'] = start_time
@@ -356,9 +357,13 @@ class PolicyInterface:
                 # Start with a reasonable chunk size estimate for predicted actions (will resize dynamically)
                 chunk_size_estimate = 75  # Common ACT chunk size
                 actions.create_dataset('predicted_actions', (0, chunk_size_estimate, self.total_dof), maxshape=(None, None, self.total_dof), dtype='f8')
-
                 # Images group will be populated dynamically as we don't know image shapes yet
-            
+
+                joint_data = f['joint_data']
+                joint_data.create_dataset('seq_id', (0,), maxshape=(None,), dtype='i8')
+                joint_data.create_dataset('timestamp', (0,), maxshape=(None,), dtype='f8')
+                joint_data.create_dataset('positions', (0, self.total_dof), maxshape=(None, self.total_dof), dtype='f8')
+                
             self.logger_pi.info(f"Execution logging initialized:")
             self.logger_pi.info(f"  HDF5 log path:  {self.execution_log_hdf5}")
 
@@ -366,6 +371,7 @@ class PolicyInterface:
             self.logger_pi.error(f"Failed to initialize execution logging: {e}")
 
     def _log_execution_data(self, frame_count, start_seq_id, latest_images, joint_position, predicted_actions):
+
         """Log execution data for this cycle."""
         try:
             import h5py
@@ -377,23 +383,15 @@ class PolicyInterface:
                 actions = f['actions']
                 images = f['images']
                 
-                # Resize datasets to accommodate new data
+                # Resize action datasets to accommodate new data
                 current_size = actions['frame_count'].shape[0]
                 new_size = current_size + 1
-
                 actions['frame_count'].resize((new_size,))
                 actions['timestamp'].resize((new_size,))
                 actions['start_seq_id'].resize((new_size,))
                 actions['joint_position'].resize((new_size, self.total_dof))
                 actions['predicted_actions'].resize((new_size, predicted_actions.shape[0], self.total_dof))
-                self.logger_pi.warning(f"Action chunk size {predicted_actions.shape[1]}")
-                self.logger_pi.warning(f"predicted_actions size {predicted_actions.shape}")
-                self.logger_pi.warning(f"predicted_actions hdf5 size {actions['predicted_actions'].shape}")
-                self.logger_pi.warning(f"predicted_actions {predicted_actions}")
-
-
-
-                # Store frame data
+                # Store actions data
                 actions['frame_count'][current_size] = frame_count
                 actions['timestamp'][current_size] = timestamp
                 actions['start_seq_id'][current_size] = start_seq_id
@@ -444,7 +442,7 @@ class PolicyInterface:
         except Exception as e:
             self.logger_pi.error(f"Failed to log execution data for frame {frame_count}: {e}")
 
-    def _gather_joint_data(self):
+    def _gather_joint_data(self, write_to_hdf5=False):
         """
         Gather joint information from shm_joint_data2 (Python queue) or shm_cpp_joint_data2 (C++ shared memory) for the last 0.1 seconds.
         """
@@ -471,7 +469,23 @@ class PolicyInterface:
                             'timestamp': timestamp,
                             'positions': positions,
                         })
-                                                
+                        if write_to_hdf5:
+                            with h5py.File(self.execution_log_hdf5, 'a') as f:
+                                joint_data = f['joint_data']
+                                # Resize datasets to accommodate new data
+                                current_size = joint_data['seq_id'].shape[0]
+                                new_size = current_size + 1
+                                joint_data['seq_id'].resize((new_size,))
+                                joint_data['timestamp'].resize((new_size,))
+                                joint_data['positions'].resize((new_size, self.total_dof))
+                                # Store joint data
+                                joint_data['seq_id'][current_size] = seq_id
+                                joint_data['timestamp'][current_size] = timestamp
+                                joint_data['positions'][current_size] = positions
+            
+                    # Log the joint data window for debugging but only last entry
+                    # self.logger_pi.info(f'joint_data_window: {joint_data_window[-1]}')
+
             except Exception as e:
                 self.logger_pi.error(f"Failed to gather joint data from C++ shared memory: {e}")
                 return []
@@ -497,6 +511,23 @@ class PolicyInterface:
                                 'timestamp': timestamp,
                                 'positions': positions,
                             })
+
+                            if write_to_hdf5:
+                                with h5py.File(self.execution_log_hdf5, 'a') as f:
+                                    joint_data = f['joint_data']
+                                    # Resize datasets to accommodate new data
+                                    current_size = joint_data['seq_id'].shape[0]
+                                    new_size = current_size + 1
+                                    joint_data['seq_id'].resize((new_size,))
+                                    joint_data['timestamp'].resize((new_size,))
+                                    joint_data['positions'].resize((new_size, self.total_dof))
+                                    # Store joint data
+                                    joint_data['seq_id'][current_size] = seq_id
+                                    joint_data['timestamp'][current_size] = timestamp
+                                    joint_data['positions'][current_size] = positions
+                                    # Log the joint data window for debugging but only last entry
+                            self.logger_pi.info(f'joint_data_window: {joint_data_window[-1]}')
+
                         
                     except queue.Empty:
                         # No more data in queue
