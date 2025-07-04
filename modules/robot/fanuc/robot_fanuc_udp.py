@@ -1,4 +1,3 @@
-
 import time
 import numpy as np
 import threading
@@ -400,11 +399,11 @@ class UDPStreaming:
 
         # If first send => set seq_id_sent to one less than received
         if self.seq_id_sent == 0:
-            self.seq_id_sent = self.seq_id_received - 1
+            self.seq_id_sent = uint32_subtract(self.seq_id_received, 1)
 
         packet_type = 1
         version_no = 1
-        self.seq_id_sent += 1
+        self.seq_id_sent = uint32_add(self.seq_id_sent, 1)
         last_data = 0
         read_io_type = 9
         read_io_index = 1
@@ -480,3 +479,19 @@ class UDPStreaming:
             pid, priority
         )
         os.system(f'sudo renice -n {priority} -p {pid}')
+
+
+
+
+##################################################################
+# 32-bit Unsigned Integer Utilities
+##################################################################
+MAX_UINT32 = 0xFFFFFFFF
+
+def uint32_add(a, b):
+    """Add two values with 32-bit unsigned integer overflow handling."""
+    return (a + b) & MAX_UINT32
+
+def uint32_subtract(a, b):
+    """Subtract two values with 32-bit unsigned integer overflow handling."""
+    return (a - b) & MAX_UINT32

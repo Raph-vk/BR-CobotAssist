@@ -499,7 +499,7 @@ class FanucRobot():
         2) Check start position tolerance or relevant conditions.
         3) Prepare robot (call TPP program, start UDP streaming).
         4) Control loop (Ruckig trajectory calculation, sending joint pos).
-        5) Close robot streaming.
+        5) Close robot streaming. 
         6) Send 'stop' response if in playback mode.
         """
         # move to start position
@@ -526,6 +526,9 @@ class FanucRobot():
         """
         Move robot to 'start_position' (from config).
         """
+        # set robot speed at 100% 
+        self.set_speed_overwrite(100)
+
         position = copy.deepcopy(self.start_position)
         if not self.push_joint_motion(position, speed=10, term_type="FINE", term_val=0):
             self.logger_ri.error("_move_to_start_position, could not move to start position.")
@@ -1003,6 +1006,25 @@ class FanucRobot():
         if self.joint3_interaction:
             position = J3_interaction(position)
         return self.rmi.push_joint_motion(position, speed, term_type, term_val)
+
+    def set_speed_overwrite(self, speed):
+        """
+        Set robot speed override via RMI connection.
+        
+        :param speed: Speed override percentage (0-100)
+        """
+        if not self.rmi_connected:
+            self.logger_ri.error("set_speed_overwrite: RMI not connected")
+            return False
+            
+        data = {"Command": "FRC_SetOverRide", "Value": speed}
+        try:
+            self.rmi._send_json(self.rmi.tcp_socket, data)
+            self.logger_ri.info(f"set_speed_overwrite: Set speed override to {speed}%")
+            return True
+        except Exception as e:
+            self.logger_ri.error(f"set_speed_overwrite: Failed to set speed override: {e}")
+            return False
 
     def stop_robot_running(self):
         """

@@ -302,7 +302,7 @@ class PolicyInterface:
                 self.prev_ensemble_seq_id = start_seq_id
 
                 # 7. Update the shm_target_pos2 with ensemble predictions
-                ensemble_seq_ids = np.arange(start_seq_id, start_seq_id + len(temporal_ensemble_actions))
+                ensemble_seq_ids = uint32_range(start_seq_id, len(temporal_ensemble_actions))
                 self._update_target_positions_with_seq_ids(ensemble_seq_ids, temporal_ensemble_actions)
 
                 # 8. Log execution data if wanted
@@ -512,7 +512,7 @@ class PolicyInterface:
         try:
             # Write predicted actions to shared memory
             for action_data in predicted_actions:
-                seq_id = action_data['seq_id']
+                seq_id = action_data['seq_id'] & MAX_UINT32  # Ensure 32-bit unsigned
                 action = action_data['action']
                 
                 # Validate action dimensions before packing
@@ -550,8 +550,8 @@ class PolicyInterface:
         try:
             # Write predicted actions to shared memory
             for seq_id, action in zip(seq_ids, actions):
-                # Convert to int if needed
-                seq_id = int(seq_id)
+                # Convert to int if needed and ensure 32-bit unsigned
+                seq_id = int(seq_id) & MAX_UINT32
                 
                 # Validate action dimensions before packing
                 if len(action) != self.total_dof:  # Expected: joints + gripper
@@ -618,7 +618,7 @@ class PolicyInterface:
                 interpolated_action = (1 - alpha) * prev_action + alpha * next_action
                 
                 # Create action dictionary with interpolated values
-                interpolated_seq_id = start_seq_id + i * self.record_divisor + step
+                interpolated_seq_id = uint32_add(start_seq_id, uint32_add(i * self.record_divisor, step))
                 interpolated_actions.append({
                     'seq_id': interpolated_seq_id,
                     'action': interpolated_action.tolist()
@@ -1239,11 +1239,11 @@ class PolicyInterface:
             self.logger_pi.warning("Returning non-denormalized actions - this may cause issues!")
         
         # Post-process gripper state to ensure binary values (0 or 1)
-        if len(actions.shape) > 1 and actions.shape[-1] > 6:  # Multi-dimensional with gripper
+        if len(actions.shape) > 1 and actions.shape[-1] > self.robot_dof:  # Multi-dimensional with gripper
             gripper_values = actions[:, -1]
             # Round gripper values to nearest 0 or 1
             actions[:, -1] = np.round(np.clip(gripper_values, 0, 1))
-        elif len(actions.shape) == 1 and len(actions) > 6:  # Single-dimensional with gripper
+        elif len(actions.shape) == 1 and len(actions) > self.robot_dof:  # Single-dimensional with gripper
             gripper_value = actions[-1]
             # Round gripper value to nearest 0 or 1
             actions[-1] = round(np.clip(gripper_value, 0, 1))
@@ -1449,13 +1449,17 @@ class PolicyInterface:
             # Already in numpy array format
             actions_new_array = actions_new
         
+        if self.enable_temporal_ensemble is False:
+            return actions_new_array
+
+
         if seq2_id is None or actions_old is None:
             # No previous sequence, return new actions as-is
             return actions_new_array
         
-        # Create sequence ID arrays for both sequences
-        seq1_ids = np.arange(seq1_id, seq1_id + len(actions_new_array))
-        seq2_ids = np.arange(seq2_id, seq2_id + len(actions_old))
+        # Create sequence ID arrays for both sequences with proper 32-bit overflow handling
+        seq1_ids = uint32_range(seq1_id, len(actions_new_array))
+        seq2_ids = uint32_range(seq2_id, len(actions_old)) if seq2_id is not None else np.array([], dtype=np.uint32)
         
         # Build dictionaries mapping seq_id to action
         dict_new = {seq_id: action for seq_id, action in zip(seq1_ids, actions_new_array)}
@@ -1471,10 +1475,11 @@ class PolicyInterface:
             in_old = seq_id in dict_old
             
             if in_new and in_old:
-                # Both sequences have this seq_id - average them (50% + 50%)
-                act = 0.5 * dict_new[seq_id] + 0.5 * dict_old[seq_id]
+                # Both sequences have this seq_id - average them using ensemble weight
+                weight = self.ensemble_overlap_weight
+                act = weight * dict_new[seq_id] + (1.0 - weight) * dict_old[seq_id]
                 # Ensure gripper state (last element) remains 0 or 1 after averaging
-                if len(act) > 6:  # Has gripper state
+                if len(act) > self.robot_dof:  # Has gripper state
                     act[-1] = round(act[-1])
             elif in_new:
                 # Only new sequence has this seq_id - use 100% from new
@@ -1595,6 +1600,30 @@ def run_policy_interface(policy_interface_commup, policy_interface_commdown, col
                               full_message, error="Unknown message")
 
         time.sleep(queue_check_period)
+
+import os
+import struct
+import numpy as np
+import time
+
+# Maximum value for 32-bit unsigned integer (0xFFFFFFFF)
+MAX_UINT32 = 0xFFFFFFFF
+
+def uint32_add(a, b):
+    """Add two values with 32-bit unsigned integer overflow handling."""
+    return (a + b) & MAX_UINT32
+
+def uint32_range(start, length):
+    """Generate a range of 32-bit unsigned integers with proper overflow handling."""
+    if length <= 0:
+        return np.array([], dtype=np.uint32)
+    
+    result = np.empty(length, dtype=np.uint32)
+    current = start & MAX_UINT32
+    for i in range(length):
+        result[i] = current
+        current = uint32_add(current, 1)
+    return result
 
 
 

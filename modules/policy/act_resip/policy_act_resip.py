@@ -287,10 +287,11 @@ class PolicyInterface:
                             np.ndarray(self.rl_cfg.flag_shape, dtype=np.uint8, buffer=self.action_ready_flag_shm.buf)[0] = 0
                             next_action = np.copy(np.ndarray(self.rl_cfg.action_shape, dtype=np.float32, buffer=self.final_action_shm.buf))
                             
-                            data = struct.pack(self.shm_target_pos2_entry_format, start_seq_id + 8, *next_action)
+                            seq_id_uint32 = uint32_add(start_seq_id, 8)
+                            data = struct.pack(self.shm_target_pos2_entry_format, seq_id_uint32, *next_action)
                             
                             # Calculate buffer position (circular buffer)
-                            buffer_index = (start_seq_id + 8) % self.shm_target_pos2_capacity
+                            buffer_index = seq_id_uint32 % self.shm_target_pos2_capacity
                             offset = buffer_index * self.shm_target_pos2_entry_size
                 
                             # Write to shared memory
@@ -566,10 +567,11 @@ class PolicyInterface:
                     self.logger_pi.warning(f"Action has {len(action)} elements, expected 7 (6 joints + 1 gripper)")
                 
                 # Pack data according to format: sequence_id (I) + joint positions (d each)
-                data = struct.pack(self.shm_target_pos2_entry_format, seq_id, *action)
+                seq_id_uint32 = int(seq_id) & MAX_UINT32  # Ensure 32-bit unsigned
+                data = struct.pack(self.shm_target_pos2_entry_format, seq_id_uint32, *action)
                 
                 # Calculate buffer position (circular buffer)
-                buffer_index = seq_id % self.shm_target_pos2_capacity
+                buffer_index = seq_id_uint32 % self.shm_target_pos2_capacity
                 offset = buffer_index * self.shm_target_pos2_entry_size
                 
                 # Write to shared memory
@@ -1097,7 +1099,7 @@ class PolicyInterface:
         for i in range(chunk_size):
             action = actions[i] if i < len(actions) else actions[-1]  # Repeat last action if needed
             predicted_actions.append({
-                'seq_id': start_seq_id + i,
+                'seq_id': uint32_add(start_seq_id, i),
                 'action': action.tolist(),  # Include all DOF including gripper (7 total: 6 joints + 1 gripper)
             })
         
@@ -1267,11 +1269,6 @@ class PolicyInterface:
             
         return policy(joint_pos_data, image_data, action_data, is_pad)
 
-
-
-
-
-
 def send_response(logger_si, policy_interface_commup, payload, error="None", **kwargs):
     """
     Build a response dict and push it on policy_interface_commup.
@@ -1401,6 +1398,29 @@ def run_policy_interface(policy_interface_commup, policy_interface_commdown, col
                               full_message, error="Unknown message")
 
         time.sleep(queue_check_period)
+
+# Maximum value for 32-bit unsigned integer (0xFFFFFFFF)
+MAX_UINT32 = 0xFFFFFFFF
+
+def uint32_add(a, b):
+    """Add two values with 32-bit unsigned integer overflow handling."""
+    return (a + b) & MAX_UINT32
+
+def uint32_range(start, length):
+    """Generate a range of 32-bit unsigned integers with proper overflow handling."""
+    if length <= 0:
+        return np.array([], dtype=np.uint32)
+    
+    result = np.empty(length, dtype=np.uint32)
+    current = start & MAX_UINT32
+    for i in range(length):
+        result[i] = current
+        current = uint32_add(current, 1)
+    return result
+
+def uint32_subtract(a, b):
+    """Subtract two values with 32-bit unsigned integer overflow handling."""
+    return (a - b) & MAX_UINT32
 
 
 

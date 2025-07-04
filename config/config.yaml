@@ -338,6 +338,10 @@ cpp:
 
 policy:
   name: "ACT"
+  # Temporal ensemble configuration
+  temporal_ensemble:
+    enabled: true
+    overlap_weight: 0.5  # Weight for overlapping actions (0.0 to 1.0)
   # Shared memory configuration for policy interface
   shared_memory:
     shm_name: "shm_target_pos2"

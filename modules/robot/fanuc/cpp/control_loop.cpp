@@ -25,6 +25,26 @@
 namespace py = pybind11;
 
 //--------------------------------------------------------------------------------
+// 32-bit unsigned integer arithmetic helpers for proper sequence ID handling
+//--------------------------------------------------------------------------------
+static uint32_t uint32_add(uint32_t a, uint32_t b) {
+    return a + b;  // Unsigned overflow wraps naturally in C++
+}
+
+static uint32_t uint32_subtract(uint32_t a, uint32_t b) {
+    return a - b;  // Unsigned underflow wraps naturally in C++
+}
+
+// Compare two 32-bit sequence IDs with proper overflow handling
+// Returns true if 'a' is considered "less than" 'b' considering wraparound
+static bool seq_id_less_than(uint32_t a, uint32_t b) {
+    // Handle wraparound by checking the difference
+    // If the difference is within half the range, use normal comparison
+    uint32_t diff = b - a;
+    return diff <= 0x7FFFFFFF;  // Half of 2^32
+}
+
+//--------------------------------------------------------------------------------
 // Helpers for logging with time in the format: "2025-06-03 18:27:50,112"
 //--------------------------------------------------------------------------------
 static std::string currentTimeFormatted()
@@ -561,7 +581,7 @@ void ControlLoop::controlLoop(bool started_streaming)
 
     // Main loop
     while (robot_running_) {
-        while (seq_id_received_ + action_buffer_length_ < seq_id_sent_) {
+        while (seq_id_less_than(uint32_add(seq_id_received_, action_buffer_length_), seq_id_sent_)) {
             std::this_thread::sleep_for(
                 std::chrono::duration<double>(control_dt_ / (check_queue_period_divisor_ / 4.0)));
         }
@@ -1105,7 +1125,7 @@ bool ControlLoop::stopRobot(ruckig::Ruckig<0>& otg,
     int stop_step_counter = 0;
 
     while (res == ruckig::Result::Working) {
-        while (seq_id_received_ + action_buffer_length_ < seq_id_sent_) {
+        while (seq_id_less_than(uint32_add(seq_id_received_, action_buffer_length_), seq_id_sent_)) {
             std::this_thread::sleep_for(
                 std::chrono::duration<double>(control_dt_ / check_queue_period_divisor_));
         }
@@ -1121,7 +1141,7 @@ bool ControlLoop::stopRobot(ruckig::Ruckig<0>& otg,
               << " [C++] stopRobot, sending " << nr_stop_actions << " more actions\n";
 
     while (stop_step_counter < nr_stop_actions) {
-        while (seq_id_received_ + action_buffer_length_ < seq_id_sent_) {
+        while (seq_id_less_than(uint32_add(seq_id_received_, action_buffer_length_), seq_id_sent_)) {
             std::this_thread::sleep_for(
                 std::chrono::duration<double>(control_dt_ / check_queue_period_divisor_));
         }
