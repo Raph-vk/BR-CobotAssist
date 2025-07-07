@@ -957,6 +957,102 @@ EOF
     fi
 }
 
+# Set capabilities on Python executable for process priority control
+set_python_capabilities() {
+    log_info "Setting Python capabilities for process priority control..."
+    
+    # Activate conda environment to get the correct Python executable
+    source "$CONDA_PROFILE_PATH"
+    conda activate "${ENV_NAME}"
+    
+    # Get the Python executable path from the activated environment
+    local python_executable=$(which python)
+    local python3_executable=$(which python3)
+    
+    log_info "Python executable path: $python_executable"
+    log_info "Python3 executable path: $python3_executable"
+    
+    # Function to set capabilities on a Python executable
+    set_cap_on_executable() {
+        local executable_path="$1"
+        local executable_name="$2"
+        
+        if [[ -L "$executable_path" ]]; then
+            # If it's a symlink, resolve to the actual file
+            local real_path=$(readlink -f "$executable_path")
+            log_info "$executable_name is a symlink pointing to: $real_path"
+            
+            # Set capabilities on the real executable
+            if sudo setcap cap_sys_nice+ep "$real_path" 2>/dev/null; then
+                log_success "Successfully set capabilities on $real_path"
+                
+                # Verify capabilities were set
+                local cap_result=$(getcap "$real_path" 2>/dev/null)
+                if [[ -n "$cap_result" ]]; then
+                    log_info "Capabilities verified: $cap_result"
+                else
+                    log_warning "Could not verify capabilities on $real_path"
+                fi
+            else
+                log_error "Failed to set capabilities on $real_path"
+                log_info "This may cause permission errors when setting process priority"
+            fi
+        elif [[ -f "$executable_path" ]]; then
+            # If it's a regular file, set capabilities directly
+            if sudo setcap cap_sys_nice+ep "$executable_path" 2>/dev/null; then
+                log_success "Successfully set capabilities on $executable_path"
+                
+                # Verify capabilities were set
+                local cap_result=$(getcap "$executable_path" 2>/dev/null)
+                if [[ -n "$cap_result" ]]; then
+                    log_info "Capabilities verified: $cap_result"
+                else
+                    log_warning "Could not verify capabilities on $executable_path"
+                fi
+            else
+                log_error "Failed to set capabilities on $executable_path"
+                log_info "This may cause permission errors when setting process priority"
+            fi
+        else
+            log_warning "$executable_name not found or not accessible: $executable_path"
+        fi
+    }
+    
+    # Set capabilities on both python and python3 executables
+    if [[ -n "$python_executable" ]]; then
+        set_cap_on_executable "$python_executable" "python"
+    fi
+    
+    if [[ -n "$python3_executable" && "$python3_executable" != "$python_executable" ]]; then
+        set_cap_on_executable "$python3_executable" "python3"
+    fi
+    
+    echo ""
+    log_info "TROUBLESHOOTING NOTES for Python capabilities:"
+    echo "If you encounter 'Permission denied' errors when setting process priority:"
+    echo "1. Check if capabilities are set:"
+    echo "   getcap \$(which python)"
+    echo "   getcap \$(which python3)"
+    echo ""
+    echo "2. If capabilities are missing, manually set them:"
+    echo "   # First, find the real Python executable (not symlink):"
+    echo "   ls -la \$(which python3)"
+    echo "   # Then set capabilities on the real file:"
+    echo "   sudo setcap cap_sys_nice+ep /path/to/real/python/executable"
+    echo ""
+    echo "3. Common conda/miniconda paths:"
+    echo "   - Miniconda: ~/miniconda3/envs/${ENV_NAME}/bin/python3.x"
+    echo "   - Anaconda: ~/anaconda3/envs/${ENV_NAME}/bin/python3.x"
+    echo "   - System conda: /opt/conda/envs/${ENV_NAME}/bin/python3.x"
+    echo ""
+    echo "4. Verify capabilities after setting:"
+    echo "   getcap /path/to/python/executable"
+    echo "   # Should show: python3.x = cap_sys_nice+ep"
+    echo ""
+    echo "5. If you update/reinstall conda or Python, you'll need to reapply capabilities"
+    echo ""
+}
+
 # Main installation function
 main() {
     echo "==============================================="
@@ -1002,6 +1098,9 @@ main() {
     # Verification
     verify_installation
     
+    # Set Python capabilities for process priority control
+    set_python_capabilities
+    
     echo ""
     echo "==============================================="
     log_success "TOS installation completed!"
@@ -1022,6 +1121,11 @@ main() {
     echo "Alternative command line usage:"
     echo "   - Direct robot controller: python applications/robot_controller/main.py"
     echo "   - Direct TOS UI: python applications/tos_ui/main.py"
+    echo ""
+    echo "Python Capabilities:"
+    echo "   - Process priority control capabilities have been set on Python executables"
+    echo "   - This allows the robot interface to set high priority (-10 nice value)"
+    echo "   - If you encounter permission errors, see troubleshooting notes above"
     echo ""
     echo "Note: Interbotix and ROS modules were excluded as requested."
     echo "Install them separately if needed for your robot setup."

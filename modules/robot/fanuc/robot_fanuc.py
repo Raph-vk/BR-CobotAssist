@@ -1316,18 +1316,6 @@ class FanucRobot():
     # 5) PROCESS PRIORITY ADJUSTMENT AND CPP CALLBACK
     ############################################################################
 
-    def adjust_process_priority(self, priority):
-        """
-        Adjust current process priority (requires sudo privileges).
-        """
-        pid = os.getpid()
-        self.logger_ri.info(
-            "adjust_process_priority, pid=%d, priority=%d. "
-            "If sudo is needed, add to /etc/sudoers: "
-            "username ALL=(ALL) NOPASSWD: /usr/bin/renice",
-            pid, priority
-        )
-        os.system(f'sudo renice -n {priority} -p {pid}')
 
     def python_callback(self):
         self.logger_ri.info("Python callback called from C++ control loop.")
@@ -1371,6 +1359,22 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
         robotClass = globals()[robot_class_name]
         robot = robotClass(robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config)
         logger_ri.info("Initialized %s Robot Interface", robot_brand)
+        
+        # Adjust process priority if configured
+        if config["general"].get("robot_interface_sudo_priority", False):
+            priority = config["general"].get("robot_interface_priority_value", -10)
+            try:
+                logger_ri.info(f"which python: {sys.executable}")
+
+                os.setpriority(os.PRIO_PROCESS, 0, priority)
+                logger_ri.info(f"Process priority set to {priority} (nice value)")
+            except PermissionError:
+                logger_ri.warning(f"Permission denied: Cannot set process priority to {priority}. "
+                                "Consider running with appropriate privileges or using 'nice' command.")
+            except Exception as e:
+                logger_ri.error(f"Failed to set process priority: {e}")
+
+        
         # Send a success response for "initialization"
         send_response(
             logger_ri,

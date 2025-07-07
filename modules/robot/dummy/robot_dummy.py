@@ -1120,11 +1120,6 @@ class DummyRobot:
             self.gripper_state = 0
             self.gripper_state_change_time = now
 
-    def adjust_process_priority(self, priority):
-        """
-        Adjust process priority (dummy implementation).
-        """
-        self.logger_ri.info(f"Dummy: Simulating process priority adjustment to {priority}")
 
 
 def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2):

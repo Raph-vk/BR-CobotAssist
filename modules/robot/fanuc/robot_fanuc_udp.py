@@ -442,7 +442,7 @@ class UDPStreaming:
             self.udp_socket.sendto(packet, self.robot_address)
             timenow = time.time()
             # Check how quickly we are sending
-            if 0.008 < (timenow - self.time_last_sent) < 747059116:
+            if 0.010 < (timenow - self.time_last_sent) < 747059116:
                 self.logger.warning(
                     "send_joint_pos, packet=%d, on_time=%s, time=%.4f",
                     self.seq_id_sent, False, timenow - self.time_last_sent
@@ -466,19 +466,6 @@ class UDPStreaming:
         """ Same logic as global J3_interaction_rev, but local to UDP class. """
         action[2] = action[2] + action[1]
         return action
-
-    def adjust_process_priority(self, priority):
-        """
-        Adjust current process priority (requires sudo privileges).
-        """
-        pid = os.getpid()
-        self.logger.info(
-            "UDPStreaming.adjust_process_priority, pid=%d, priority=%d. "
-            "If sudo is needed, add to /etc/sudoers: "
-            "username ALL=(ALL) NOPASSWD: /usr/bin/renice",
-            pid, priority
-        )
-        os.system(f'sudo renice -n {priority} -p {pid}')
 
 
 

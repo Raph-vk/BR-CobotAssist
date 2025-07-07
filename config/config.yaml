@@ -237,6 +237,10 @@ general:
   policy_img_buffer_size: 1  # Size of policy interface camera buffers
 
   control_loop_language: "python"  # Options: "cpp", "python"
+  
+  # Robot interface priority settings
+  robot_interface_sudo_priority: True  # Enable high priority for robot interface
+  robot_interface_priority_value: -10  # Nice value (-20 to 19, lower = higher priority)
 
 
 

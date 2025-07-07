@@ -45,8 +45,6 @@ class EpisodicDataset(torch.utils.data.Dataset):
             max_image_start = max(0, num_images - 1) 
             image_start_idx = np.random.choice(max_image_start + 1)
 
-            # print('start index:', image_start_idx, 'of', num_images, 'images')
-            
             # Calculate corresponding joint state index
             joint_start_idx = image_start_idx * record_divisor
             
