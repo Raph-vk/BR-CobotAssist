@@ -206,6 +206,15 @@ class SaveInterface:
 
         self.logger_si.info("record_episodes successful, recording started.")
 
+    def record_episode(self, full_message):
+        """
+        Begin reading from shm_joint_data in a background thread.
+        This is a placeholder for future functionality.
+        """
+        self.record_one_episode = True
+        self.record_episodes(full_message)
+
+
     def stop(self):
         """
         Cleanly disconnect/stop this interface:
@@ -357,6 +366,13 @@ class SaveInterface:
                 # Save the data to an HDF5 file
                 # the metadata of the file should contain timestamp, the joint state number to which the images correspond, the serial number of each camera and cam name
                 self._save_episode_to_hdf5(data_dict, camera_names)
+
+                if self.record_one_episode:
+                    self.logger_si.info("Recording one episode, stopping after this.")
+                    # send stop command to the robot_controller
+                    message = {"type": "CMD", "interface": "SAVE_INTERFACE", "message": "stop"}
+                    self.save_interface_commup.put(message)
+                    break
 
             except Exception as e:
                 self.logger_si.error("Error during recording loop: %s", str(e))
@@ -865,6 +881,15 @@ def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint
                     saver.record_episodes(full_message)
                     send_response(logger_si, save_interface_commup,
                                   full_message, error="None")
+                    
+                elif message == "record_episode":
+                    if saver.recording:
+                        send_response(logger_si, save_interface_commup,
+                                      full_message, error="Already recording")
+                        continue
+                    err = saver.record_episode(full_message)
+                    send_response(logger_si, save_interface_commup,
+                                  full_message, error=("None" if err is None else err))
 
                 elif message == "start_teleoperation_record":
                     if saver.recording:

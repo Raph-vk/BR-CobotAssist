@@ -156,7 +156,14 @@ class TOSUIApplication:
                     dataset_name = time.strftime("%Y%m%d_%H%M%S")
                 msg["dataset_name"] = dataset_name
                 msg["recording_speed"] = recording_speed
-        
+
+            elif message == "record_episode":
+                # If no dataset name is selected, create a new one based on timestamp
+                if not dataset_name:
+                    dataset_name = time.strftime("%Y%m%d_%H%M%S")
+                msg["dataset_name"] = dataset_name
+                msg["recording_speed"] = recording_speed
+
             elif message == "record_mistake":
                 msg["dataset_name"] = dataset_name
 

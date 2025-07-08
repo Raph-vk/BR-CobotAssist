@@ -267,6 +267,10 @@ class FanucRobot():
     def record_episodes(self, full_message):
         self.recording = True
         return self.start_teleoperation(full_message)
+    
+    def record_episode(self, full_message):
+        self.recording = True
+        return self.start_teleoperation(full_message)
 
     def run_policy(self, full_message):
         """
@@ -417,7 +421,7 @@ class FanucRobot():
         """
         message = full_message.get("message", "")
 
-        if message == "start_teleoperation" or message == "start_teleoperation_record" or message == "record_episodes":
+        if message == "start_teleoperation" or message == "start_teleoperation_record" or message == "record_episodes" or message == "record_episode":
             # Check if recording_speed is valid, otherwise use default
             recording_speed = full_message.get("recording_speed", self.default_recording_speed)
             if recording_speed == "" or recording_speed is None:
@@ -545,7 +549,7 @@ class FanucRobot():
         """
         message = full_message.get("message", "")
 
-        if message == "start_teleoperation" or message == "start_teleoperation_record" or message == "record_episodes":
+        if message == "start_teleoperation" or message == "start_teleoperation_record" or message == "record_episodes" or message == "record_episode":
             self.logger_ri.info("checking start position")
             if not self.opening_ceremony():
                 self.logger_ri.error("_check_start_position, opening ceremony failed")
@@ -1088,8 +1092,8 @@ class FanucRobot():
                             "teleoperation loop, position within tolerance, starting teleoperation"
                         )
                         return True
-                else:
-                    self.logger_ri.warning("teleoperation loop, no target position received yet")
+                # else:
+                #     self.logger_ri.warning("teleoperation loop, no target position received yet")
                 time.sleep(self.control_dt)
         return False
 
@@ -1483,6 +1487,23 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                             logger_ri.error("record_episodes unsuccessful, Could not record episodes")
                             send_response(logger_ri, robot_interface_commup, full_message,
                                           error="Could not record episodes")
+                            
+                elif message == "record_episode":
+                    if robot.robot_running:
+                        logger_ri.warning(
+                            "[CMD] record_episode unsuccessful, Robot already running"
+                        )
+                        send_response(logger_ri, robot_interface_commup, full_message,
+                                      error="Robot already running")
+                    else:
+                        if robot.record_episode(full_message):
+                            logger_ri.info("record_episode successful")
+                            send_response(logger_ri, robot_interface_commup, full_message, error="None")
+                        else:
+                            logger_ri.error("record_episode unsuccessful, Could not record episode")
+                            send_response(logger_ri, robot_interface_commup, full_message,
+                                          error="Could not record episode")
+
 
                 elif message == "play_recording":
                     if robot.robot_running:

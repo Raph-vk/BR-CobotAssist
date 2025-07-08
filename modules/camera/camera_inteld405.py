@@ -164,6 +164,17 @@ class CameraInterfaceIntelD405:
         else:
             self.logger_ci.warning(f"Camera '{self.camera_name}' is already capturing")
 
+    def record_episode(self):
+        """
+        Record a single episode. This method can be extended to handle episode recording logic.
+        """
+        if not self.capturing:
+            self.start_capture()
+            self.logger_ci.info(f"Recording single episode for camera '{self.camera_name}'")
+        else:
+            self.logger_ci.warning(f"Camera '{self.camera_name}' is already capturing")
+            
+
     def stop(self):
         """
         Stop the camera interface and clean up resources.
@@ -584,6 +595,12 @@ def run_camera_interface(camera_interface_commup, camera_interface_commdown,
                         camera_interface.record_episodes()
                         send_response(logger_ci, camera_interface_commup,
                                     {"interface": component_tag, "message": "record_episodes", "camera_name": camera_name},
+                                    error="None")
+                    
+                    elif message == "record_episode":
+                        camera_interface.record_episode()
+                        send_response(logger_ci, camera_interface_commup,
+                                    {"interface": component_tag, "message": "record_episode", "camera_name": camera_name},
                                     error="None")
                         
                     elif message == "run_policy":

@@ -252,6 +252,43 @@ class RobotController:
             error=error_msg,
         )
 
+    def record_episode(self, payload):
+        error_msg = "None"
+
+        try:
+            self.connect_camera_interface()
+            self.connect_save_interface()
+            self.connect_teachbot_interface()
+            self.connect_robot_interface()
+
+            # Camera interface copy
+            camera_cmd = dict(payload)
+            camera_cmd["type"] = "CMD"
+            camera_cmd["interface"] = "CAMERA_INTERFACE"
+            self.send_command(camera_cmd)
+
+            # Save interface copy
+            save_cmd = dict(payload)
+            save_cmd["type"] = "CMD"
+            save_cmd["interface"] = "SAVE_INTERFACE"
+            self.send_command(save_cmd)
+
+            # Robot interface copy
+            robot_cmd = dict(payload)
+            robot_cmd["type"] = "CMD"
+            robot_cmd["interface"] = "ROBOT_INTERFACE"
+            self.send_command(robot_cmd)
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"record_episode error: {error_msg}")
+
+        self.send_response(
+            payload=payload,
+            error=error_msg,
+        )
+
+        
     def report_dataset_names(self, payload):
         """
         Gather the list of recorded files and send them as a response,
@@ -363,7 +400,7 @@ class RobotController:
 
         except Exception as e:
             error_msg = str(e)
-            self.logger_tc.error(f"record_episodes error: {error_msg}")
+            self.logger_tc.error(f"run_policy error: {error_msg}")
 
         self.send_response(
             payload=payload,
@@ -1585,6 +1622,12 @@ class RobotController:
                         self.success = False
                         self.logger_tc.error(f"SAVE_INTERFACE error from '{msg_message}': {msg_error}")
                         self.send_response(payload, error=msg_error)
+
+                elif msg_type == "CMD" and interface == "SAVE_INTERFACE":
+                    # Example: If the robot signals a 'stop' command to be re-broadcast
+                    if msg_message == "stop":
+                        full_message = {"type": "CMD", "interface": "SAVE_INTERFACE", "message": "stop"}
+                        self.publish_controller_command(full_message)
 
                 else:
                     self.logger_tc.warning("Unknown message from SAVE_INTERFACE: %s", payload)
