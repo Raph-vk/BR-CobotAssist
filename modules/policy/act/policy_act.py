@@ -624,6 +624,13 @@ class PolicyInterface:
                     'action': interpolated_action.tolist()
                 })
             
+            # Add the actual predicted action (at the end of this interpolation segment)
+            actual_action_seq_id = uint32_add(start_seq_id, uint32_add((i + 1) * self.record_divisor, 0))
+            interpolated_actions.append({
+                'seq_id': actual_action_seq_id,
+                'action': next_action.tolist()
+            })
+            
             # Update prev_action for next iteration
             prev_action = next_action
         

@@ -16,7 +16,6 @@ import copy
 import multiprocessing.shared_memory as shared_memory
 import struct
 import gc
-import psutil
 
 from ruckig import InputParameter, OutputParameter, Ruckig, Result, Synchronization
 
@@ -629,61 +628,26 @@ class FanucRobot():
             self.logger_ri.info("control_loop, starting control loop")
             previous_action_master = self.start_position
 
-            # Setup performance logging
-            # Performance logging threshold (10ms)
-            TIMING_THRESHOLD = 0.010
-            
-            # Create performance log file
-            log_dir = os.path.join(os.path.dirname(__file__), "../../../logs")
-            os.makedirs(log_dir, exist_ok=True)
-            perf_log_path = os.path.join(log_dir, "control_loop_performance.log")
-            
-            # Log initialization message
-            self.logger_ri.info(f"Performance logging enabled: threshold={TIMING_THRESHOLD*1000:.1f}ms, log file: {perf_log_path}")
-            
             # Garbage collection optimization for real-time performance
-            # Store original GC settings
+            # Store original GC settings to restore later
             original_gc_thresholds = gc.get_threshold()
-            original_gc_enabled = gc.isenabled()
-            self.logger_ri.info(f"Original GC thresholds: {original_gc_thresholds}, GC enabled: {original_gc_enabled}")
-                       
-            # Conservative real-time settings (tested in robotics applications)
-            optimized_gen0 = 2000   # Higher threshold = less frequent gen0 (default: 700)
-            optimized_gen1 = 25     # Higher threshold = less frequent gen1 (default: 10)  
-            optimized_gen2 = 25     # Higher threshold = less frequent gen2 (default: 10)
             
+            # Set optimized GC thresholds for real-time performance
+            # Higher thresholds = less frequent GC = more predictable timing
+            optimized_gen0 = 2000   # Less frequent gen0 (default: 700)
+            optimized_gen1 = 25     # Less frequent gen1 (default: 10)  
+            optimized_gen2 = 25     # Less frequent gen2 (default: 10)
             gc.set_threshold(optimized_gen0, optimized_gen1, optimized_gen2)
-            self.logger_ri.info(f"Set optimized GC thresholds: ({optimized_gen0}, {optimized_gen1}, {optimized_gen2})")
-            self.logger_ri.info("This reduces GC frequency while keeping individual pause times reasonable")
-            
-            # Track GC statistics
-            gc_detection_count = 0
-            max_gc_time = 0
-            
-            loop_count = 0
-            process = psutil.Process()
 
             while self.robot_running:
-                loop_start = time.perf_counter()
-                step_times = {}
-                
-                # Track garbage collection before loop
-                gc_start = time.perf_counter()
-                gc_count_before = sum(gc.get_count())
-                
                 # Sync with the packets so we don't overrun the buffer
-                sync_start = time.perf_counter()
                 while self.udp.seq_id_received + self.action_buffer_length < self.udp.seq_id_sent:
                     time.sleep(self.control_dt / self.check_queue_period_divisor / 2)
-                sync_time = time.perf_counter() - sync_start
-                step_times['buffer_sync'] = sync_time
                 
                 last_received_time = self.udp.joint_state_received_time
                 last_received_js = self.udp.joint_state_received
 
-                # Action retrieval timing
-                action_start = time.perf_counter()
-                # If play_recording is active, read from self.master_positions
+                # Get next action
                 if self.play_recording_active:
                     if self.master_positions:
                         action_master = self.master_positions.popleft()
@@ -699,23 +663,14 @@ class FanucRobot():
                         action_master = self.target_pos_received
                     else:
                         break
-                action_time = time.perf_counter() - action_start
-                step_times['action_retrieval'] = action_time
 
-                # Ruckig trajectory calculation timing
-                ruckig_start = time.perf_counter()
+                # Ruckig trajectory calculation
                 current_position = self.update_ruckig_input(action_master, inp, previous_action_master)
                 previous_action_master = action_master
 
                 success_calc = self.trajectory_calculation(otg, inp, out, current_position)
-                ruckig_time = time.perf_counter() - ruckig_start
-                step_times['ruckig_calculation'] = ruckig_time
                 
-                # Gripper state timing
-                gripper_start = time.perf_counter()         
                 self.determine_gripper_state(action_master[-1])
-                gripper_time = time.perf_counter() - gripper_start
-                step_times['gripper_logic'] = gripper_time
                 
                 if not success_calc:
                     self.logger_ri.error("control_loop, trajectory calculation failed")
@@ -728,11 +683,7 @@ class FanucRobot():
                 gripper_on_to_send = self.gripper_on
                 gripper_off_to_send = self.gripper_off
                 
-                # UDP communication timing
-                udp_start = time.perf_counter()
                 success_send = self.udp.send_joint_pos(send_position_robot, gripper_on_to_send, gripper_off_to_send)
-                udp_time = time.perf_counter() - udp_start
-                step_times['udp_send'] = udp_time
                 
                 # Reset gripper flags after sending
                 self.gripper_on = False
@@ -741,9 +692,6 @@ class FanucRobot():
                 if not success_send:
                     self.logger_ri.error("control_loop, could not send joint position to robot")
                     break
-
-                # Shared memory operations timing
-                shm_start = time.perf_counter()
 
                 # Upload data to shm_joint_data1 if recording
                 if self.recording:
@@ -789,87 +737,9 @@ class FanucRobot():
                         self.shm_joint_data2.put(joint_data)
                     except Exception as e:
                         self.logger_ri.error("control_loop, error uploading joint data: %s", e)
-                
-                shm_time = time.perf_counter() - shm_start
-                step_times['shm_operations'] = shm_time
-
-                # Simple garbage collection monitoring
-                gc_count_after = sum(gc.get_count())
-                gc_total_time = time.perf_counter() - gc_start
-                
-                # Check if garbage collection occurred during this loop
-                gc_occurred = gc_count_after != gc_count_before
-                if gc_occurred:
-                    step_times['garbage_collection'] = gc_total_time
-                    gc_detection_count += 1
-                    if gc_total_time > max_gc_time:
-                        max_gc_time = gc_total_time
-                
-                # Get OS/system metrics
-                try:
-                    cpu_percent = process.cpu_percent()
-                    memory_info = process.memory_info()
-                    ctx_switches = process.num_ctx_switches()
-                except:
-                    cpu_percent = 0
-                    memory_info = None
-                    ctx_switches = None
-
-                # Calculate total loop time
-                total_loop_time = time.perf_counter() - loop_start
-                step_times['total_loop'] = total_loop_time
-                loop_count += 1
-
-                # Log to file if any step exceeds threshold
-                should_log = any(step_time > TIMING_THRESHOLD for step_time in step_times.values())
-                
-                if should_log:
-                    timestamp = time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # Include milliseconds
-                    with open(perf_log_path, 'a') as f:
-                        f.write(f"\n=== LOOP {loop_count} PERFORMANCE ALERT - {timestamp} ===\n")
-                        f.write(f"Total Loop Time: {total_loop_time*1000:.3f}ms (threshold: {TIMING_THRESHOLD*1000:.1f}ms)\n")
-                        
-                        # Log individual step times that exceed threshold
-                        for step_name, step_time in step_times.items():
-                            if step_time > TIMING_THRESHOLD:
-                                f.write(f"  {step_name}: {step_time*1000:.3f}ms *** SLOW ***\n")
-                            else:
-                                f.write(f"  {step_name}: {step_time*1000:.3f}ms\n")
-                        
-                        # Log system information
-                        f.write(f"System Info:\n")
-                        f.write(f"  CPU Usage: {cpu_percent:.1f}%\n")
-                        if memory_info:
-                            f.write(f"  Memory RSS: {memory_info.rss / 1024 / 1024:.1f}MB\n")
-                            f.write(f"  Memory VMS: {memory_info.vms / 1024 / 1024:.1f}MB\n")
-                        if ctx_switches:
-                            f.write(f"  Context Switches: voluntary={ctx_switches.voluntary}, involuntary={ctx_switches.involuntary}\n")
-                        
-                        # Enhanced garbage collection information
-                        gen0_count, gen1_count, gen2_count = gc.get_count()
-                        gen0_threshold, gen1_threshold, gen2_threshold = gc.get_threshold()
-                        
-                        f.write(f"Garbage Collection Info (OPTIMIZED THRESHOLDS):\n")
-                        if 'garbage_collection' in step_times:
-                            f.write(f"  GC Detected: {step_times['garbage_collection']*1000:.3f}ms\n")
-                            f.write(f"  GC Count Change: {gc_count_after - gc_count_before}\n")
-                        else:
-                            f.write(f"  GC Detected: No\n")
-                        
-                        f.write(f"  GC Counts: gen0={gen0_count}/{gen0_threshold}, gen1={gen1_count}/{gen1_threshold}, gen2={gen2_count}/{gen2_threshold}\n")
-                        f.write(f"  GC Pressure: gen0={gen0_count/gen0_threshold*100:.1f}%, gen1={gen1_count/gen1_threshold*100:.1f}%, gen2={gen2_count/gen2_threshold*100:.1f}%\n")
-                        f.write(f"  Total GC Events: {gc_detection_count}\n")
-                        f.write(f"  Max GC Time: {max_gc_time*1000:.3f}ms\n")
-                        f.write(f"  GC Strategy: Optimized thresholds (2000,25,25) for reduced frequency\n")
-                        
-                        f.write(f"  Expected Loop Time: {self.control_dt*1000:.1f}ms\n")
-                        f.write(f"  Loop Efficiency: {(self.control_dt/total_loop_time)*100:.1f}%\n")
-                        f.flush()  # Ensure immediate write to disk
 
             # Restore original GC settings when exiting
             gc.set_threshold(*original_gc_thresholds)
-            self.logger_ri.info(f"Restored original GC thresholds: {original_gc_thresholds}")
-            self.logger_ri.info(f"GC Statistics: {gc_detection_count} collections detected, max GC time: {max_gc_time*1000:.3f}ms")
 
             if started_streaming:
                 self.logger_ri.info("control_loop, stopping robot")

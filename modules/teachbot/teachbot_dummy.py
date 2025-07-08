@@ -73,14 +73,14 @@ class DummyTeachbot(TeachbotInterface):
 
         # Movement direction/state
         self._direction = 1  # +1 or -1
-        self.step_size = 30  # degrees per second
-        self.random_degrees = [-1, 1]
+        self.step_size = 0.5  # degrees per second
+        self.random_degrees = [-0, 0]
         
         # State for the new movement pattern
         self._movement_sequence = [
-            (0, -30),  # joint 1 to -30
-            (2, -30),  # joint 3 to -30
-            (0, 30),   # joint 1 to 30
+            (0, -20),  # joint 1 to -30
+            (2, -20),  # joint 3 to -30
+            (0, 20),   # joint 1 to 30
             (2, 0),   # joint 3 to 30
         ]
         self._current_step = 0
