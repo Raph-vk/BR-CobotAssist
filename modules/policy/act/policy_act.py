@@ -293,7 +293,7 @@ class PolicyInterface:
                 predicted_actions = self.execute_policy(joint_position, latest_images)
                 
                 # 5. interpolated actions
-                interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
+                interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions)
 
                 # 6. If temporal ensemble is enabled, perform ensemble averaging
                 temporal_ensemble_actions = self.temporal_ensemble_actions(start_seq_id, interpolated_actions, self.prev_ensemble_seq_id, self.prev_ensemble_actions)
@@ -673,17 +673,17 @@ class PolicyInterface:
             self.logger_pi.error(f"Failed to update shm_target_pos2 with ensemble: {e}")
             return int(seq_ids[0]) if len(seq_ids) > 0 else 0
 
-    def _interpolate_actions(self, start_seq_id, predicted_actions, current_joint_position):
+    def _interpolate_actions(self, start_seq_id, predicted_actions):
         """
         Interpolate actions to provide smooth trajectories at full control frequency.
         
         The policy predicts actions every record_divisor control cycles (e.g., every 4 cycles at 62.5 Hz),
         but we need to provide smooth control commands at the full control frequency (250 Hz).
+        The length of interpolated_actions = len(predicted_actions)-1 * record_divisor + 1.
         
         Args:
             start_seq_id: Starting sequence ID
-            predicted_actions: List of predicted actions from policy (at reduced frequency)
-            current_joint_position: Current joint position to start interpolation from
+            predicted_actions: List of predicted actions from policy (at reduced frequency, the first joint position is on start_seq_id+self.record_divisor)
             
         Returns:
             List of interpolated actions at full control frequency
@@ -694,10 +694,10 @@ class PolicyInterface:
         interpolated_actions = []
         
         # Start with current position as the first reference point
-        prev_action = np.array(current_joint_position)
+        prev_action = np.array(predicted_actions[0])
         
         # Interpolate between consecutive predicted actions
-        for i in range(len(predicted_actions)):
+        for i in range(1, len(predicted_actions)):
             next_action = predicted_actions[i]  # Access numpy array directly
             
             # Ensure next_action has correct dimensions (total_dof elements: joints + gripper)
@@ -709,7 +709,7 @@ class PolicyInterface:
                     next_action = next_action[:self.total_dof]
             
             # Generate interpolated steps between prev_action and next_action
-            for step in range(1, self.record_divisor):
+            for step in range(0, self.record_divisor):
                 # Linear interpolation factor (0.0 to 1.0)
                 alpha = step / self.record_divisor
                 
@@ -725,6 +725,12 @@ class PolicyInterface:
             
             # Update prev_action for next iteration
             prev_action = next_action
+        
+        # Append last action
+        interpolated_actions.append({
+            'seq_id': start_seq_id + len(predicted_actions) * self.record_divisor,
+            'action': next_action.tolist()
+        })
         
         return interpolated_actions
 
