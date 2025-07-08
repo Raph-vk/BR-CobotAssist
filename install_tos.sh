@@ -959,7 +959,9 @@ EOF
 
 # Set capabilities on Python executable for process priority control
 set_python_capabilities() {
-    log_info "Setting Python capabilities for process priority control..."
+    log_info "Setting Python capabilities for process priority control...
+    sudo setcap cap_sys_nice+ep /home/teun/miniconda3/envs/TOS_new/bin/python3.8
+    verify: getcap /home/teun/miniconda3/envs/TOS_new/bin/python3.8"
     
     # Activate conda environment to get the correct Python executable
     source "$CONDA_PROFILE_PATH"
