@@ -177,7 +177,7 @@ class SaveInterface:
         self.recorded_data = {
             "metadata": {
                 "format_version": 1,
-                "start_time": time.time(),
+                "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "end_time": None,
                 "recording_speed": recording_speed
             },

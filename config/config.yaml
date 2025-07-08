@@ -85,15 +85,15 @@ hardware:
 
   # --------------------------------------Teachbot Configuration--------------------------------
 
-  teachbot:
-    # Teachbot settings
-    brand: "dummy"
-    model: "_"
-    joint_target_period: 0.004
-    j6_min_angle: -140
-    j6_max_angle: 220
-    j6_multiplier: 1
-    gripper_treshold: 1085
+  # teachbot:
+  #   # Teachbot settings
+  #   brand: "dummy"
+  #   model: "_"
+  #   joint_target_period: 0.004
+  #   j6_min_angle: -140
+  #   j6_max_angle: 220
+  #   j6_multiplier: 1
+  #   gripper_treshold: 1085
 
   # teachbot:
   #   # TOS encoder settings for teachbot
@@ -117,64 +117,27 @@ hardware:
   #     4: 4  # Joint 4 -> port 5008 (start_port + 4)
   #     5: 5  # Joint 5 -> port 5009 (start_port + 5)
 
-  # teachbot:
-  #   # Teachbot settings
-  #   brand: "Interbotix"
-  #   model: "WX250S"
-  #   j4_locked: True
-  #   j6_min_angle: -140
-  #   j6_max_angle: 220
-  #   j6_multiplier: 1
-  #   gripper_min: 91.14
-  #   gripper_max: 102.65
+  teachbot:
+    # Teachbot settings
+    brand: "Interbotix"
+    model: "WX250S"
+    j4_locked: True
+    j6_min_angle: -140
+    j6_max_angle: 220
+    j6_multiplier: 1
+    gripper_min: 91.14
+    gripper_max: 102.65
 
 
 # --------------------------------------Camera Configuration--------------------------------
 
 
-  camera:
-    # Camera settings
-    brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
-    info:
-      - name: "cam_1"
-        serial_number: "DUMMY_001"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-      - name: "cam_2"
-        serial_number: "DUMMY_002"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-      - name: "cam_3"
-        serial_number: "DUMMY_001"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-      - name: "cam_4"
-        serial_number: "DUMMY_002"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
-
-
   # camera:
   #   # Camera settings
-  #   brand: "inteld405" 
+  #   brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
   #   info:
   #     - name: "cam_1"
-  #       serial_number: "218622271425"
+  #       serial_number: "DUMMY_001"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
@@ -182,7 +145,7 @@ hardware:
   #       depth_height: 240
 
   #     - name: "cam_2"
-  #       serial_number: "218622271391"
+  #       serial_number: "DUMMY_002"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
@@ -190,7 +153,7 @@ hardware:
   #       depth_height: 240
 
   #     - name: "cam_3"
-  #       serial_number: "130322272626"
+  #       serial_number: "DUMMY_001"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
@@ -198,12 +161,49 @@ hardware:
   #       depth_height: 240
 
   #     - name: "cam_4"
-  #       serial_number: "218622271529"
+  #       serial_number: "DUMMY_002"
   #       fps: 90
   #       color_width: 424
   #       color_height: 240
   #       depth_width: 424
   #       depth_height: 240
+
+
+  camera:
+    # Camera settings
+    brand: "inteld405" 
+    info:
+      - name: "cam_1"
+        serial_number: "218622271425"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
+
+      # - name: "cam_2"
+      #   serial_number: "218622271391"
+      #   fps: 90
+      #   color_width: 424
+      #   color_height: 240
+      #   depth_width: 424
+      #   depth_height: 240
+
+      # - name: "cam_3"
+      #   serial_number: "130322272626"
+      #   fps: 90
+      #   color_width: 424
+      #   color_height: 240
+      #   depth_width: 424
+      #   depth_height: 240
+
+      - name: "cam_4"
+        serial_number: "218622271529"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
 
 
 
@@ -230,7 +230,7 @@ general:
   app_directory: "."
   data_directory: "../tos_app_data"
 
-  record_duration: 5
+  record_duration: 10
   record_divisor: 4
   
   # Policy interface buffer settings
