@@ -71,6 +71,7 @@ class SaveInterface:
         # Flags & State
         self.recording = False
         self.record_thread = None
+        self.record_one_episode = False  
         
         self.shm_reader = None
 

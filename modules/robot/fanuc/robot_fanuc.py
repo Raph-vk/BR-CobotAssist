@@ -20,7 +20,7 @@ import gc
 from ruckig import InputParameter, OutputParameter, Ruckig, Result, Synchronization
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
-from utils.utils import setup_logging, load_config
+from utils.utils import setup_logging, load_config, get_data_path
 from .robot_fanuc_rmi import RMIConnection
 from .robot_fanuc_udp import UDPStreaming
 
@@ -289,8 +289,21 @@ class FanucRobot():
             self.logger_ri.error("play_recording, robot not connected.")
             return False
 
-        # Set robot speed for policy execution TODO
-        self.robot_speed = self.default_recording_speed
+        # Set robot speed for policy execution from model config
+        model_name = full_message.get('model_name')
+        dataset_name = full_message.get('dataset_name')
+        dataset_dir = get_data_path(self.config, dataset_name)
+        model_config_path = os.path.join(dataset_dir, "Models", model_name, 'config.json')
+                
+        if os.path.exists(model_config_path):
+            with open(model_config_path, 'r') as f:
+                model_config = json.load(f)
+            self.robot_speed = model_config.get('robot_speed', self.default_recording_speed)
+            self.logger_ri.info(f"Using robot speed from model config: {self.robot_speed}")
+        else:
+            self.logger_ri.warning(f"Model config not found at {model_config_path}, using default robot speed")
+            self.robot_speed = self.default_recording_speed
+
 
         # create thread that controls the robot
         self.robot_control_thread = threading.Thread(

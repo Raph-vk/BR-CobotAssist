@@ -456,10 +456,15 @@
         if (cmd.includes('recording') || cmd === 'play_recording' || cmd === 'delete_recording') {
           params.append('recording_name', itemName);
         } else if (cmd.includes('dataset') || cmd === 'load_dataset' || cmd === 'run_policy' || cmd === 'train_policy') {
-          params.append('dataset_name', itemName);
+          // Don't send the special "NEW_DATASET" value
+          if (itemName !== 'NEW_DATASET') {
+            params.append('dataset_name', itemName);
+          }
         } else {
-          // Generic fallback
-          params.append('item_name', itemName);
+          // Generic fallback - avoid sending special values
+          if (itemName !== 'NEW_DATASET' && itemName !== 'NEW_MODEL') {
+            params.append('item_name', itemName);
+          }
         }
       }
 
@@ -467,14 +472,20 @@
       if (cmd === 'record_episodes' || cmd === 'run_policy' || cmd === 'train_policy' || cmd === 'record_episode'|| cmd === 'record_mistake') {
         const datasetsDropdown = document.getElementById('datasetsDropdown');
         const selectedDataset = datasetsDropdown ? datasetsDropdown.value : '';
-        params.append('dataset_name', selectedDataset);
+        // Don't send the special "NEW_DATASET" value
+        if (selectedDataset && selectedDataset !== 'NEW_DATASET') {
+          params.append('dataset_name', selectedDataset);
+        }
       }
 
-      // For run_policy command, also include the selected model
-      if (cmd === 'run_policy') {
+      // For run_policy and train_policy commands, also include the selected model
+      if (cmd === 'run_policy' || cmd === 'train_policy') {
         const modelsDropdown = document.getElementById('modelsDropdown');
         const selectedModel = modelsDropdown ? modelsDropdown.value : '';
-        params.append('model_name', selectedModel);
+        // Don't send the special "NEW_MODEL" value
+        if (selectedModel && selectedModel !== 'NEW_MODEL') {
+          params.append('model_name', selectedModel);
+        }
       }
 
       // Always fetch both speeds from the UI sliders.
@@ -577,6 +588,17 @@
       }
       
       const oldSelected = dropdown.value;
+      
+      // Store any custom dataset names that were added locally
+      const customDatasets = [];
+      for (let option of dropdown.options) {
+        if (option.value && 
+            option.value !== "" && 
+            option.value !== "NEW_DATASET" && 
+            !window.datasets?.some(d => d.dataset_name === option.value)) {
+          customDatasets.push(option.value);
+        }
+      }
 
       fetch('/request_datasets', { method: 'POST' })
         .then(response => response.json())
@@ -600,8 +622,22 @@
             dropdown.appendChild(opt);
           });
 
-          // restore old selection if valid
-          const validNames = datasetObjects.map(d => d.dataset_name);
+          // Re-add any custom dataset names that were added locally
+          customDatasets.forEach(customName => {
+            const opt = document.createElement('option');
+            opt.value = customName;
+            opt.textContent = customName;
+            dropdown.appendChild(opt);
+          });
+
+          // Add "New..." option
+          const newOpt = document.createElement('option');
+          newOpt.value = "NEW_DATASET";
+          newOpt.textContent = "New...";
+          dropdown.appendChild(newOpt);
+
+          // restore old selection if valid (now including custom names)
+          const validNames = datasetObjects.map(d => d.dataset_name).concat(customDatasets);
           if (validNames.includes(oldSelected)) {
             dropdown.value = oldSelected;
           } else {
@@ -619,7 +655,33 @@
       const selectedDataset = dropdown.value;
       if (!selectedDataset) return;
 
-      console.log('Selected dataset:', selectedDataset);
+      // Handle "New..." option
+      if (selectedDataset === "NEW_DATASET") {
+        const now = new Date();
+        const defaultName = now.getFullYear().toString() + 
+                           (now.getMonth() + 1).toString().padStart(2, '0') + 
+                           now.getDate().toString().padStart(2, '0') + '_' +
+                           now.getHours().toString().padStart(2, '0') + 
+                           now.getMinutes().toString().padStart(2, '0') + 
+                           now.getSeconds().toString().padStart(2, '0');
+        
+        const newName = prompt('Enter new dataset name:', defaultName);
+        if (newName && newName.trim()) {
+          // Create a new option with the entered name
+          const newOpt = document.createElement('option');
+          newOpt.value = newName.trim();
+          newOpt.textContent = newName.trim();
+          // Insert before the "New..." option
+          dropdown.insertBefore(newOpt, dropdown.lastElementChild);
+          dropdown.value = newName.trim();
+        } else {
+          // Reset to empty if cancelled or empty
+          dropdown.value = "";
+          return;
+        }
+      }
+
+      console.log('Selected dataset:', dropdown.value);
       
       // Refresh the models dropdown when dataset changes
       fetchModelsInBackground();
@@ -656,6 +718,17 @@
       
       const oldSelected = dropdown.value;
       
+      // Store any custom model names that were added locally
+      const customModels = [];
+      for (let option of dropdown.options) {
+        if (option.value && 
+            option.value !== "" && 
+            option.value !== "NEW_MODEL" && 
+            !window.models?.some(m => m.model_name === option.value)) {
+          customModels.push(option.value);
+        }
+      }
+      
       // Get the currently selected dataset to filter models
       const datasetsDropdown = document.getElementById('datasetsDropdown');
       const selectedDataset = datasetsDropdown ? datasetsDropdown.value : '';
@@ -690,8 +763,22 @@
             dropdown.appendChild(opt);
           });
 
-          // restore old selection if valid
-          const validNames = modelObjects.map(m => m.model_name);
+          // Re-add any custom model names that were added locally
+          customModels.forEach(customName => {
+            const opt = document.createElement('option');
+            opt.value = customName;
+            opt.textContent = customName;
+            dropdown.appendChild(opt);
+          });
+
+          // Add "New..." option
+          const newOpt = document.createElement('option');
+          newOpt.value = "NEW_MODEL";
+          newOpt.textContent = "New...";
+          dropdown.appendChild(newOpt);
+
+          // restore old selection if valid (now including custom names)
+          const validNames = modelObjects.map(m => m.model_name).concat(customModels);
           if (validNames.includes(oldSelected)) {
             dropdown.value = oldSelected;
           } else {
@@ -709,7 +796,33 @@
       const selectedModel = dropdown.value;
       if (!selectedModel) return;
 
-      console.log('Selected model:', selectedModel);
+      // Handle "New..." option
+      if (selectedModel === "NEW_MODEL") {
+        const now = new Date();
+        const defaultName = now.getFullYear().toString() + 
+                           (now.getMonth() + 1).toString().padStart(2, '0') + 
+                           now.getDate().toString().padStart(2, '0') + '_' +
+                           now.getHours().toString().padStart(2, '0') + 
+                           now.getMinutes().toString().padStart(2, '0') + 
+                           now.getSeconds().toString().padStart(2, '0');
+        
+        const newName = prompt('Enter new model name:', defaultName);
+        if (newName && newName.trim()) {
+          // Create a new option with the entered name
+          const newOpt = document.createElement('option');
+          newOpt.value = newName.trim();
+          newOpt.textContent = newName.trim();
+          // Insert before the "New..." option
+          dropdown.insertBefore(newOpt, dropdown.lastElementChild);
+          dropdown.value = newName.trim();
+        } else {
+          // Reset to empty if cancelled or empty
+          dropdown.value = "";
+          return;
+        }
+      }
+
+      console.log('Selected model:', dropdown.value);
     }
 
     /**

@@ -324,127 +324,6 @@ class RobotController:
             self.logger_tc.error(f"record_mistake error: {error_msg}")
             self.send_response(payload=payload, error=error_msg)
 
-    def _process_mistake_files(self, dataset_name, original_payload):
-        """
-        Internal method that processes mistake files in a separate thread.
-        """
-        try:
-            # Get configuration values
-            episode_length = self.config["general"]["record_duration"]  # seconds
-            saving_time = episode_length * 0.1  # 10% of episode length
-            offset = 4  # standard 4 seconds offset
-            
-            # Calculate total threshold time
-            recent_threshold = episode_length + saving_time + offset
-            
-            # Wait for episodes to complete (episode_length + saving_time)
-            wait_time = episode_length + saving_time
-            self.logger_tc.info(f"Waiting {wait_time} seconds for episodes to complete before moving files...")
-            time.sleep(wait_time)
-            
-            # Get data directory
-            parent_directory = get_data_path(self.config)
-            
-            # Process directories
-            moved_files_count = self._move_files_to_mistakes(
-                dataset_name, recent_threshold, parent_directory
-            )
-            
-            # Send completion response to TOS UI
-            response_payload = original_payload.copy()
-            response_payload["type"] = "RESP"
-            self.send_response(
-                payload=response_payload,
-                error="None", 
-                status="completed",
-                moved_files=moved_files_count,
-                dataset_name=dataset_name
-            )
-            
-            self.logger_tc.info(f"Mistake processing completed for dataset '{dataset_name}'. Moved {moved_files_count} files.")
-            
-        except Exception as e:
-            error_msg = str(e)
-            self.logger_tc.error(f"_process_mistake_files error: {error_msg}")
-            
-            # Send error response to TOS UI
-            response_payload = original_payload.copy()
-            response_payload["type"] = "RESP"
-            self.send_response(payload=response_payload, error=error_msg)
-
-    def _move_files_to_mistakes(self, dataset_name, recent_threshold, parent_directory):
-        """
-        Move files that are within the recent_threshold to '_mistakes' subdirectories.
-        Returns the count of moved files.
-        """
-        current_time = time.time()
-        moved_files_count = 0
-        
-        try:
-            # Generate a list of directory paths that start with the dataset name
-            if not os.path.exists(parent_directory):
-                self.logger_tc.warning(f"Parent directory does not exist: {parent_directory}")
-                return 0
-                
-            directories = [
-                d for d in os.listdir(parent_directory) 
-                if d.startswith(dataset_name) and os.path.isdir(os.path.join(parent_directory, d))
-            ]
-            
-            # Process each relevant directory
-            for dir_name in directories:
-                if dir_name.endswith("_mistakes"):
-                    continue  # Skip existing mistake directories
-                    
-                directory_path = os.path.join(parent_directory, dir_name)
-                moved_count = self._move_directory_files_to_mistakes(
-                    directory_path, recent_threshold, current_time
-                )
-                moved_files_count += moved_count
-                
-        except Exception as e:
-            self.logger_tc.error(f"Error in _move_files_to_mistakes: {e}")
-            raise
-            
-        return moved_files_count
-
-    def _move_directory_files_to_mistakes(self, directory_path, recent_threshold, current_time):
-        """
-        Move files within a single directory that are within the recent_threshold to a '_mistakes' subdirectory.
-        Returns the count of moved files.
-        """
-        moved_count = 0
-        
-        try:
-            mistakes_directory = directory_path + '_mistakes'
-            
-            # Create the '_mistakes' directory if it does not exist
-            if not os.path.exists(mistakes_directory):
-                os.makedirs(mistakes_directory)
-                self.logger_tc.info(f"Created mistakes directory: {mistakes_directory}")
-            
-            # Process each file in the directory
-            if not os.path.exists(directory_path):
-                return 0
-                
-            for filename in os.listdir(directory_path):
-                file_path = os.path.join(directory_path, filename)
-                if os.path.isfile(file_path):
-                    creation_time = os.path.getctime(file_path)
-                    if (current_time - creation_time) <= recent_threshold:
-                        new_path = os.path.join(mistakes_directory, filename)
-                        self.logger_tc.info(f"Moving file to mistakes directory: {filename}")
-                        os.rename(file_path, new_path)
-                        moved_count += 1
-                        
-        except Exception as e:
-            self.logger_tc.error(f"Error moving files in directory {directory_path}: {e}")
-            raise
-            
-        return moved_count
-        
-
-
     def report_dataset_names(self, payload):
         """
         Gather the list of recorded files and send them as a response,
@@ -1278,6 +1157,7 @@ class RobotController:
         self.logger_tc.info(f"Preparing to send response: {response}")
         self.send_response_message(message, response)
 
+
     ###################################################################
     # 5) Publish Commands Internally
     ###################################################################
@@ -1379,6 +1259,7 @@ class RobotController:
 
         else:
             self.logger_tc.warning(f"Unknown interface in command: {interface_name}")
+
 
     ###################################################################
     # 6) Connecting to Sub-Interfaces
@@ -1682,20 +1563,18 @@ class RobotController:
 
                 # Must match TEACHBOT_INTERFACE
                 if msg_type == "RESP" and interface == "TEACHBOT_INTERFACE":
-                    # No error => check if occupant can be cleared
-                    if msg_message == self.teachbot_interface_occupied:
+                    # Check for errors FIRST, before clearing occupied flag
+                    if msg_error != "None":
+                        self.success = False
+                        self.teachbot_interface_occupied = False
+                        self.logger_tc.error(f"TEACHBOT_INTERFACE error from '{msg_message}': {msg_error}")
+                        self.send_response(payload, error=msg_error)
+                    elif msg_message == self.teachbot_interface_occupied:
                         self.success = True
                         self.teachbot_interface_occupied = False
                         self.logger_tc.info("TEACHBOT_INTERFACE message: %s, completed. success = %s", msg_message, self.success)
-
                     else:
                         self.logger_tc.info("Untracked TEACHBOT_INTERFACE response: %s", msg_message)
-
-                    # If there's an error reported, forward entire payload to UI, then cleanup
-                    if msg_error != "None":
-                        self.success = False
-                        self.logger_tc.error(f"TEACHBOT_INTERFACE error from '{msg_message}': {msg_error}")
-                        self.send_response(payload, error=msg_error)
 
 
                 else:
@@ -1722,19 +1601,18 @@ class RobotController:
 
                 # Must match ROBOT_INTERFACE
                 if msg_type == "RESP" and interface == "ROBOT_INTERFACE":
-                    # If occupant matches, we free it
-                    if msg_message == self.robot_interface_occupied:
+                    # Check for errors FIRST, before clearing occupied flag
+                    if msg_error != "None":
+                        self.success = False
+                        self.robot_interface_occupied = False
+                        self.logger_tc.error(f"ROBOT_INTERFACE error from '{msg_message}': {msg_error}")
+                        self.send_response(payload, error=msg_error)
+                    elif msg_message == self.robot_interface_occupied:
                         self.success = True
                         self.robot_interface_occupied = False
                         self.logger_tc.info("ROBOT_INTERFACE message: %s, completed. success = %s", msg_message, self.success)
                     else:
                         self.logger_tc.info("Untracked ROBOT_INTERFACE response: %s", msg_message)
-
-                    # If there's an error, forward to UI, then cleanup
-                    if msg_error != "None":
-                        self.success = False
-                        self.logger_tc.error(f"ROBOT_INTERFACE error from '{msg_message}': {msg_error}")
-                        self.send_response(payload, error=msg_error)
 
 
                 elif msg_type == "CMD" and interface == "ROBOT_INTERFACE":
@@ -1766,18 +1644,18 @@ class RobotController:
 
                 # Must match SAVE_INTERFACE
                 if msg_type == "RESP" and interface == "SAVE_INTERFACE":
-                    if msg_message == self.save_interface_occupied:
+                    # Check for errors FIRST, before clearing occupied flag
+                    if msg_error != "None":
+                        self.success = False
+                        self.save_interface_occupied = False
+                        self.logger_tc.error(f"SAVE_INTERFACE error from '{msg_message}': {msg_error}")
+                        self.send_response(payload, error=msg_error)
+                    elif msg_message == self.save_interface_occupied:
                         self.success = True
                         self.save_interface_occupied = False
                         self.logger_tc.info("SAVE_INTERFACE message: %s, completed. success = %s", msg_message, self.success)
                     else:
                         self.logger_tc.info("Untracked SAVE_INTERFACE response: %s", msg_message)
-
-                    # If there's an error, forward entire payload, then cleanup
-                    if msg_error != "None":
-                        self.success = False
-                        self.logger_tc.error(f"SAVE_INTERFACE error from '{msg_message}': {msg_error}")
-                        self.send_response(payload, error=msg_error)
 
                 elif msg_type == "CMD" and interface == "SAVE_INTERFACE":
                     # Example: If the robot signals a 'stop' command to be re-broadcast
@@ -1815,8 +1693,14 @@ class RobotController:
 
                 # Must match CAMERA_INTERFACE
                 if msg_type == "RESP" and interface == "CAMERA_INTERFACE":
+                    # Check for errors FIRST, before any state changes
+                    if msg_error != "None":
+                        self.success = False
+                        self.camera_interface_occupied = False
+                        self.logger_tc.error(f"CAMERA_INTERFACE error from '{camera_name}': {msg_error}")
+                        self.send_response(payload, error=msg_error)
                     # Only track initialization responses during initialization phase
-                    if msg_message == "initialization" and self.camera_interface_occupied == "initialization":
+                    elif msg_message == "initialization" and self.camera_interface_occupied == "initialization":
                         cameras_initialized.add(camera_name)
                         self.logger_tc.info(f"Camera '{camera_name}' initialized. ({len(cameras_initialized)}/{total_cameras})")
                         
@@ -1839,12 +1723,6 @@ class RobotController:
                             
                     else:
                         self.logger_tc.info("Untracked CAMERA_INTERFACE response: %s", msg_message)
-
-                    # If there's an error, forward entire payload, then cleanup
-                    if msg_error != "None":
-                        self.success = False
-                        self.logger_tc.error(f"CAMERA_INTERFACE error from '{camera_name}': {msg_error}")
-                        self.send_response(payload, error=msg_error)
 
                 else:
                     self.logger_tc.warning("Unknown message from CAMERA_INTERFACE: %s", payload)
@@ -1870,18 +1748,18 @@ class RobotController:
 
                 # Must match POLICY_INTERFACE
                 if msg_type == "RESP" and interface == "POLICY_INTERFACE":
-                    if msg_message == self.policy_interface_occupied:
+                    # Check for errors FIRST, before clearing occupied flag
+                    if msg_error != "None":
+                        self.success = False
+                        self.policy_interface_occupied = False
+                        self.logger_tc.error(f"POLICY_INTERFACE error from '{msg_message}': {msg_error}")
+                        self.send_response(payload, error=msg_error)
+                    elif msg_message == self.policy_interface_occupied:
                         self.success = True
                         self.policy_interface_occupied = False
                         self.logger_tc.info("POLICY_INTERFACE message: %s, completed. success = %s", msg_message, self.success)
                     else:
                         self.logger_tc.info("Untracked POLICY_INTERFACE response: %s", msg_message)
-
-                    # If there's an error, forward entire payload, then cleanup
-                    if msg_error != "None":
-                        self.success = False
-                        self.logger_tc.error(f"POLICY_INTERFACE error from '{msg_message}': {msg_error}")
-                        self.send_response(payload, error=msg_error)
 
                 else:
                     self.logger_tc.warning("Unknown message from POLICY_INTERFACE: %s", payload)
@@ -1912,6 +1790,7 @@ class RobotController:
         self.cleanup()
 
     def disconnect_interfaces(self):
+        self.logger_tc.info("Disconnecting all interfaces...")
         self._disconnect_interface(self.robot_interface_process, "ROBOT_INTERFACE")
         self._disconnect_interface(self.policy_interface_process, "POLICY_INTERFACE")
         self._disconnect_interface(self.teachbot_interface_process, "TEACHBOT_INTERFACE")
@@ -2100,6 +1979,131 @@ class RobotController:
             self.command_consumer_thread.join(timeout=5.0)
             self.logger_tc.info("Command consumer thread joined.")
             self.command_consumer_thread = None
+
+
+    ####################################################################
+    # 9) record mistake helpers
+    ####################################################################
+
+    def _process_mistake_files(self, dataset_name, original_payload):
+        """
+        Internal method that processes mistake files in a separate thread.
+        """
+        try:
+            # Get configuration values
+            episode_length = self.config["general"]["record_duration"]  # seconds
+            saving_time = episode_length * 0.1  # 10% of episode length
+            offset = 4  # standard 4 seconds offset
+            
+            # Calculate total threshold time
+            recent_threshold = episode_length + saving_time + offset
+            
+            # Wait for episodes to complete (episode_length + saving_time)
+            wait_time = episode_length + saving_time
+            self.logger_tc.info(f"Waiting {wait_time} seconds for episodes to complete before moving files...")
+            time.sleep(wait_time)
+            
+            # Get data directory
+            parent_directory = get_data_path(self.config)
+            
+            # Process directories
+            moved_files_count = self._move_files_to_mistakes(
+                dataset_name, recent_threshold, parent_directory
+            )
+            
+            # Send completion response to TOS UI
+            response_payload = original_payload.copy()
+            response_payload["type"] = "RESP"
+            self.send_response(
+                payload=response_payload,
+                error="None", 
+                status="completed",
+                moved_files=moved_files_count,
+                dataset_name=dataset_name
+            )
+            
+            self.logger_tc.info(f"Mistake processing completed for dataset '{dataset_name}'. Moved {moved_files_count} files.")
+            
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"_process_mistake_files error: {error_msg}")
+            
+            # Send error response to TOS UI
+            response_payload = original_payload.copy()
+            response_payload["type"] = "RESP"
+            self.send_response(payload=response_payload, error=error_msg)
+
+    def _move_files_to_mistakes(self, dataset_name, recent_threshold, parent_directory):
+        """
+        Move files that are within the recent_threshold to '_mistakes' subdirectories.
+        Returns the count of moved files.
+        """
+        current_time = time.time()
+        moved_files_count = 0
+        
+        try:
+            # Generate a list of directory paths that start with the dataset name
+            if not os.path.exists(parent_directory):
+                self.logger_tc.warning(f"Parent directory does not exist: {parent_directory}")
+                return 0
+                
+            directories = [
+                d for d in os.listdir(parent_directory) 
+                if d.startswith(dataset_name) and os.path.isdir(os.path.join(parent_directory, d))
+            ]
+            
+            # Process each relevant directory
+            for dir_name in directories:
+                if dir_name.endswith("_mistakes"):
+                    continue  # Skip existing mistake directories
+                    
+                directory_path = os.path.join(parent_directory, dir_name)
+                moved_count = self._move_directory_files_to_mistakes(
+                    directory_path, recent_threshold, current_time
+                )
+                moved_files_count += moved_count
+                
+        except Exception as e:
+            self.logger_tc.error(f"Error in _move_files_to_mistakes: {e}")
+            raise
+            
+        return moved_files_count
+
+    def _move_directory_files_to_mistakes(self, directory_path, recent_threshold, current_time):
+        """
+        Move files within a single directory that are within the recent_threshold to a '_mistakes' subdirectory.
+        Returns the count of moved files.
+        """
+        moved_count = 0
+        
+        try:
+            mistakes_directory = directory_path + '_mistakes'
+            
+            # Create the '_mistakes' directory if it does not exist
+            if not os.path.exists(mistakes_directory):
+                os.makedirs(mistakes_directory)
+                self.logger_tc.info(f"Created mistakes directory: {mistakes_directory}")
+            
+            # Process each file in the directory
+            if not os.path.exists(directory_path):
+                return 0
+                
+            for filename in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, filename)
+                if os.path.isfile(file_path):
+                    creation_time = os.path.getctime(file_path)
+                    if (current_time - creation_time) <= recent_threshold:
+                        new_path = os.path.join(mistakes_directory, filename)
+                        self.logger_tc.info(f"Moving file to mistakes directory: {filename}")
+                        os.rename(file_path, new_path)
+                        moved_count += 1
+                        
+        except Exception as e:
+            self.logger_tc.error(f"Error moving files in directory {directory_path}: {e}")
+            raise
+            
+        return moved_count
+        
 
 
 

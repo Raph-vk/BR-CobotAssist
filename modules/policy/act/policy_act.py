@@ -153,7 +153,7 @@ class PolicyInterface:
             if result is None:
                 self.logger_pi.error("Policy loading failed - cannot start execution")
                 self.running = False
-                return "Policy loading failed"
+                return "Policy loading failed, train a model first"
         except Exception as e:
             self.logger_pi.error(f"Failed to load policy: {e}")
             self.running = False
@@ -184,11 +184,9 @@ class PolicyInterface:
             self.logger_pi.error(error_msg)
             return error_msg
         
-        # Store the full_message for the training thread
-        self.train_message = full_message
-        
         # Start training in a separate thread to avoid blocking
-        self.training_thread = threading.Thread(target=self._train_policy_thread, daemon=True)
+        self.training_thread = threading.Thread(target=self._train_policy_thread, args=(full_message,),
+                                                daemon=True)
         self.training_thread.start()
         
         return None  # Success - training started
@@ -256,6 +254,8 @@ class PolicyInterface:
             self.policy_thread.join(timeout=2.0)
             self.logger_pi.info("Policy thread stopped")
 
+    # def get_parameters(self):
+    #     # send response 
 
     ###################################################################
     # Data gathering and processing run policy
@@ -666,7 +666,7 @@ class PolicyInterface:
                     num_episodes += 1
         return num_episodes
     
-    def _get_camera_names_from_dataset(self, dataset_dir):
+    def _get_info_from_dataset(self, dataset_dir):
         """Get camera names from the first available HDF5 file in the dataset directory."""
         camera_names = []
         
@@ -683,14 +683,20 @@ class PolicyInterface:
                             # Get camera names from the images group
                             camera_names = list(file['images'].keys())
                             self.logger_pi.info(f"Found cameras in {filename}: {camera_names}")
-                            break  # Use first valid file
+                        # log the file structure of the hdf5 file
+                        self.logger_pi.info(f"File structure of {filename}: {list(file.keys())}")
+                        # log what is in the metadata
+                        if 'metadata' in file:
+                            recording_speed = file['metadata'].attrs['recording_speed']
+                            self.logger_pi.info(f"Recording speed in {filename}: {recording_speed}")
+                            break
                         else:
-                            self.logger_pi.warning(f"No 'images' group found in {filename}")
+                            self.logger_pi.warning(f"No images or metadata found in {filename}")
                 except Exception as e:
-                    self.logger_pi.warning(f"Could not read camera names from {filename}: {e}")
+                    self.logger_pi.warning(f"Could not read camera names or metadata from {filename}: {e}")
                     continue
                     
-        return camera_names
+        return camera_names, recording_speed
     
     def _save_config(self, ckpt_dir, model_config):
         """Save model-specific training configuration to config.json."""
@@ -736,14 +742,14 @@ class PolicyInterface:
         
         return True
     
-    def _load_training_data(self, dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val):
+    def _load_training_data(self, dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, recording_speed, robot_speed):
         """Load training data using act_utils."""
         self.logger_pi.info(f"Loading training data from {dataset_dir}")
         self.logger_pi.info(f"Episodes: {num_episodes}, Cameras: {camera_names}")
         
         try:
             train_dataloader, val_dataloader, stats = load_data(
-                dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, self.config, self.logger_pi
+                dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, self.config, self.logger_pi, recording_speed, robot_speed
             )
             
             self.logger_pi.info("Training data loaded successfully")
@@ -760,7 +766,7 @@ class PolicyInterface:
     # Train policy
     ###################################################################
 
-    def _train_policy_thread(self):
+    def _train_policy_thread(self, full_message):
         """
         Training thread function - runs the actual training process.
         """
@@ -768,27 +774,25 @@ class PolicyInterface:
             # Set training status
             self.is_training = True
             self.training_error = None
-            
-            # Get general system config from config.yaml
-            app_directory = self.config["general"]["app_directory"]
-            data_directory = self.config["general"]["data_directory"]
-            
+                       
             # Get dataset selection from UI message
-            selected_dataset = self.train_message["dataset_name"]
+            selected_dataset = full_message["dataset_name"]
+            selected_model = full_message.get("model_name", None)
+            if selected_model is None:
+                selected_model = datetime.now().strftime("%Y%m%d_%H%M%S")
             
             # Get camera info from system config
             camera_info = self.config.get("hardware", {}).get("camera", {}).get("info", [])
             system_camera_names = [cam["name"] for cam in camera_info] if camera_info else []
             
-            # Training parameters - these will be saved to model-specific config.json
-            model_name = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
+
             # Model-specific training parameters (will be saved to config.json)
             num_epochs = 15000
             batch_size = 16
             chunk_size = 75
             seed = 0
             continue_training = True
+            robot_speed = 0.5
             
             # Policy architecture parameters (will be saved to config.json)
             lr = 1e-5
@@ -799,14 +803,12 @@ class PolicyInterface:
             enc_layers = 6
             dec_layers = 8
             nheads = 32
-            
-            # Backbone parameters (will be saved to config.json)
             backbone = "resnet34"
             lr_backbone = 1e-5
             
             # Setup directories using selected dataset
             dataset_dir = get_data_path(self.config, selected_dataset)
-            ckpt_dir = os.path.join(dataset_dir, "Models", model_name)
+            ckpt_dir = os.path.join(dataset_dir, "Models", selected_model)
             
             if not os.path.exists(ckpt_dir):
                 os.makedirs(ckpt_dir)
@@ -827,7 +829,7 @@ class PolicyInterface:
                 return
         
             # Use camera names from dataset, fallback to system config if needed
-            camera_names = self._get_camera_names_from_dataset(dataset_dir)
+            camera_names, recording_speed = self._get_info_from_dataset(dataset_dir)
             if not camera_names:
                 camera_names = system_camera_names
                 self.logger_pi.warning(f"No camera names found in dataset, using system config: {camera_names}")
@@ -855,6 +857,8 @@ class PolicyInterface:
             model_config = {
                 'num_epochs': num_epochs,
                 'num_episodes': num_episodes,
+                'recording_speed': recording_speed,
+                'robot_speed': robot_speed,
                 'ckpt_dir': ckpt_dir,  # This will be made relative when saved
                 'state_dim': state_dim,
                 'lr': lr,
@@ -867,7 +871,7 @@ class PolicyInterface:
             # Load data - this will need act_utils functionality
             self.logger_pi.info("Loading training data...")
             train_dataloader, val_dataloader, stats = self._load_training_data(
-                dataset_dir, num_episodes, camera_names, batch_size, batch_size)
+                dataset_dir, num_episodes, camera_names, batch_size, batch_size, recording_speed, robot_speed)
             
             # Save dataset stats
             stats_path = os.path.join(ckpt_dir, 'dataset_stats.pkl')
@@ -1463,6 +1467,9 @@ class PolicyInterface:
         ensemble_actions = np.stack(ensemble_actions, axis=0)
                 
         return ensemble_actions
+
+
+
 
 def send_response(logger_si, policy_interface_commup, payload, error="None", **kwargs):
     """

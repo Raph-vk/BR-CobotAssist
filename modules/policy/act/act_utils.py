@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 
 class EpisodicDataset(torch.utils.data.Dataset):
-    def __init__(self, episode_ids, dataset_dir, camera_names, norm_stats, config, logger):
+    def __init__(self, episode_ids, dataset_dir, camera_names, norm_stats, config, logger, recording_speed=1.0, robot_speed=1.0):
         super().__init__()
         self.episode_ids = episode_ids
         self.dataset_dir = dataset_dir
@@ -14,6 +14,9 @@ class EpisodicDataset(torch.utils.data.Dataset):
         self.norm_stats = norm_stats
         self.config = config
         self.logger = logger
+        self.recording_speed = float(recording_speed)
+        self.robot_speed = float(robot_speed)
+        self.speed_factor = self.robot_speed / self.recording_speed
 
     def __len__(self):
         return len(self.episode_ids)
@@ -35,18 +38,32 @@ class EpisodicDataset(torch.utils.data.Dataset):
             robot_positions = root['robot_positions'][()].astype(np.float32)  # Robot observations (includes gripper as last joint)  
             timestamps = root['robot_position_timestamps'][()].astype(np.float32)
             
-            # Images are sampled every record_divisor steps
-            # So image[n] corresponds to joint_state[n * record_divisor]
-            num_images = len(root[f'images/{self.camera_names[0]}/color'])
-            # Choose a random start point, but ensure we have aligned image data
-            max_image_start = max(0, num_images) 
-            start_idx = np.random.choice(max_image_start)
-
-            # create a list of actions and joint states based on record_divisor
+            # Apply record_divisor first (base sampling rate)
+            # This aligns joint data with image sampling rate
             teachbot_positions = teachbot_positions[::record_divisor]
             robot_positions = robot_positions[::record_divisor]
+            
+            # Apply speed factor subsampling if needed
+            if self.speed_factor > 1:
+                # Choose random start offset for subsampling to get different sub-sequences
+                speed_step = int(self.speed_factor)
+                start_offset = np.random.choice(speed_step)
+                teachbot_positions = teachbot_positions[start_offset::speed_step]
+                robot_positions = robot_positions[start_offset::speed_step]
+                # Store the offset for later image indexing
+                self._current_speed_offset = start_offset
+                self._current_speed_step = speed_step
+            else:
+                self._current_speed_offset = 0
+                self._current_speed_step = 1
+            
+            # Now teachbot_positions and robot_positions are aligned with the effective sampling rate
             original_actions_shape = teachbot_positions.shape
             episode_len = len(teachbot_positions)
+            
+            # Choose a random start point within the subsampled data
+            max_start = max(0, episode_len - 1) if episode_len > 0 else 0
+            start_idx = np.random.choice(max_start + 1) if max_start > 0 else 0
 
             # Retrieve joint states (robot position at the selected timestep)
             joint_pos = robot_positions[start_idx]
@@ -65,8 +82,11 @@ class EpisodicDataset(torch.utils.data.Dataset):
             # ------------------------------------------------
             color_images = []
             for cam_name in self.camera_names:
-                # New structure: images/{cam_name}/color
-                c_img = root[f'images/{cam_name}/color'][start_idx]
+                # Calculate the actual image index based on subsampling
+                # start_idx is within the subsampled sequence
+                # We need to map it back to the original image sequence
+                actual_image_idx = self._current_speed_offset + (start_idx * self._current_speed_step)
+                c_img = root[f'images/{cam_name}/color'][actual_image_idx]
                 color_images.append(c_img)
             # shape: (num_cams, H, W, 3)
             color_images = np.stack(color_images, axis=0)
@@ -76,8 +96,9 @@ class EpisodicDataset(torch.utils.data.Dataset):
             # ------------------------------------------------
             depth_images = []
             for cam_name in self.camera_names:
-                # New structure: images/{cam_name}/depth
-                d_img = root[f'images/{cam_name}/depth'][start_idx]
+                # Use the same actual image index
+                actual_image_idx = self._current_speed_offset + (start_idx * self._current_speed_step)
+                d_img = root[f'images/{cam_name}/depth'][actual_image_idx]
                 if len(d_img.shape) == 2:
                     d_img = d_img[..., np.newaxis]  # shape: (H, W, 1)
                 depth_images.append(d_img)
@@ -142,7 +163,11 @@ class EpisodicDataset(torch.utils.data.Dataset):
 
 
 
-def get_norm_stats(dataset_dir, num_episodes):
+def get_norm_stats(dataset_dir, num_episodes, recording_speed, robot_speed):
+    # Ensure speeds are floats
+    recording_speed = float(recording_speed)
+    robot_speed = float(robot_speed)
+    
     all_joint_pos_data = []
     all_action_data = []
     for episode_idx in range(num_episodes):
@@ -153,8 +178,38 @@ def get_norm_stats(dataset_dir, num_episodes):
                 robot_positions = root['robot_positions'][()].astype(np.float32)  # Joint positions (observations)
                 actions = root['teachbot_positions'][()].astype(np.float32)     # Actions (targets)
                 record_divisor = root['metadata'].attrs.get('record_divisor', 4)  # Default to 4 if not found
-                robot_positions = robot_positions[::record_divisor]
-                actions = actions[::record_divisor]
+                
+                factor = robot_speed / recording_speed
+                if factor < 1:
+                    print(f"Robot speed {robot_speed} is lower than recording speed {recording_speed}. Not possible")
+                    continue
+                elif factor > 1:
+                    # Need to subsample: robot executes faster than recorded
+                    # factor=2 means take every 2nd image/joint pair  
+                    # This creates multiple sub-sequences from the same episode
+                    print(f"Robot speed {robot_speed} is higher than recording speed {recording_speed}. Subsampling by factor {factor}")
+                    
+                    # Start with the base sampling (every record_divisor)
+                    base_robot_positions = robot_positions[::record_divisor]
+                    base_actions = actions[::record_divisor]
+                    
+                    # Now subsample by the speed factor
+                    speed_step = int(factor)
+                    for start_offset in range(speed_step):
+                        sub_robot_positions = base_robot_positions[start_offset::speed_step]
+                        sub_actions = base_actions[start_offset::speed_step]
+                        
+                        if len(sub_robot_positions) > 0:  # Only add if we have data
+                            all_joint_pos_data.append(torch.from_numpy(sub_robot_positions))
+                            all_action_data.append(torch.from_numpy(sub_actions))
+                    
+                    # Skip the normal append at the end since we already added the subsampled data
+                    continue
+                    
+                elif int(factor) == 1:
+                    print(f"Robot speed {robot_speed} is equal to recording speed {recording_speed}. No downsampling needed")
+                    robot_positions = robot_positions[::record_divisor]
+                    actions = actions[::record_divisor]
 
             all_joint_pos_data.append(torch.from_numpy(robot_positions))
             all_action_data.append(torch.from_numpy(actions))
@@ -184,17 +239,21 @@ def get_norm_stats(dataset_dir, num_episodes):
     return stats
 
 
-def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, config, logger):
+def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, config, logger, recording_speed, robot_speed):
     print(f'\nData from: {dataset_dir}\n')
 
-    norm_stats = get_norm_stats(dataset_dir, num_episodes)
+    # Ensure speeds are floats
+    recording_speed = float(recording_speed)
+    robot_speed = float(robot_speed)
+
+    norm_stats = get_norm_stats(dataset_dir, num_episodes, recording_speed, robot_speed)
     train_ratio = 0.7
     shuffled_indices = np.random.permutation(num_episodes)
     train_indices = shuffled_indices[:int(train_ratio * num_episodes)]
     val_indices = shuffled_indices[int(train_ratio * num_episodes):]
 
-    train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats, config, logger)
-    val_dataset = EpisodicDataset(val_indices, dataset_dir, camera_names, norm_stats, config, logger)
+    train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats, config, logger, recording_speed, robot_speed)
+    val_dataset = EpisodicDataset(val_indices, dataset_dir, camera_names, norm_stats, config, logger, recording_speed, robot_speed)
     
     num_workers = 1
     prefetch_factor = 5

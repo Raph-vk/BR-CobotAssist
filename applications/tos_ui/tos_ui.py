@@ -128,7 +128,7 @@ class TOSUIApplication:
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
 
-            self.ui_logger.info(f"Received form data - message: '{message}', dataset_name: '{dataset_name}', recording_name: '{recording_name}'")
+            self.ui_logger.info(f"Received form data - message: '{message}', dataset_name: '{dataset_name}', recording_name: '{recording_name}'', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
@@ -173,6 +173,7 @@ class TOSUIApplication:
 
             elif message == "train_policy":
                 msg["dataset_name"] = dataset_name
+                msg["model_name"] = model_name
 
             elif message == "start_teleoperation":
                 msg["recording_speed"] = recording_speed
