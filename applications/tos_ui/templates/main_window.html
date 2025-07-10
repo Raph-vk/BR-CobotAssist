@@ -251,20 +251,20 @@
       </div>
 
 
-      <!-- <div class="button-row">
+      <div class="button-row">
         <button class="btn" onclick="sendCommand('record_episodes')">
           Record Episodes
         </button>
         <button class="btn" onclick="sendCommand('record_mistake')">
           Record Mistake
         </button>
-      </div> -->
+      </div>
 
-      <div class="button-row">
+      <!-- <div class="button-row">
         <button class="btn" onclick="sendCommand('record_episode')">
           Record Episode
         </button>
-      </div>
+      </div> -->
 
 
 
@@ -464,7 +464,7 @@
       }
 
       // For record_episodes, run_policy, and train_policy commands, automatically include the selected dataset
-      if (cmd === 'record_episodes' || cmd === 'run_policy' || cmd === 'train_policy' || cmd === 'record_episode') {
+      if (cmd === 'record_episodes' || cmd === 'run_policy' || cmd === 'train_policy' || cmd === 'record_episode'|| cmd === 'record_mistake') {
         const datasetsDropdown = document.getElementById('datasetsDropdown');
         const selectedDataset = datasetsDropdown ? datasetsDropdown.value : '';
         params.append('dataset_name', selectedDataset);

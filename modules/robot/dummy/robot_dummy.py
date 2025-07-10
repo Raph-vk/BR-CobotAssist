@@ -312,7 +312,7 @@ class DummyRobot:
         self.gripper_state_change_time = 0
         self.gripper_on = False
         self.gripper_off = False
-        self.master_positions = deque()
+        self.teachbot_positions = deque()
 
         # Dummy connection settings
         self.rmi_port = config["hardware"]["robot"]["rmi_port"]
@@ -679,7 +679,7 @@ class DummyRobot:
             # Load JSON
             with open(filename, 'r') as f:
                 data = json.load(f)
-                self.master_positions = deque([s["master_position"] for s in data["samples"]])
+                self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
                 try:
                     self.first_joint_position = data["samples"][0]["robot_position"]
                 except IndexError:
@@ -835,10 +835,10 @@ class DummyRobot:
                         if action_master is None:
                             time.sleep(self.control_dt)
                             continue
-                    elif self.play_recording_active and self.master_positions:
+                    elif self.play_recording_active and self.teachbot_positions:
                         # Get next position from recording
-                        if self.master_positions:
-                            action_master = self.master_positions.popleft()
+                        if self.teachbot_positions:
+                            action_master = self.teachbot_positions.popleft()
                         else:
                             # Recording finished
                             self.logger_ri.info("Dummy: control_loop, recording playback finished")
@@ -892,8 +892,8 @@ class DummyRobot:
                             last_received_js = new_position + [gripper_state_float]  # Simulate received joint state
                             
                             joint_data = {
-                                "master_position": master_pos_with_gripper,
-                                "send_position_robot": send_pos_with_gripper,
+                                "teachbot_position": master_pos_with_gripper,
+                                "sent_robot_position": send_pos_with_gripper,
                                 "robot_position": last_received_js,  # Already includes gripper state
                                 "robot_position_timestamp": time.time(),
                                 "seq_id": self.udp.seq_id_sent,
@@ -919,8 +919,8 @@ class DummyRobot:
                                 return x.tolist() if isinstance(x, np.ndarray) else x
 
                             joint_data = {
-                                "master_position": _to_list_if_array(master_pos_with_gripper),
-                                "send_position_robot": _to_list_if_array(send_pos_with_gripper),
+                                "teachbot_position": _to_list_if_array(master_pos_with_gripper),
+                                "sent_robot_position": _to_list_if_array(send_pos_with_gripper),
                                 "robot_position": _to_list_if_array(last_received_js),
                                 "robot_position_timestamp": time.time(),  # or time.time() in dummy
                                 "seq_id": self.udp.seq_id_sent,

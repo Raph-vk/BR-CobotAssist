@@ -266,13 +266,13 @@ class RingBufferReader:
             # The gripper state is now included as the last element in each array
             total_dof = self.DOF_ROBOT + self.DOF_EE  # 6 + 1 = 7
             
-            master_pos_robot = list(data[0:total_dof])                      # 7 elements: 6 joints + gripper
+            teachbot_position = list(data[0:total_dof])                      # 7 elements: 6 joints + gripper
             send_pos_robot = list(data[kMaxDof:kMaxDof + total_dof])        # 7 elements: 6 joints + gripper  
             robot_pos = list(data[2*kMaxDof:2*kMaxDof + total_dof])         # 7 elements: 6 joints + gripper
             
             return {
-                "master_position":     master_pos_robot,                    # Robot joints + gripper state
-                "send_position_robot": send_pos_robot,                      # Robot joints + gripper state  
+                "teachbot_position":     teachbot_position,                    # Robot joints + gripper state
+                "sent_robot_position": send_pos_robot,                      # Robot joints + gripper state  
                 "robot_position":      robot_pos,                           # Robot joints + gripper state
                 "seq_id":              data[3*kMaxDof + 2],                 # seq_id uint32_t
                 "timestamp":           data[3*kMaxDof + 3],                 # timestamp double
@@ -312,13 +312,13 @@ class RingBufferReader:
             # The gripper state is now included as the last element in each array
             total_dof = self.DOF_ROBOT + self.DOF_EE  # 6 + 1 = 7
             
-            master_pos_robot = list(data[0:total_dof])                      # 7 elements: 6 joints + gripper
+            teachbot_position = list(data[0:total_dof])                      # 7 elements: 6 joints + gripper
             send_pos_robot = list(data[kMaxDof:kMaxDof + total_dof])        # 7 elements: 6 joints + gripper  
             robot_pos = list(data[2*kMaxDof:2*kMaxDof + total_dof])         # 7 elements: 6 joints + gripper
             
             entry = {
-                "master_position":     master_pos_robot,                    # Robot joints + gripper state
-                "send_position_robot": send_pos_robot,                      # Robot joints + gripper state  
+                "teachbot_position":     teachbot_position,                    # Robot joints + gripper state
+                "sent_robot_position": send_pos_robot,                      # Robot joints + gripper state  
                 "robot_position":      robot_pos,                           # Robot joints + gripper state
                 "seq_id":              data[3*kMaxDof + 2],                 # seq_id uint32_t
                 "timestamp":           data[3*kMaxDof + 3],                 # timestamp double

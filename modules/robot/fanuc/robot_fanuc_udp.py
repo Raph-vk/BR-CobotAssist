@@ -440,6 +440,8 @@ class UDPStreaming:
 
         try:
             self.udp_socket.sendto(packet, self.robot_address)
+            self.logger.info(
+                "send_joint_pos, position=%s", position)
             timenow = time.time()
             # Check how quickly we are sending
             if 0.010 < (timenow - self.time_last_sent) < 747059116:

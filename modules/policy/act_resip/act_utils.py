@@ -30,8 +30,8 @@ class EpisodicDataset(torch.utils.data.Dataset):
                 if hasattr(self, 'logger'):
                     self.logger.warning(f"Metadata 'record_divisor' not found in episode {episode_id}. Using default value {record_divisor}.")
 
-            # Get joint data - these are the action targets (send_position_robot)
-            actions = root['send_position_robots'][()].astype(np.float32)  # Action targets (includes gripper as last joint)
+            # Get joint data - these are the action targets (sent_robot_position)
+            actions = root['sent_robot_positions'][()].astype(np.float32)  # Action targets (includes gripper as last joint)
             robot_positions = root['robot_positions'][()].astype(np.float32)  # Robot observations (includes gripper as last joint)  
             timestamps = root['robot_position_timestamps'][()].astype(np.float32)
             
@@ -157,9 +157,9 @@ def get_norm_stats(dataset_dir, num_episodes):
         dataset_path = os.path.join(dataset_dir, f'episode_{episode_idx}.hdf5')
         try:
             with h5py.File(dataset_path, 'r') as root:
-                # Use new structure: robot_positions and send_position_robots
+                # Use new structure: robot_positions and sent_robot_positions
                 robot_positions = root['robot_positions'][()].astype(np.float32)  # Joint positions (observations)
-                actions = root['send_position_robots'][()].astype(np.float32)     # Actions (targets)
+                actions = root['sent_robot_positions'][()].astype(np.float32)     # Actions (targets)
                 
             all_joint_pos_data.append(torch.from_numpy(robot_positions))
             all_action_data.append(torch.from_numpy(actions))

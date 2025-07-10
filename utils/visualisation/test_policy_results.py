@@ -153,9 +153,9 @@ def evaluate_episode(
     """Predict *chunk* future actions at a random t₀ inside one episode."""
 
     # ── find joint & action arrays (handles legacy vs new datasets) ──
-    if "master_positions" in h5:  # new
+    if "teachbot_positions" in h5:  # new
         robot_pos = h5["robot_positions"][()]
-        master_pos = h5["master_positions"][()]
+        master_pos = h5["teachbot_positions"][()]
         joints = robot_pos
         actions = master_pos
 

@@ -257,7 +257,7 @@ class TechmanRobot(RobotInterface):
         self.recording = False
         self.gripper_state = False
         self.gripper_state_change_time = 0
-        self.master_positions = deque()
+        self.teachbot_positions = deque()
 
         # Connection elements
         self.sock = None
@@ -480,7 +480,7 @@ class TechmanRobot(RobotInterface):
                 return False
 
             # Load positions
-            self.master_positions = deque([s["master_position"] for s in data["samples"]])
+            self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
             try:
                 self.first_joint_position = data["samples"][0]["robot_position"]
             except IndexError:
@@ -714,8 +714,8 @@ class TechmanRobot(RobotInterface):
         while self.robot_running:
             start_time = time.time()
             
-            if self.master_positions:
-                action_deg = self.master_positions.popleft()
+            if self.teachbot_positions:
+                action_deg = self.teachbot_positions.popleft()
             else:
                 self.logger_ri.info("control_loop, recording playbook completed")
                 break
@@ -936,18 +936,18 @@ class TechmanRobot(RobotInterface):
     # 6) DATA STORAGE
     ################################################################
 
-    def _store_joint_data(self, robot_position, master_position):
+    def _store_joint_data(self, robot_position, teachbot_position):
         """
         Store joint data in shared memory for recording.
         Gripper state should already be included as the last joint in position arrays.
         """
         robot_pos = robot_position.tolist() if isinstance(robot_position, np.ndarray) else robot_position
-        master_pos = master_position.tolist() if isinstance(master_position, np.ndarray) else master_position
+        teachbot_pos = teachbot_position.tolist() if isinstance(teachbot_position, np.ndarray) else teachbot_position
         
         joint_data = {
             "robot_position": robot_pos,
-            "master_position": master_pos,
-            "send_position_robot": master_pos,  # Use master as send position for TechMan
+            "teachbot_position": teachbot_pos,
+            "sent_robot_position": teachbot_pos,  # Use teachbot as sent position for TechMan
             "robot_position_timestamp": time.time(),
             "seq_id": getattr(self, 'seq_id', 0),
         }

@@ -49,7 +49,7 @@ from modules.camera.cam_utils import CameraRingBuffer
 class PolicyInterface:
     """
     A interface that listens for start/stop recording commands,
-    and policys the robot_position and master_position (and gripper flags)
+    and policys the robot_position and teachbot_position (and gripper flags)
     from shm_joint_data.
     """
 

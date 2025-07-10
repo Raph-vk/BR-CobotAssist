@@ -41,7 +41,7 @@ def _next_ep_idx(dataset_dir):
 class SaveInterface:
     """
     A interface that listens for start/stop recording commands,
-    and saves the robot_position and master_position (and gripper flags)
+    and saves the robot_position and teachbot_position (and gripper flags)
     from shm_joint_data.
     """
 
@@ -53,8 +53,8 @@ class SaveInterface:
                                puts dict items like:
                                {
                                  "robot_position": [...],
-                                 "master_position": [...],
-                                 "send_position_robot": [...],
+                                 "teachbot_position": [...],
+                                 "sent_robot_position": [...],
                                 "robot_position_timestamp": <float>,
                                }
         :param color_buffers1: dict of CameraRingBuffer, color images from cameras
@@ -99,7 +99,6 @@ class SaveInterface:
     # Save interface commands
     ###################################################################
 
-
     def start_teleoperation_record(self, full_message):
         """
         Begin reading from shm_joint_data in a background thread.
@@ -127,7 +126,12 @@ class SaveInterface:
                 "format_version": 1,
                 "start_time": time.time(),
                 "end_time": None,
-                "recording_speed": recording_speed
+                "recording_speed": recording_speed,
+                "dof": self.config["hardware"]["robot"]["dof"],
+                "dof_ee": self.config["hardware"]["robot"]["dof_ee"],
+                "total_dof": self.dof,
+                "control_dt": self.control_dt,
+                "control_loop_language": self.control_loop_language
             },
             "samples": []
         }
@@ -179,7 +183,12 @@ class SaveInterface:
                 "format_version": 1,
                 "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "end_time": None,
-                "recording_speed": recording_speed
+                "recording_speed": recording_speed,
+                "dof": self.config["hardware"]["robot"]["dof"],
+                "dof_ee": self.config["hardware"]["robot"]["dof_ee"],
+                "total_dof": self.dof,
+                "control_dt": self.control_dt,
+                "control_loop_language": self.control_loop_language
             },
             "samples": []
         }
@@ -213,7 +222,6 @@ class SaveInterface:
         """
         self.record_one_episode = True
         self.record_episodes(full_message)
-
 
     def stop(self):
         """
@@ -256,8 +264,8 @@ class SaveInterface:
                 
                 # Extract all fields from the data structure to match the control loop format
                 robot_pos = data_item.get("robot_position", [])
-                master_pos = data_item.get("master_position", [])
-                send_position_robot = data_item.get("send_position_robot", [])
+                teachbot_pos = data_item.get("teachbot_position", [])
+                sent_robot_position = data_item.get("sent_robot_position", [])
                 robot_position_timestamp = data_item.get("robot_position_timestamp", time.time())
                 seq_id = data_item.get("seq_id", 0)
 
@@ -265,8 +273,8 @@ class SaveInterface:
                 # Note: gripper state is now included as last element in position arrays
                 sample = {
                     "robot_position": robot_pos,
-                    "master_position": master_pos,
-                    "send_position_robot": send_position_robot,
+                    "teachbot_position": teachbot_pos,
+                    "sent_robot_position": sent_robot_position,
                     "robot_position_timestamp": robot_position_timestamp,
                     "seq_id": seq_id
                 }
@@ -283,6 +291,21 @@ class SaveInterface:
         """
 
         self.logger_si.info("Starting image recording loop...")
+
+        # empty buffers if they are not empty
+        if self.control_loop_language == "cpp":
+            while True:
+                data_item = next(self.shm_reader, None)
+                if data_item == None:
+                    break
+        else:
+            while not self.shm_joint_data.empty():
+                try:
+                    data_item = self.shm_joint_data.get(timeout=0.1)
+                except Exception:
+                    break
+
+
         while self.recording:
             try:
                 episode_name = f"episode_{self.episode_idx}.hdf5"
@@ -310,7 +333,7 @@ class SaveInterface:
                     
                 # Process the first data item
                 if first_data_item:
-                    required_fields = ["robot_position_timestamp", "robot_position", "master_position", "send_position_robot"]
+                    required_fields = ["robot_position_timestamp", "robot_position", "teachbot_position", "sent_robot_position"]
                     if all(field in first_data_item for field in required_fields):
                         joint_data = {field: first_data_item[field] for field in required_fields}
                         self.episode_joint_buffer.append(joint_data)
@@ -337,8 +360,8 @@ class SaveInterface:
                     joint_data = {
                         "robot_position_timestamp": data_item["robot_position_timestamp"],
                         "robot_position": data_item["robot_position"],
-                        "master_position": data_item["master_position"],
-                        "send_position_robot": data_item["send_position_robot"],
+                        "teachbot_position": data_item["teachbot_position"],
+                        "sent_robot_position": data_item["sent_robot_position"],
                     }
     
                     self.episode_joint_buffer.append(joint_data)
@@ -516,7 +539,7 @@ class SaveInterface:
             if cam_name in depth_image_buffers:
                 depth_image_buffers[cam_name].sort(key=lambda x: x['timestamp'])
 
-        # create a dictionary with sub levels joint_data and images, each joint_data will have a timestamp, robot_position, master_position and send_position_robot
+        # create a dictionary with sub levels joint_data and images, each joint_data will have a timestamp, robot_position, teachbot_position and sent_robot_position
         data_dict = {
             'joint_data': [],
             'images': {}
@@ -537,15 +560,15 @@ class SaveInterface:
                 # Extract joint data fields
                 robot_position_timestamp = joint_data['robot_position_timestamp']
                 robot_position = joint_data['robot_position']
-                master_position = joint_data['master_position']
-                send_position_robot = joint_data['send_position_robot']
+                teachbot_position = joint_data['teachbot_position']
+                sent_robot_position = joint_data['sent_robot_position']
 
                 # Create a joint data entry
                 joint_entry = {
                     'robot_position_timestamp': robot_position_timestamp,
                     'robot_position': robot_position,
-                    'master_position': master_position,
-                    'send_position_robot': send_position_robot
+                    'teachbot_position': teachbot_position,
+                    'sent_robot_position': sent_robot_position
                 }
                 
                 # Add to the joint data list
@@ -604,8 +627,8 @@ class SaveInterface:
                         # Extract each field into separate arrays
                         robot_position_timestamps = [item['robot_position_timestamp'] for item in joint_data_list]
                         robot_positions = [item['robot_position'] for item in joint_data_list]
-                        master_positions = [item['master_position'] for item in joint_data_list]
-                        send_position_robots = [item['send_position_robot'] for item in joint_data_list]
+                        teachbot_positions = [item['teachbot_position'] for item in joint_data_list]
+                        sent_robot_positions = [item['sent_robot_position'] for item in joint_data_list]
 
                         # Save each field as a separate dataset
                         try:
@@ -617,16 +640,16 @@ class SaveInterface:
                                 raise ValueError("robot_positions is empty")
                             positions_array = np.array(robot_positions, dtype=np.float32)
                             f.create_dataset('robot_positions', data=positions_array)
-                            if not master_positions:
-                                raise ValueError("master_positions is empty")
-                            master_array = np.array(master_positions, dtype=np.float32)
-                            f.create_dataset('master_positions', data=master_array)
-                            if not send_position_robots:
-                                raise ValueError("send_position_robots is empty")
-                            send_array = np.array(send_position_robots, dtype=np.float32)
-                            f.create_dataset('send_position_robots', data=send_array)
+                            if not teachbot_positions:
+                                raise ValueError("teachbot_positions is empty")
+                            teachbot_array = np.array(teachbot_positions, dtype=np.float32)
+                            f.create_dataset('teachbot_positions', data=teachbot_array)
+                            if not sent_robot_positions:
+                                raise ValueError("sent_robot_positions is empty")
+                            sent_array = np.array(sent_robot_positions, dtype=np.float32)
+                            f.create_dataset('sent_robot_positions', data=sent_array)
                         except Exception as e:
-                            self.logger_si.error(f"Failed to save: {e}. Data sample: {send_position_robots[0] if send_position_robots else 'None/Empty'}")
+                            self.logger_si.error(f"Failed to save: {e}. Data sample: {sent_robot_positions[0] if sent_robot_positions else 'None/Empty'}")
                     except Exception as e:
                         self.logger_si.error(f"Failed to save joint_data: {e}")
                         import traceback
@@ -639,7 +662,7 @@ class SaveInterface:
                         cam_group = images_group.create_group(cam_name)
                         
                         # Save color images
-                        if 'color' in cam_data and cam_data['color']:
+                        if 'color' in cam_data:
                             try:
                                 color_array = np.array(cam_data['color'])
                                 cam_group.create_dataset('color', data=color_array)
@@ -647,7 +670,7 @@ class SaveInterface:
                                 self.logger_si.error(f"Failed to save color images for {cam_name}: {e}. Data: {len(cam_data['color'])} items, sample type: {type(cam_data['color'][0]) if cam_data['color'] else 'None/Empty'}")
                         
                         # Save depth images
-                        if 'depth' in cam_data and cam_data['depth']:
+                        if 'depth' in cam_data:
                             try:
                                 depth_array = np.array(cam_data['depth'])
                                 cam_group.create_dataset('depth', data=depth_array)
@@ -655,7 +678,7 @@ class SaveInterface:
                                 self.logger_si.error(f"Failed to save depth images for {cam_name}: {e}. Data: {len(cam_data['depth'])} items, sample type: {type(cam_data['depth'][0]) if cam_data['depth'] else 'None/Empty'}")
                         
                         # Save color timestamps
-                        if 'color_timestamps' in cam_data and cam_data['color_timestamps']:
+                        if 'color_timestamps' in cam_data:
                             try:
                                 color_ts_array = np.array(cam_data['color_timestamps'])
                                 cam_group.create_dataset('color_timestamps', data=color_ts_array)
@@ -663,7 +686,7 @@ class SaveInterface:
                                 self.logger_si.error(f"Failed to save color timestamps for {cam_name}: {e}. Data: {len(cam_data['color_timestamps'])} items, sample: {cam_data['color_timestamps'][0] if cam_data['color_timestamps'] else 'None/Empty'}")
                         
                         # Save depth timestamps
-                        if 'depth_timestamps' in cam_data and cam_data['depth_timestamps']:
+                        if 'depth_timestamps' in cam_data:
                             try:
                                 depth_ts_array = np.array(cam_data['depth_timestamps'])
                                 cam_group.create_dataset('depth_timestamps', data=depth_ts_array)
@@ -696,6 +719,12 @@ class SaveInterface:
                         end_time = time.time()
                         record_divisor = self.record_divisor
                         total_timesteps = len(data_dict.get('joint_data', []))
+                        recording_speed = self.recorded_data["metadata"].get("recording_speed", self.default_recording_speed)
+                        dof = self.recorded_data["metadata"].get("dof", self.config["hardware"]["robot"]["dof"])
+                        dof_ee = self.recorded_data["metadata"].get("dof_ee", self.config["hardware"]["robot"]["dof_ee"])
+                        total_dof = self.recorded_data["metadata"].get("total_dof", self.dof)
+                        control_dt = self.control_dt
+                        control_loop_language = self.control_loop_language
                         
                         # Handle None values with appropriate fallbacks
                         if start_time is None:
@@ -708,6 +737,12 @@ class SaveInterface:
                         metadata_group.attrs['end_time'] = float(end_time)
                         metadata_group.attrs['record_divisor'] = int(record_divisor)
                         metadata_group.attrs['total_timesteps'] = int(total_timesteps)
+                        metadata_group.attrs['recording_speed'] = float(recording_speed)
+                        metadata_group.attrs['dof'] = int(dof)
+                        metadata_group.attrs['dof_ee'] = int(dof_ee)
+                        metadata_group.attrs['total_dof'] = int(total_dof)
+                        metadata_group.attrs['control_dt'] = float(control_dt)
+                        metadata_group.attrs['control_loop_language'] = control_loop_language
                     except Exception as e:
                         # Enhanced error logging to identify None/missing variables
                         self.logger_si.error(f"Failed to save episode metadata: {e}")
@@ -774,7 +809,7 @@ class SaveInterface:
                             joint_metadata.attrs['joint_states_count'] = joint_count
                             # Add info about the separate joint data fields
                             # Note: gripper state is now included as last element in position arrays
-                            joint_metadata.attrs['fields'] = ['robot_position_timestamps', 'robot_positions', 'master_positions', 'send_position_robots']
+                            joint_metadata.attrs['fields'] = ['robot_position_timestamps', 'robot_positions', 'teachbot_positions', 'sent_robot_positions']
                     except Exception as e:
                         self.logger_si.error(f"Failed to save joint state metadata: {e}. joint_data available: {'YES' if 'joint_data' in data_dict else 'NO'}")
                         

@@ -165,7 +165,7 @@ class FanucRobot():
         self.gripper_state_change_time = time.time()  # Initialize to current time
         self.gripper_on = False
         self.gripper_off = False
-        self.master_positions = deque()
+        self.teachbot_positions = deque()
 
         # RMI Connection object
         self.rmi_port = config["hardware"]["robot"]["rmi_port"]
@@ -332,7 +332,6 @@ class FanucRobot():
         self.logger_ri.info("play_recording, robot control thread created.")
         return True
 
-
     def stop(self):
         """
         Stop teleoperation or recording if running,
@@ -472,7 +471,7 @@ class FanucRobot():
             # Load JSON
             with open(filename, 'r') as f:
                 data = json.load(f)
-                self.master_positions = deque([s["master_position"] for s in data["samples"]])
+                self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
                 try:
                     self.first_joint_position = data["samples"][0]["robot_position"]
                 except IndexError:
@@ -617,6 +616,19 @@ class FanucRobot():
             otg, inp, out = self.setup_ruckig()
             self.logger_ri.info("control_loop, Ruckig setup done.")
 
+            # Garbage collection optimization for real-time performance
+            # Store original GC settings to restore later
+            original_gc_thresholds = gc.get_threshold()
+            
+            # Set optimized GC thresholds for real-time performance
+            # Higher thresholds = less frequent GC = more predictable timing
+            optimized_gen0 = 2000   # Less frequent gen0 (default: 700)
+            optimized_gen1 = 25     # Less frequent gen1 (default: 10)
+            optimized_gen2 = 25     # Less frequent gen2 (default: 10)
+            gc.set_threshold(optimized_gen0, optimized_gen1, optimized_gen2)
+            
+            time.sleep(0.01)
+
             # Wait for the first status packet
             while not self.udp.started_receiving_motion_stream:
                 time.sleep(self.control_dt / 4)
@@ -632,16 +644,6 @@ class FanucRobot():
             self.logger_ri.info("control_loop, starting control loop")
             previous_action_master = self.start_position
 
-            # Garbage collection optimization for real-time performance
-            # Store original GC settings to restore later
-            original_gc_thresholds = gc.get_threshold()
-            
-            # Set optimized GC thresholds for real-time performance
-            # Higher thresholds = less frequent GC = more predictable timing
-            optimized_gen0 = 2000   # Less frequent gen0 (default: 700)
-            optimized_gen1 = 25     # Less frequent gen1 (default: 10)  
-            optimized_gen2 = 25     # Less frequent gen2 (default: 10)
-            gc.set_threshold(optimized_gen0, optimized_gen1, optimized_gen2)
 
             while self.robot_running:
                 # Sync with the packets so we don't overrun the buffer
@@ -653,8 +655,8 @@ class FanucRobot():
 
                 # Get next action
                 if self.play_recording_active:
-                    if self.master_positions:
-                        action_master = self.master_positions.popleft()
+                    if self.teachbot_positions:
+                        action_teachbot = self.teachbot_positions.popleft()
                     else:
                         self.logger_ri.info("control_loop, recording playback completed")
                         break
@@ -680,14 +682,13 @@ class FanucRobot():
                     self.logger_ri.error("control_loop, trajectory calculation failed")
                     break
 
-                send_position_robot = out.new_position
-                master_position = inp.target_position
+                sent_robot_position = out.new_position
+                teachbot_position = inp.target_position
 
                 # Store flags before sending
                 gripper_on_to_send = self.gripper_on
                 gripper_off_to_send = self.gripper_off
-                
-                success_send = self.udp.send_joint_pos(send_position_robot, gripper_on_to_send, gripper_off_to_send)
+                success_send = self.udp.send_joint_pos(sent_robot_position, gripper_on_to_send, gripper_off_to_send)
                 
                 # Reset gripper flags after sending
                 self.gripper_on = False
@@ -705,13 +706,13 @@ class FanucRobot():
                         
                         # Convert gripper state to float (0.0 or 1.0) and append to position arrays
                         gripper_state_float = 1.0 if self.gripper_state else 0.0
-                        master_pos_with_gripper = master_position + [gripper_state_float]
-                        send_pos_with_gripper = send_position_robot + [gripper_state_float]
+                        teachbot_pos_with_gripper = teachbot_position + [gripper_state_float]
+                        sent_pos_with_gripper = sent_robot_position + [gripper_state_float]
                         # last_received_js already contains gripper state as last element from UDP interface
                         
                         joint_data = {
-                            "master_position": master_pos_with_gripper,
-                            "send_position_robot": send_pos_with_gripper,
+                            "teachbot_position": teachbot_pos_with_gripper,
+                            "sent_robot_position": sent_pos_with_gripper,
                             "robot_position": last_received_js,  # Already includes gripper state
                             "robot_position_timestamp": last_received_time,
                             "seq_id": self.udp.seq_id_sent,
@@ -727,13 +728,13 @@ class FanucRobot():
                         
                         # Convert gripper state to float (0.0 or 1.0) and append to position arrays
                         gripper_state_float = 1.0 if self.gripper_state else 0.0
-                        master_pos_with_gripper = master_position + [gripper_state_float]
-                        send_pos_with_gripper = send_position_robot + [gripper_state_float]
+                        teachbot_pos_with_gripper = teachbot_position + [gripper_state_float]
+                        sent_pos_with_gripper = sent_robot_position + [gripper_state_float]
                         # last_received_js already contains gripper state as last element from UDP interface
                         
                         joint_data = {
-                            "master_position": master_pos_with_gripper,
-                            "send_position_robot": send_pos_with_gripper,
+                            "teachbot_position": teachbot_pos_with_gripper,
+                            "sent_robot_position": sent_pos_with_gripper,
                             "robot_position": last_received_js,  # Already includes gripper state
                             "robot_position_timestamp": last_received_time,
                             "seq_id": self.udp.seq_id_sent,
@@ -823,8 +824,8 @@ class FanucRobot():
                 self.check_queue_period_divisor,
                 # 10) bool play_recording_active
                 self.play_recording_active,
-                # 11) deque<vector<double>> master_positions
-                self.master_positions,  # e.g., a deque of lists from your code
+                # 11) deque<vector<double>> teachbot_positions
+                self.teachbot_positions,  # e.g., a deque of lists from your code
                 # 12) double gripper_treshold
                 self.gripper_treshold,
                 # 13) double gripper_delay
@@ -1314,7 +1315,7 @@ class FanucRobot():
         
         # Turn ON
         if gripper_state >= self.gripper_treshold and not self.gripper_state:
-            if self.gripper_delay > 0.0:
+            if self.gripper_delay > 0.0 and not self.run_policy_active:
                 self.gripper_state_change_time_threshold = self.gripper_delay / self.robot_speed
                 # Check if enough time has passed since last state change
                 if (now - self.gripper_state_change_time) >= self.gripper_state_change_time_threshold:

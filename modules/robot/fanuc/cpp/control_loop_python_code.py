@@ -11,7 +11,6 @@ import sys
 import re
 import copy
 
-from modules.robot_0interface import RobotInterface
 from ruckig import InputParameter, OutputParameter, Ruckig, Result, Synchronization
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
@@ -41,7 +40,7 @@ class control_loop():
         self.robot_address, # 1 time passed at the beginning
         self.check_queue_period_divisor, # 1 time passed at the beginning
         self.play_recording_active, # 1 time passed at the beginning
-        self.master_positions,  # 1 time passed at the beginning
+        self.teachbot_positions,  # 1 time passed at the beginning
         self.gripper_treshold, # 1 time passed at the beginning
         self.gripper_state_change_time_treshold, # 1 time passed at the beginning
         self.gripper_delay, # 1 time passed at the beginning
@@ -94,10 +93,10 @@ class control_loop():
             while self.seq_id_received + self.action_buffer_length < self.seq_id_sent:
                 time.sleep(self.control_dt / self.check_queue_period_divisor / 2)
 
-            # If play_recording is active, read from self.master_positions
+            # If play_recording is active, read from self.teachbot_positions
             if self.play_recording_active:
-                if self.master_positions:
-                    action_master = self.master_positions.popleft()
+                if self.teachbot_positions:
+                    action_master = self.teachbot_positions.popleft()
                 else:
                     self.logger_ri.info("control_loop, recording playback completed")
                     break
@@ -117,10 +116,10 @@ class control_loop():
                 self.logger_ri.error("control_loop, trajectory calculation failed")
                 break
 
-            robot_position = out.new_position
-            master_position = inp.target_position
+            sent_robot_position = out.new_position
+            teachbot_position = inp.target_position
 
-            success_send = self.send_joint_pos(robot_position, self.gripper_on, self.gripper_off)
+            success_send = self.send_joint_pos(sent_robot_position, self.gripper_on, self.gripper_off)
             if self.gripper_on:
                 self.gripper_on = False
             if self.gripper_off:
@@ -134,8 +133,8 @@ class control_loop():
             if self.recording:
                 try:
                     joint_data = {
-                        "robot_position": robot_position,
-                        "master_position": master_position,
+                        "robot_position": sent_robot_position,  # Note: this should be actual robot position, not sent position
+                        "teachbot_position": teachbot_position,
                         "gripper_on": self.gripper_state,
                         "gripper_off": not self.gripper_state
                     }

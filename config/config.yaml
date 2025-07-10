@@ -230,7 +230,7 @@ general:
   app_directory: "."
   data_directory: "../tos_app_data"
 
-  record_duration: 10
+  record_duration: 7
   record_divisor: 4
   
   # Policy interface buffer settings

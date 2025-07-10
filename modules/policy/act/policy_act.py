@@ -35,7 +35,7 @@ from modules.camera.cam_utils import CameraRingBuffer
 class PolicyInterface:
     """
     A interface that listens for start/stop recording commands,
-    and policys the robot_position and master_position (and gripper flags)
+    and policys the robot_position and teachbot_position (and gripper flags)
     from shm_joint_data.
     """
 
@@ -111,9 +111,6 @@ class PolicyInterface:
         self.robot_dof_ee = self.config.get("hardware", {}).get("robot", {}).get("dof_ee", 1)
         self.total_dof = self.robot_dof + self.robot_dof_ee  # joints + gripper
         
-        # Log configuration values for debugging
-        self.logger_pi.info(f"Policy configuration: {self.robot_dof} joints + {self.robot_dof_ee} gripper = {self.total_dof} total DOF, record_divisor = {self.record_divisor}")
-
         # Training status tracking
         self.is_training = False
         self.current_epoch = 0
@@ -264,7 +261,7 @@ class PolicyInterface:
     # Data gathering and processing run policy
     ###################################################################
 
-    def _policy_execution_loop(self, write_chunks_to_csv=True):
+    def _policy_execution_loop(self, write_chunks_to_csv=False):
         """
         Main policy execution loop that runs in a separate thread.
         """
@@ -289,10 +286,11 @@ class PolicyInterface:
                 
                 # 3. Find the closest matching joint information based on the average timestamps of the images
                 joint_position, start_seq_id = self._find_matching_joint_data(joint_data_window, image_timestamps)
-                
+
                 # 4. Run the policy on the joint information and images (simplified version)
                 predicted_actions = self.execute_policy(joint_position, latest_images)
-                
+                self.logger_pi.info(f"Predicted actions for frame: {predicted_actions}")
+
                 # 5. interpolated actions
                 interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
 
@@ -423,6 +421,7 @@ class PolicyInterface:
                         positions = joint_data.get("robot_position", self.start_position)
                         
                         # Only keep data from the last 0.1 seconds
+                        difference = timestamp - current_time
                         if timestamp > current_time - 0.1:
                             joint_data_window.append({
                                 'seq_id': seq_id,
@@ -1131,31 +1130,12 @@ class PolicyInterface:
         joint_pos_mean = np.array(stats['joint_pos_mean'])
         joint_pos_std = np.array(stats['joint_pos_std'])
         
-        # Validate joint position normalization stats dimensions
-        if len(joint_pos_mean) != len(joint_position):
-            self.logger_pi.error(f"Joint position mean dimension mismatch: expected {len(joint_position)}, got {len(joint_pos_mean)}")
-            self.logger_pi.error(f"Joint position: {joint_position}")
-            self.logger_pi.error(f"Joint pos mean: {joint_pos_mean}")
-            # Try to fix by padding or truncating
-            if len(joint_pos_mean) < len(joint_position):
-                # Pad with zeros
-                pad_size = len(joint_position) - len(joint_pos_mean)
-                joint_pos_mean = np.pad(joint_pos_mean, (0, pad_size), 'constant')
-                joint_pos_std = np.pad(joint_pos_std, (0, pad_size), 'constant', constant_values=1.0)
-                self.logger_pi.warning(f"Padded joint pos stats to match dimension: {len(joint_pos_mean)}")
-            else:
-                # Truncate
-                joint_pos_mean = joint_pos_mean[:len(joint_position)]
-                joint_pos_std = joint_pos_std[:len(joint_position)]
-                self.logger_pi.warning(f"Truncated joint pos stats to match dimension: {len(joint_pos_mean)}")
-        
         # Convert to torch tensors and normalize (following the working code pattern)
         mean = torch.tensor(joint_pos_mean, dtype=torch.float32)
         std = torch.tensor(joint_pos_std, dtype=torch.float32)
         
         # Avoid division by zero
         std = torch.clamp(std, min=1e-6)
-        
         qpos = (qpos - mean) / std
         
         # Move to GPU - using .cuda() to match training pattern
@@ -1167,7 +1147,7 @@ class PolicyInterface:
         with torch.no_grad():
             raw_actions = self.policy_model(qpos, images)  # Get predicted actions
             actions = raw_actions
-            
+
         # Convert back to numpy and denormalize
         actions = actions.cpu().numpy()[0]  # Remove batch dimension
                 
@@ -1179,21 +1159,6 @@ class PolicyInterface:
             
             # For multi-dimensional actions (time_steps, joint_dims), validate against the last dimension
             action_dim = actions.shape[-1] if len(actions.shape) > 1 else len(actions)
-            
-            # Validate action normalization stats dimensions
-            if len(action_mean) != action_dim:
-                self.logger_pi.error(f"Action mean dimension mismatch: action dim {action_dim}, stats dim {len(action_mean)}")
-                self.logger_pi.error(f"Action shape: {actions.shape}, Action mean shape: {action_mean.shape}")
-                # Try to fix by padding or truncating the stats
-                if len(action_mean) < action_dim:
-                    pad_size = action_dim - len(action_mean)
-                    action_mean = np.pad(action_mean, (0, pad_size), 'constant')
-                    action_std = np.pad(action_std, (0, pad_size), 'constant', constant_values=1.0)
-                    self.logger_pi.warning(f"Padded action stats to match dimension: {len(action_mean)}")
-                else:
-                    action_mean = action_mean[:action_dim]
-                    action_std = action_std[:action_dim]
-                    self.logger_pi.warning(f"Truncated action stats to match dimension: {len(action_mean)}")
             
             # Avoid division by zero in case std is very small
             action_std = np.clip(action_std, 1e-6, np.inf)
@@ -1485,9 +1450,6 @@ class PolicyInterface:
                 # Both sequences have this seq_id - average them using ensemble weight
                 weight = self.ensemble_overlap_weight
                 act = weight * dict_new[seq_id] + (1.0 - weight) * dict_old[seq_id]
-                # Ensure gripper state (last element) remains 0 or 1 after averaging
-                if len(act) > self.robot_dof:  # Has gripper state
-                    act[-1] = round(act[-1])
             elif in_new:
                 # Only new sequence has this seq_id - use 100% from new
                 act = dict_new[seq_id]

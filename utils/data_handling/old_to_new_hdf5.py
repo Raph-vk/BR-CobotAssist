@@ -12,8 +12,8 @@ Old format:
 
 New format:
 - robot_positions: joint positions from robot  
-- master_positions: joint positions from master
-- send_position_robots: commands sent to robot
+- teachbot_positions: joint positions from master
+- sent_robot_positions: commands sent to robot
 - robot_position_timestamps: timestamps
 - images/cam_X/color: color images
 - images/cam_X/depth: depth images
@@ -66,11 +66,11 @@ def convert_old_to_new_hdf5(old_filepath, new_filepath):
 
             # Map old data to new format
             # robot_positions = action_puppet (robot's actual positions)
-            # master_positions = action_master (human demonstration)
-            # send_position_robots = action (commands sent to robot)
+            # teachbot_positions = action_master (human demonstration)
+            # sent_robot_positions = action (commands sent to robot)
             new_f.create_dataset('robot_positions', data=action_puppet.astype(np.float32))
-            new_f.create_dataset('master_positions', data=action_master.astype(np.float32))
-            new_f.create_dataset('send_position_robots', data=action.astype(np.float32))
+            new_f.create_dataset('teachbot_positions', data=action_master.astype(np.float32))
+            new_f.create_dataset('sent_robot_positions', data=action.astype(np.float32))
             new_f.create_dataset('robot_position_timestamps', data=timestamps.astype(np.float64))
             
             # Convert images
@@ -136,7 +136,7 @@ def convert_old_to_new_hdf5(old_filepath, new_filepath):
             # Joint state metadata
             joint_metadata = metadata_group.create_group('joint_states')
             joint_metadata.attrs['joint_states_count'] = n_timesteps
-            joint_metadata.attrs['fields'] = ['robot_position_timestamps', 'robot_positions', 'master_positions', 'send_position_robots']
+            joint_metadata.attrs['fields'] = ['robot_position_timestamps', 'robot_positions', 'teachbot_positions', 'sent_robot_positions']
             
             # Copy any original attributes
             if hasattr(old_f, 'attrs'):

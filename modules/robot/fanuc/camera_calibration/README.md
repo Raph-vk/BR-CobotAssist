@@ -128,9 +128,9 @@ episode_X.hdf5
 │   │   └── depth_timestamps             # Shape: (N,), dtype: float64
 │   ├── cam_2/                           # Same structure as cam_1
 │   └── cam_3/                           # Same structure as cam_1
-├── master_positions                     # Shape: (N, 7), dtype: float32
+├── teachbot_positions                     # Shape: (N, 7), dtype: float32
 ├── robot_positions                      # Shape: (N, 7), dtype: float32  
-├── send_position_robots                 # Shape: (N, 7), dtype: float32
+├── sent_robot_positions                 # Shape: (N, 7), dtype: float32
 ├── robot_position_timestamps            # Shape: (N,), dtype: float64
 └── metadata/
     ├── cameras/
@@ -143,7 +143,7 @@ episode_X.hdf5
 ### Position Data Format
 All position arrays contain **7 elements**: `[joint1, joint2, joint3, joint4, joint5, joint6, gripper_state]`
 
-- **master_positions**: Commands from the operator (teachbot/master device)
+- **teachbot_positions**: Commands from the operator (teachbot/master device)
   - Joints 1-6: Degrees (robot joint angles)
   - Element 7: Gripper state (0.0 = OFF, 1.0 = ON)
 
@@ -151,7 +151,7 @@ All position arrays contain **7 elements**: `[joint1, joint2, joint3, joint4, jo
   - Joints 1-6: Degrees (actual robot joint positions)  
   - Element 7: IO value (0.0 = gripper OFF, 1.0 = gripper ON)
 
-- **send_position_robots**: Commands sent to robot after processing
+- **sent_robot_positions**: Commands sent to robot after processing
   - Joints 1-6: Degrees (processed joint commands)
   - Element 7: Processed gripper state (0.0 = OFF, 1.0 = ON)
 
