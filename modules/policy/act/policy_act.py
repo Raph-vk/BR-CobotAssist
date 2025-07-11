@@ -22,7 +22,6 @@ import multiprocessing.shared_memory as shared_memory
 import struct
 import threading
 import queue
-import csv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 from utils.utils import setup_logging, load_config, get_data_path
@@ -272,14 +271,14 @@ class PolicyInterface:
         self.prev_ensemble_seq_id = None
         self.prev_ensemble_actions = None
 
-        if write_chunks_to_csv:
+        if write_to_hdf5:
             # Initialize execution logging
             self._init_execution_logging()
         
         while self.running:
             try:
                 # 1. Receive joint information from shm_joint_data2 and gather the last 0.1 seconds of position data
-                joint_data_window = self._gather_joint_data()
+                joint_data_window = self._gather_joint_data(write_to_hdf5=write_to_hdf5)
                 
                 # 2. Retrieve the latest images from the color_buffers2 and depth_buffers2
                 latest_images, image_timestamps = self._retrieve_latest_images()
@@ -292,7 +291,7 @@ class PolicyInterface:
                 self.logger_pi.info(f"Predicted actions for frame: {predicted_actions}")
 
                 # 5. interpolated actions
-                interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions, joint_position)
+                interpolated_actions = self._interpolate_actions(start_seq_id, predicted_actions)
 
                 # 6. If temporal ensemble is enabled, perform ensemble averaging
                 temporal_ensemble_actions = self.temporal_ensemble_actions(start_seq_id, interpolated_actions, self.prev_ensemble_seq_id, self.prev_ensemble_actions)
@@ -304,7 +303,7 @@ class PolicyInterface:
                 self._update_target_positions_with_seq_ids(ensemble_seq_ids, temporal_ensemble_actions)
 
                 # 8. Log execution data if wanted
-                if write_chunks_to_csv:
+                if write_to_hdf5:
                     self._log_execution_data(frame_count, start_seq_id, latest_images, joint_position, predicted_actions)
 
                 # 9. Increment frame
@@ -323,49 +322,116 @@ class PolicyInterface:
 
     def _init_execution_logging(self):
         """Initialize execution logging files."""
-        # Add execution logging path
-        start_time = datetime.now().replace(microsecond=0).isoformat()
-        start_time = start_time.replace(":", "-")
-        self.execution_log_csv = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.csv")
+
+        # Add execution logging path with proper timestamp format (no colons)
+        start_time = datetime.now().replace(microsecond=0).strftime("%Y-%m-%d_%H-%M-%S")
+        self.execution_log_hdf5 = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "logs", f"policy_execution_{start_time}.hdf5")
 
         try:
-            # Create CSV file with headers
-            with open(self.execution_log_csv, 'w', newline='') as f:
-                csv_writer = csv.writer(f)
-                # Write CSV headers
-                headers = [
-                    'frame_count',
-                    'timestamp',
-                    'start_seq_id',
-                    'latest_images',
-                    'joint_position',
-                    'predicted_actions'
-                ]
-                csv_writer.writerow(headers)
+            import h5py
             
+            # Create HDF5 file with initial structure
+            with h5py.File(self.execution_log_hdf5, 'w') as f:
+                # Create groups for different data types
+                f.create_group('metadata')
+                f.create_group('actions')
+                f.create_group('images')
+                f.create_group('joint_data')
+
+                # Store metadata about the logging session
+                metadata = f['metadata']
+                metadata.attrs['start_time'] = start_time
+                metadata.attrs['robot_dof'] = self.robot_dof
+                metadata.attrs['robot_dof_ee'] = self.robot_dof_ee
+                metadata.attrs['total_dof'] = self.total_dof
+                metadata.attrs['record_divisor'] = self.record_divisor
+                
+                # Create expandable datasets for frame data
+                actions = f['actions']
+                actions.create_dataset('frame_count', (0,), maxshape=(None,), dtype='i8')
+                actions.create_dataset('timestamp', (0,), maxshape=(None,), dtype='f8')
+                actions.create_dataset('start_seq_id', (0,), maxshape=(None,), dtype='i8')
+                actions.create_dataset('joint_position', (0, self.total_dof), maxshape=(None, self.total_dof), dtype='f8')
+                # Start with a reasonable chunk size estimate for predicted actions (will resize dynamically)
+                chunk_size_estimate = 75  # Common ACT chunk size
+                actions.create_dataset('predicted_actions', (0, chunk_size_estimate, self.total_dof), maxshape=(None, None, self.total_dof), dtype='f8')
+                # Images group will be populated dynamically as we don't know image shapes yet
+
+                joint_data = f['joint_data']
+                joint_data.create_dataset('seq_id', (0,), maxshape=(None,), dtype='i8')
+                joint_data.create_dataset('timestamp', (0,), maxshape=(None,), dtype='f8')
+                joint_data.create_dataset('positions', (0, self.total_dof), maxshape=(None, self.total_dof), dtype='f8')
+                
             self.logger_pi.info(f"Execution logging initialized:")
-            self.logger_pi.info(f"  CSV log path:  {self.execution_log_csv}")
-            
+            self.logger_pi.info(f"  HDF5 log path:  {self.execution_log_hdf5}")
+
         except Exception as e:
             self.logger_pi.error(f"Failed to initialize execution logging: {e}")
 
     def _log_execution_data(self, frame_count, start_seq_id, latest_images, joint_position, predicted_actions):
+
         """Log execution data for this cycle."""
         try:
+            import h5py
+
             timestamp = time.time()
             
-            # Write to CSV file
-            with open(self.execution_log_csv, 'a', newline='') as f:
-                csv_writer = csv.writer(f)
-                csv_row = [
-                    frame_count,
-                    timestamp,
-                    start_seq_id,
-                    list(latest_images),
-                    list(joint_position),
-                    list(predicted_actions)
-                ]
-                csv_writer.writerow(csv_row)
+            # Open HDF5 file and append data
+            with h5py.File(self.execution_log_hdf5, 'a') as f:
+                actions = f['actions']
+                images = f['images']
+                
+                # Resize action datasets to accommodate new data
+                current_size = actions['frame_count'].shape[0]
+                new_size = current_size + 1
+                actions['frame_count'].resize((new_size,))
+                actions['timestamp'].resize((new_size,))
+                actions['start_seq_id'].resize((new_size,))
+                actions['joint_position'].resize((new_size, self.total_dof))
+                actions['predicted_actions'].resize((new_size, predicted_actions.shape[0], self.total_dof))
+                # Store actions data
+                actions['frame_count'][current_size] = frame_count
+                actions['timestamp'][current_size] = timestamp
+                actions['start_seq_id'][current_size] = start_seq_id
+                actions['joint_position'][current_size] = joint_position  
+                actions['predicted_actions'][current_size] = predicted_actions
+                
+                # Store images with actual image data
+                frame_group_name = f'frame_{frame_count:06d}'
+                if frame_group_name not in images:
+                    frame_group = images.create_group(frame_group_name)
+                else:
+                    frame_group = images[frame_group_name]
+                
+                # Store each image with its metadata
+                for image_key, image_data in latest_images.items():
+                    if image_data is not None:
+                        try:
+                            # Convert image to numpy array if it isn't already
+                            if not isinstance(image_data, np.ndarray):
+                                image_array = np.array(image_data)
+                            else:
+                                image_array = image_data
+                            
+                            # Create dataset for this image
+                            if image_key not in frame_group:
+                                # Create new dataset
+                                img_dataset = frame_group.create_dataset(
+                                    image_key, 
+                                    data=image_array,
+                                    compression='gzip',
+                                    compression_opts=1  # Light compression for speed
+                                )
+                                # Store image metadata as attributes
+                                img_dataset.attrs['shape'] = image_array.shape
+                                img_dataset.attrs['dtype'] = str(image_array.dtype)
+                                img_dataset.attrs['camera_type'] = 'color' if 'color' in image_key else 'depth'
+                            else:
+                                # Update existing dataset
+                                frame_group[image_key][:] = image_array
+                                
+                        except Exception as img_error:
+                            self.logger_pi.warning(f"Failed to store image {image_key} for frame {frame_count}: {img_error}")
             
             # Log every 100 frames to main logger
             if frame_count % 100 == 0:
@@ -374,7 +440,7 @@ class PolicyInterface:
         except Exception as e:
             self.logger_pi.error(f"Failed to log execution data for frame {frame_count}: {e}")
 
-    def _gather_joint_data(self):
+    def _gather_joint_data(self, write_to_hdf5=False):
         """
         Gather joint information from shm_joint_data2 (Python queue) or shm_cpp_joint_data2 (C++ shared memory) for the last 0.1 seconds.
         """
@@ -401,7 +467,23 @@ class PolicyInterface:
                             'timestamp': timestamp,
                             'positions': positions,
                         })
-                                                
+                        if write_to_hdf5:
+                            with h5py.File(self.execution_log_hdf5, 'a') as f:
+                                joint_data = f['joint_data']
+                                # Resize datasets to accommodate new data
+                                current_size = joint_data['seq_id'].shape[0]
+                                new_size = current_size + 1
+                                joint_data['seq_id'].resize((new_size,))
+                                joint_data['timestamp'].resize((new_size,))
+                                joint_data['positions'].resize((new_size, self.total_dof))
+                                # Store joint data
+                                joint_data['seq_id'][current_size] = seq_id
+                                joint_data['timestamp'][current_size] = timestamp
+                                joint_data['positions'][current_size] = positions
+            
+                    # Log the joint data window for debugging but only last entry
+                    # self.logger_pi.info(f'joint_data_window: {joint_data_window[-1]}')
+
             except Exception as e:
                 self.logger_pi.error(f"Failed to gather joint data from C++ shared memory: {e}")
                 return []
@@ -428,6 +510,23 @@ class PolicyInterface:
                                 'timestamp': timestamp,
                                 'positions': positions,
                             })
+
+                            if write_to_hdf5:
+                                with h5py.File(self.execution_log_hdf5, 'a') as f:
+                                    joint_data = f['joint_data']
+                                    # Resize datasets to accommodate new data
+                                    current_size = joint_data['seq_id'].shape[0]
+                                    new_size = current_size + 1
+                                    joint_data['seq_id'].resize((new_size,))
+                                    joint_data['timestamp'].resize((new_size,))
+                                    joint_data['positions'].resize((new_size, self.total_dof))
+                                    # Store joint data
+                                    joint_data['seq_id'][current_size] = seq_id
+                                    joint_data['timestamp'][current_size] = timestamp
+                                    joint_data['positions'][current_size] = positions
+                                    # Log the joint data window for debugging but only last entry
+                            self.logger_pi.info(f'joint_data_window: {joint_data_window[-1]}')
+
                         
                     except queue.Empty:
                         # No more data in queue
@@ -573,17 +672,17 @@ class PolicyInterface:
             self.logger_pi.error(f"Failed to update shm_target_pos2 with ensemble: {e}")
             return int(seq_ids[0]) if len(seq_ids) > 0 else 0
 
-    def _interpolate_actions(self, start_seq_id, predicted_actions, current_joint_position):
+    def _interpolate_actions(self, start_seq_id, predicted_actions):
         """
         Interpolate actions to provide smooth trajectories at full control frequency.
         
         The policy predicts actions every record_divisor control cycles (e.g., every 4 cycles at 62.5 Hz),
         but we need to provide smooth control commands at the full control frequency (250 Hz).
+        The length of interpolated_actions = len(predicted_actions)-1 * record_divisor + 1.
         
         Args:
             start_seq_id: Starting sequence ID
-            predicted_actions: List of predicted actions from policy (at reduced frequency)
-            current_joint_position: Current joint position to start interpolation from
+            predicted_actions: List of predicted actions from policy (at reduced frequency, the first joint position is on start_seq_id+self.record_divisor)
             
         Returns:
             List of interpolated actions at full control frequency
@@ -594,10 +693,10 @@ class PolicyInterface:
         interpolated_actions = []
         
         # Start with current position as the first reference point
-        prev_action = np.array(current_joint_position)
+        prev_action = np.array(predicted_actions[0])
         
         # Interpolate between consecutive predicted actions
-        for i in range(len(predicted_actions)):
+        for i in range(1, len(predicted_actions)):
             next_action = predicted_actions[i]  # Access numpy array directly
             
             # Ensure next_action has correct dimensions (total_dof elements: joints + gripper)
@@ -609,7 +708,7 @@ class PolicyInterface:
                     next_action = next_action[:self.total_dof]
             
             # Generate interpolated steps between prev_action and next_action
-            for step in range(1, self.record_divisor):
+            for step in range(0, self.record_divisor):
                 # Linear interpolation factor (0.0 to 1.0)
                 alpha = step / self.record_divisor
                 
@@ -632,6 +731,12 @@ class PolicyInterface:
             
             # Update prev_action for next iteration
             prev_action = next_action
+        
+        # Append last action
+        interpolated_actions.append({
+            'seq_id': start_seq_id + len(predicted_actions) * self.record_divisor,
+            'action': next_action.tolist()
+        })
         
         return interpolated_actions
 

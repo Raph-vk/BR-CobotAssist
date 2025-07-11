@@ -324,7 +324,7 @@ install_python_packages() {
     
     # Core scientific packages
     log_info "Installing core scientific packages..."
-    conda install -y numpy scipy matplotlib pandas scikit-learn
+    conda install -y numpy=1.26.4 scipy matplotlib pandas scikit-learn
     
     # Install packages via pip
     log_info "Installing packages via pip..."
@@ -359,6 +359,12 @@ install_python_packages() {
     # C++ binding libraries for building modules
     log_info "Installing C++ binding libraries..."
     pip install pybind11[global] nanobind
+
+    # Installations for robot visualization
+    pip install meshcat urdfpy roboticstoolbox-python
+    pip install "networkx>=2.8" --upgrade
+    pip install imageio[ffmpeg]
+    pip install imageio[pyav]
     
     log_success "Python packages and conda dependencies installed"
 }

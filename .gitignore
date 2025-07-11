@@ -55,5 +55,3 @@ config_local.yaml
 
 # wandb runs
 wandb/
-
-test/

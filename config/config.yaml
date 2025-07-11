@@ -181,21 +181,21 @@ hardware:
         depth_width: 424
         depth_height: 240
 
-      # - name: "cam_2"
-      #   serial_number: "218622271391"
-      #   fps: 90
-      #   color_width: 424
-      #   color_height: 240
-      #   depth_width: 424
-      #   depth_height: 240
+      - name: "cam_2"
+        serial_number: "218622271391"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
 
-      # - name: "cam_3"
-      #   serial_number: "130322272626"
-      #   fps: 90
-      #   color_width: 424
-      #   color_height: 240
-      #   depth_width: 424
-      #   depth_height: 240
+      - name: "cam_3"
+        serial_number: "130322272626"
+        fps: 90
+        color_width: 424
+        color_height: 240
+        depth_width: 424
+        depth_height: 240
 
       - name: "cam_4"
         serial_number: "218622271529"
