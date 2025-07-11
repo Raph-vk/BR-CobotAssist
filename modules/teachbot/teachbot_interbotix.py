@@ -104,6 +104,7 @@ class InterbotixTeachbot(TeachbotInterface):
         self.joint4_locked = config["hardware"]["teachbot"]["j4_locked"]
         self.teachbot_gripper_min = config["hardware"]["teachbot"]["gripper_min"]
         self.teachbot_gripper_max = config["hardware"]["teachbot"]["gripper_max"]
+        self.j6_factor = config["general"]["j6_factor"]
 
         self.bot = None
         self.publish_thread = None
@@ -305,6 +306,7 @@ class InterbotixTeachbot(TeachbotInterface):
             action[-1] = self.teachbot_gripper_min
         action[-1] = (action[-1] - self.teachbot_gripper_min) / (self.teachbot_gripper_max - self.teachbot_gripper_min)        
 
+        action[5] = action[5] * self.j6_factor
 
         return action, safe
 

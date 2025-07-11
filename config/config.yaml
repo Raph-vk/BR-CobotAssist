@@ -225,6 +225,7 @@ general:
   gripper_treshold: 0.5
   action_buffer_length: 3
   j4_locked: True
+  j6_factor: 3.0
 
 
   app_directory: "."

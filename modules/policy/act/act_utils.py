@@ -255,7 +255,7 @@ def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_s
     train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats, config, logger, recording_speed, robot_speed)
     val_dataset = EpisodicDataset(val_indices, dataset_dir, camera_names, norm_stats, config, logger, recording_speed, robot_speed)
     
-    num_workers = 1
+    num_workers = 4
     prefetch_factor = 5
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, pin_memory=True, num_workers=num_workers, prefetch_factor=prefetch_factor)

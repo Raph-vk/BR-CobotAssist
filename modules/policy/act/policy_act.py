@@ -778,7 +778,7 @@ class PolicyInterface:
             # Get dataset selection from UI message
             selected_dataset = full_message["dataset_name"]
             selected_model = full_message.get("model_name", None)
-            if selected_model is None:
+            if selected_model is None or selected_model == "":
                 selected_model = datetime.now().strftime("%Y%m%d_%H%M%S")
             
             # Get camera info from system config
