@@ -684,10 +684,10 @@ class FanucRobot():
                         break
 
                 # Ruckig trajectory calculation
-                current_position = self.update_ruckig_input(action_master, inp, previous_action_master)
+                self.update_ruckig_input(action_master, inp, previous_action_master)
                 previous_action_master = action_master
 
-                success_calc = self.trajectory_calculation(otg, inp, out, current_position)
+                success_calc = self.trajectory_calculation(otg, inp, out)
                 
                 self.determine_gripper_state(action_master[-1])
                 
@@ -1201,9 +1201,9 @@ class FanucRobot():
 
         inp.target_position = action_master[:self.dof]
         
-        return current_position
+        return
 
-    def trajectory_calculation(self, otg, inp, out, current_position):
+    def trajectory_calculation(self, otg, inp, out):
         """
         Perform the Ruckig update step, handling any exceptions in handle_trajectory_error.
         """
