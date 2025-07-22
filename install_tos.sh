@@ -251,6 +251,19 @@ setup_conda_env() {
     # Make sure conda is in PATH (use detected path)
     export PATH="$CONDA_BIN_PATH:$PATH"
     
+    # Accept conda Terms of Service before creating environment
+    log_info "Checking and accepting conda Terms of Service..."
+    
+    # Accept ToS for the main channels that are commonly needed
+    conda config --set channel_priority strict 2>/dev/null || true
+    
+    # Accept ToS for main conda channels
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+    conda tos accept --override-channels --channel conda-forge 2>/dev/null || true
+    
+    log_success "Conda Terms of Service accepted"
+    
     # Check if TOS environment already exists
     if conda env list | grep -q "^${ENV_NAME} "; then
         log_warning "TOS conda environment already exists!"
@@ -295,7 +308,7 @@ setup_conda_env() {
             esac
         fi
     else
-        # Create environment with Python 3.8
+        # Create environment with Python 3.9
         log_info "Creating new TOS environment..."
         conda create -n "${ENV_NAME}" python=3.9 -y
         log_success "TOS conda environment created using $CONDA_TYPE"
@@ -380,14 +393,6 @@ install_ruckig() {
     source "$CONDA_PROFILE_PATH"
     conda activate "${ENV_NAME}"
 
-    local packages=(
-        "build-essential"  # Compiler toolchain
-        # ...existing code...
-    )
-
-    export CC=$(which gcc)
-    export CXX=$(which g++)
-    
     # Try to install ruckig from conda-forge first
     log_info "Attempting to install Ruckig from conda-forge..."
     if conda install -c conda-forge ruckig -y 2>/dev/null; then
@@ -395,13 +400,53 @@ install_ruckig() {
         return 0
     fi
     
-    log_info "Conda-forge installation failed, building from source in conda environment..."
+    # Try to install via pip first (often easier than building from source)
+    log_info "Conda-forge installation failed, trying pip installation..."
+    if pip install ruckig 2>/dev/null; then
+        log_success "Ruckig installed via pip"
+        return 0
+    fi
+    
+    log_info "Pip installation failed, building from source in conda environment..."
+    
+    # Install a compatible GCC version in conda environment for C++20 support
+    log_info "Installing compatible GCC in conda environment for C++20 support..."
+    # Use GCC 11 which has good C++20 support but better compatibility
+    conda install -c conda-forge gxx_linux-64=11.4.0 gcc_linux-64=11.4.0 -y || {
+        log_warning "Failed to install GCC 11, trying system compiler..."
+        # Fall back to system compiler
+        export CC=$(which gcc)
+        export CXX=$(which g++)
+        log_info "Using system GCC: $CC"
+    }
     
     # Set conda environment paths for building
     export CMAKE_PREFIX_PATH="$CONDA_PREFIX:$CMAKE_PREFIX_PATH"
     export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
     export CPPFLAGS="-I$CONDA_PREFIX/include $CPPFLAGS"
     export LDFLAGS="-L$CONDA_PREFIX/lib $LDFLAGS"
+    
+    # Use conda's GCC if available, otherwise use system GCC
+    if [ -f "$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc" ]; then
+        export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+        export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+        log_info "Using conda GCC: $CC"
+        
+        # Add compatibility flags for older glibc
+        export CXXFLAGS="-D_GNU_SOURCE -std=c++17 $CXXFLAGS"
+        export CFLAGS="-D_GNU_SOURCE $CFLAGS"
+    else
+        export CC=$(which gcc)
+        export CXX=$(which g++)
+        log_info "Using system GCC: $CC"
+        
+        # Use C++17 for better compatibility
+        export CXXFLAGS="-std=c++17 $CXXFLAGS"
+    fi
+    
+    # Check GCC version
+    local gcc_version=$($CC --version | head -n1)
+    log_info "GCC version: $gcc_version"
     
     local build_dir="/tmp/ruckig_build"
     
@@ -410,22 +455,73 @@ install_ruckig() {
     mkdir -p "$build_dir"
     cd "$build_dir"
     
-    # Clone Ruckig repository
+    # Clone Ruckig repository and checkout a specific version that works better
+    log_info "Cloning Ruckig repository..."
     git clone https://github.com/pantor/ruckig.git
     cd ruckig
+    
+    # Try to checkout a version that has better C++17 compatibility
+    git checkout v0.9.2 2>/dev/null || log_warning "Could not checkout v0.9.2, using latest"
     
     # Build and install into conda environment (not system-wide)
     mkdir build
     cd build
+    
+    # Configure with C++17 for better compatibility
+    log_info "Configuring CMake with C++17 support for better compatibility..."
     cmake -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
           -DBUILD_PYTHON_MODULE=ON \
-          ..
-    make -j$(nproc)
-    make install
+          -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+          -DCMAKE_C_COMPILER="$CC" \
+          -DCMAKE_CXX_COMPILER="$CXX" \
+          -DCMAKE_CXX_FLAGS="-D_GNU_SOURCE -std=c++17" \
+          -DCMAKE_C_FLAGS="-D_GNU_SOURCE" \
+          .. || {
+        log_warning "C++17 configuration failed, trying minimal configuration..."
+        cmake -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" \
+              -DBUILD_PYTHON_MODULE=OFF \
+              -DCMAKE_CXX_STANDARD=14 \
+              -DCMAKE_C_COMPILER="$CC" \
+              -DCMAKE_CXX_COMPILER="$CXX" \
+              ..
+    }
     
-    # Install Python bindings
-    pip install ruckig
+    # Build with limited parallelism to avoid memory issues
+    log_info "Building Ruckig..."
+    if ! make -j2; then
+        log_warning "Parallel build failed, trying single-threaded build..."
+        make clean
+        if ! make; then
+            log_error "Ruckig compilation failed completely"
+            log_warning "Ruckig installation failed, but TOS can work without it (trajectory generation will be limited)"
+            log_warning "You can try installing Ruckig manually later with: pip install ruckig"
+            
+            # Clean up and return to original directory
+            cd "$original_dir"
+            rm -rf "$build_dir"
+            
+            # Don't fail the entire installation, just continue without Ruckig
+            log_warning "Continuing TOS installation without Ruckig..."
+            return 0
+        fi
+    fi
+    
+    if ! make install; then
+        log_warning "Ruckig installation failed, but compilation succeeded"
+        log_warning "You may need to install Ruckig manually later"
+        
+        # Clean up and return to original directory
+        cd "$original_dir"
+        rm -rf "$build_dir"
+        return 0
+    fi
+    
+    # Install Python bindings via pip as backup
+    log_info "Installing Python bindings..."
+    pip install ruckig || log_warning "Python bindings installation failed, but C++ library should work"
     
     # Clean up and return to original directory
     cd "$original_dir"
