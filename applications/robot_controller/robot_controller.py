@@ -24,18 +24,23 @@ from modules.camera.cam_utils import CameraRingBufferManager
 # RobotController
 ################################################################################
 class RobotController:
-    def __init__(self, config, logger_tc):
+    def __init__(self, config, logger_tc, setup_id=None):
         """
         Initialize the RobotController with the configuration and logger.
+        Args:
+            config: Configuration dictionary
+            logger_tc: Logger instance
+            setup_id: Setup ID (e.g., "1", "2") for multi-setup routing
         """
         self.logger_tc = logger_tc
         self.config = config
+        self.setup_id = setup_id
         self.success = False
 
         error_msg = "None"
-        self.logger_tc.info("Initializing RobotController...")
+        self.logger_tc.info(f"Initializing RobotController for setup {setup_id}...")
 
-        # 1) Parse config
+        # 1) Parse config (with setup-specific configuration)
         self._parse_config()
         
         # 2) Import the correct hardware interface modules dynamically
@@ -509,12 +514,39 @@ class RobotController:
     ###################################################################
     def _parse_config(self):
         try:
-            hw = self.config["hardware"]
+            # If setup_id is provided, use setup-specific configuration
+            if self.setup_id:
+                setup_name = f"setup_{self.setup_id}"
+                self.logger_tc.info(f"Loading configuration for {setup_name}")
+                
+                if setup_name not in self.config["hardware"]:
+                    self.logger_tc.error(f"Setup {setup_name} not found in hardware configuration")
+                    sys.exit(1)
+                
+                hw = self.config["hardware"][setup_name]
+                
+                # Store the numerical setup_id for RabbitMQ routing
+                self.setup_routing_id = self.config["hardware"][setup_name].get("setup_id", self.setup_id)
+            else:
+                # Fallback to global hardware config (legacy mode)
+                self.logger_tc.warning("No setup_id provided, using global hardware configuration")
+                hw = self.config["hardware"]
+                self.setup_routing_id = None
+            
             self.robot_brand = hw["robot"]["brand"].lower()
             self.teachbot_brand = hw["teachbot"]["brand"].lower()
             self.camera_brand = hw["camera"]["brand"].lower()
             self.control_dt = hw["robot"]["control_dt"]
-            self.policy_name = self.config["policy"]["name"].lower()   
+            self.policy_name = self.config["policy"]["name"].lower()
+            
+            # Store the hardware config for use throughout the class
+            self.hw_config = hw
+            
+            # Create a modified config for modules that need full config structure
+            # but with setup-specific hardware configuration
+            self.effective_config = self.config.copy()
+            if self.setup_id:
+                self.effective_config["hardware"] = hw   
 
         except KeyError as e:
             self.logger_tc.error(f"Missing hardware config: {e}")
@@ -538,11 +570,31 @@ class RobotController:
             # exchange, queue, binding
             self.EXCHANGE_NAME = rbmq["exchange_name"]
             self.EXCHANGE_TYPE = rbmq["exchange_type"]
-            self.COMMAND_QUEUE_NAME = rbmq["command_queue_name"]
-            prefix = rbmq["command_binding_key_prefix"]  # e.g. "robot_controller.command."
-            self.COMMAND_BINDING_KEY = prefix + "#"
-            self.RESPONSE_ROUTING_KEY = rbmq["response_binding_key_prefix"]
-            self.STATUS_ROUTING_KEY = rbmq["status_binding_key"]
+            
+            # Setup-specific queue and routing configuration
+            if self.setup_routing_id:
+                # Multi-setup mode: use new pattern-based configuration
+                patterns = rbmq["robot_queue_patterns"]
+                self.COMMAND_QUEUE_NAME = patterns["command_queue"].format(setup_id=self.setup_routing_id)
+                self.COMMAND_BINDING_KEY = f"robot_controller.{self.setup_routing_id}.command.*"
+                self.RESPONSE_ROUTING_KEY_BASE = patterns["response_routing_key"]  # Store pattern with {action} placeholder
+                self.STATUS_ROUTING_KEY = patterns["status_routing_key"].format(setup_id=self.setup_routing_id)
+                self.logger_tc.info(f"Using setup-specific routing: queue={self.COMMAND_QUEUE_NAME}, binding={self.COMMAND_BINDING_KEY}")
+            else:
+                # Legacy mode: use old configuration if available
+                if "command_queue_name" in rbmq:
+                    self.COMMAND_QUEUE_NAME = rbmq["command_queue_name"]
+                    prefix = rbmq["command_binding_key_prefix"]  # e.g. "robot_controller.command."
+                    self.COMMAND_BINDING_KEY = prefix + "#"
+                    self.RESPONSE_ROUTING_KEY_BASE = rbmq["response_binding_key_prefix"] + ".{action}"  # Legacy format with action placeholder
+                    self.STATUS_ROUTING_KEY = rbmq["status_binding_key"]
+                else:
+                    # Use default fallback for single setup
+                    patterns = rbmq["robot_queue_patterns"]
+                    self.COMMAND_QUEUE_NAME = patterns["command_queue"].format(setup_id="1")
+                    self.COMMAND_BINDING_KEY = "robot_controller.1.command.*"
+                    self.RESPONSE_ROUTING_KEY_BASE = patterns["response_routing_key"]  # Store pattern with {action} placeholder
+                    self.STATUS_ROUTING_KEY = patterns["status_routing_key"].format(setup_id="1")
         except KeyError as e:
             self.logger_tc.error(f"Missing RabbitMQ config: {e}")
             sys.exit(1)
@@ -714,8 +766,8 @@ class RobotController:
         self.logger_tc.info("Using C++ shared memory interface for recording and policy.")
         
         # Read constants from config
-        DOF_ROBOT = self.config["hardware"]["robot"]["dof"]  # Robot joints only
-        DOF_EE = self.config["hardware"]["robot"]["dof_ee"]   # End effector DOF (gripper)  
+        DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
+        DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)  
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
         
         # Initialize both shared memory segments
@@ -724,9 +776,9 @@ class RobotController:
         policy_capacity = self.config["cpp"]["shared_memory"]["shm_joint_data2"]["capacity"]
         self._initialize_single_shared_memory("shm_joint_data2", policy_capacity, DOF)
         
-        # Initialize the readers with config
-        self.shm_reader1 = RingBufferReader(self.config, "shm_joint_data1")
-        self.shm_reader2 = RingBufferReader(self.config, "shm_joint_data2")
+        # Initialize the readers with effective config (setup-specific hardware + global other sections)
+        self.shm_reader1 = RingBufferReader(self.effective_config, "shm_joint_data1")
+        self.shm_reader2 = RingBufferReader(self.effective_config, "shm_joint_data2")
         return self.shm_reader1, self.shm_reader2
         
     def _initialize_single_shared_memory(self, shm_key, capacity, dof):
@@ -813,8 +865,8 @@ class RobotController:
         if self.control_loop_language != "cpp":
             return None
             
-        DOF_ROBOT = self.config["hardware"]["robot"]["dof"]  # Robot joints only
-        DOF_EE = self.config["hardware"]["robot"]["dof_ee"]   # End effector DOF (gripper)
+        DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
+        DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
         
         cpp_config = self.config["cpp"]["shared_memory"]["shm_joint_data2"]
@@ -834,7 +886,7 @@ class RobotController:
 
     def initialize_camera_shared_memory(self):
         try:
-            self.camera_cfgs = self.config["hardware"]["camera"]["info"]
+            self.camera_cfgs = self.hw_config["camera"]["info"]
             # self.camera_fps  = self.camera_cfgs["fps"][0]
         except KeyError as e:
             self.logger_tc.info(f"Camera section missing in config: {e}")
@@ -940,8 +992,8 @@ class RobotController:
         Structure: sequence_id (uint32) + joint_positions (DOF doubles)
         """
         # Read configuration
-        DOF_ROBOT = self.config["hardware"]["robot"]["dof"]  # Robot joints only
-        DOF_EE = self.config["hardware"]["robot"]["dof_ee"]   # End effector DOF (gripper)
+        DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
+        DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
         SHM_NAME = self.shm_target_pos2_config["shm_name"]
         CAPACITY = self.shm_target_pos2_config["capacity"]
@@ -987,8 +1039,8 @@ class RobotController:
         Get shm_target_pos2 shared memory information for interfaces.
         Returns a dict with all necessary parameters to access the shared memory.
         """
-        DOF_ROBOT = self.config["hardware"]["robot"]["dof"]  # Robot joints only
-        DOF_EE = self.config["hardware"]["robot"]["dof_ee"]   # End effector DOF (gripper)
+        DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
+        DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
         ENTRY_FMT_TEMPLATE = self.shm_target_pos2_config["entry_format_template"]
         ENTRY_FMT = ENTRY_FMT_TEMPLATE.format(dof=DOF)
@@ -1115,10 +1167,10 @@ class RobotController:
     ###################################################################
     def send_response_message(self, command, payload):
         """
-        Publish a response message to e.g. "robot_controller.response.<command>".
+        Publish a response message to e.g. "robot_controller.1.response.<command>".
         The 'payload' is already the final dict that includes "type":"RESP", etc.
         """
-        routing_key = f"{self.RESPONSE_ROUTING_KEY}{command}"
+        routing_key = self.RESPONSE_ROUTING_KEY_BASE.format(setup_id=self.setup_routing_id, action=command)
         publish_message(
             self._rabbit_conf_dict(),
             self.logger_tc,
@@ -1276,7 +1328,8 @@ class RobotController:
                   self.save_interface_commdown,
                   self.shm_joint_data1,
                   self.color_buffers1,
-                  self.depth_buffers1)
+                  self.depth_buffers1,
+                  self.setup_id)  # Pass setup_id for config isolation
         )
         self.save_interface_process.start()
 
@@ -1311,7 +1364,8 @@ class RobotController:
             target=self.run_teachbot_interface,
             args=(self.teachbot_interface_commup,
                   self.teachbot_interface_commdown,
-                  self.shm_target_pos1)
+                  self.shm_target_pos1,
+                  self.setup_id)
         )
         self.teachbot_interface_process.start()
 
@@ -1353,7 +1407,8 @@ class RobotController:
                   self.shm_target_pos1,
                   shm_target_pos2_info,  # Pass shared memory info instead of object
                   self.shm_joint_data1,
-                  self.shm_joint_data2)
+                  self.shm_joint_data2,
+                  self.setup_id)  # Pass setup_id for config isolation
         )
         self.robot_interface_process.start()
 
@@ -1442,7 +1497,8 @@ class RobotController:
                       self.depth_buffers1[camera_name].name,   # Pass ring buffer name
                       self.color_buffers2[camera_name].name,   # Pass policy image buffer name
                       self.depth_buffers2[camera_name].name,   # Pass policy depth buffer name
-                      camera)  # Pass the camera config
+                      camera,  # Pass the camera config
+                      self.setup_id)  # Pass setup_id for config isolation
             )
             camera_process.start()
             self.camera_processes[camera_name] = camera_process
@@ -1512,7 +1568,8 @@ class RobotController:
                   depth_buffers2_info,  # Pass buffer info dict
                   shm_target_pos2_info,
                   self.shm_joint_data2,  # Python queue or None for C++ mode
-                  shm_cpp_joint_data2_info)  # C++ shared memory info or None for Python mode
+                  shm_cpp_joint_data2_info,  # C++ shared memory info or None for Python mode
+                  self.setup_id)  # Pass setup_id for config isolation
         )
         self.policy_interface_process.start()
 

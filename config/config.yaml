@@ -3,7 +3,7 @@
 # --------------------------------------HARDWARE CONFIGURATION--------------------------------
 
 hardware:
-  active_setups: ['setup_2']  # List of active setups to load
+  active_setups: ['setup_1', 'setup_2']  # List of active setups to load
 
   setup_1:
     setup_id: 1
@@ -303,8 +303,8 @@ hardware:
 
 general:
   # Application
-  # application: 'AI_robot_controller'
-  application: 'Teachbot_controller' 
+  application: 'AI_robot_controller'
+  # application: 'Teachbot_controller' 
 
   # Update settings
   status_refresh_period:  0.016067

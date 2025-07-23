@@ -861,7 +861,7 @@ def send_response(logger_si, save_interface_commup, payload, error="None", **kwa
     logger_si.info(f"Sent response: {response}")
 
 
-def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint_data, color_buffers1, depth_buffers1):
+def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint_data, color_buffers1, depth_buffers1, setup_id=None):
     """
     Spawn a SaveInterface instance and service controller commands.
     """
@@ -871,6 +871,22 @@ def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint
 
     # Load configuration
     config = load_config()
+    
+    # Use setup-specific config if setup_id is provided
+    if setup_id is not None:
+        logger_si.info(f"Using setup-specific config for setup: {setup_id}")
+        if "setups" in config and setup_id in config["setups"]:
+            # Create effective config with setup-specific hardware
+            hw_config = config["setups"][setup_id].get("hardware", {})
+            
+            # Merge with global hardware config as fallback
+            effective_hw_config = {**config.get("hardware", {}), **hw_config}
+            
+            # Update config to use setup-specific hardware
+            config = {**config}  # Shallow copy
+            config["hardware"] = effective_hw_config
+        else:
+            logger_si.warning(f"Setup {setup_id} not found in config, using global hardware config")
 
     # Instantiate interface
     try:

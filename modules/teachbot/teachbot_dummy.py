@@ -180,15 +180,34 @@ class DummyTeachbot(TeachbotInterface):
             time.sleep(self.joint_target_period)
 
 
-def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1):
+def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1, setup_id=None):
     # Load the config
     config = load_config()
 
     # Setup logging
-    component_tag = "TEACHBOT_INTERFACE"
+    if setup_id:
+        component_tag = f"TEACHBOT_INTERFACE_SETUP_{setup_id}"
+    else:
+        component_tag = "TEACHBOT_INTERFACE"
     logger_ti = setup_logging(component_tag)
     
-    robot_brand = config["hardware"]["teachbot"]["brand"].lower().capitalize()
+    # Use setup-specific configuration if setup_id is provided
+    if setup_id:
+        setup_name = f"setup_{setup_id}"
+        logger_ti.info(f"Loading teachbot configuration for {setup_name}")
+        
+        if setup_name not in config["hardware"]:
+            logger_ti.error(f"Setup {setup_name} not found in hardware configuration")
+            return
+            
+        hw_config = config["hardware"][setup_name]
+        robot_brand = hw_config["teachbot"]["brand"].lower().capitalize()
+    else:
+        # Fallback to global hardware config
+        logger_ti.warning("No setup_id provided, using global hardware configuration")
+        robot_brand = config["hardware"]["teachbot"]["brand"].lower().capitalize()
+        hw_config = config["hardware"]
+    
     check_queue_period = config["general"]["check_queue_period"]
 
     # Tell the controller that the interface is starting
@@ -199,12 +218,16 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
     teachbot_class_name = f"{robot_brand}Teachbot"
     try:
         TeachbotClass = globals()[teachbot_class_name]
+        # Create modified config with setup-specific hardware
+        effective_config = config.copy()
+        effective_config["hardware"] = hw_config
+        
         teachbot = TeachbotClass(
             teachbot_interface_commup,
             teachbot_interface_commdown,
             shm_target_pos1,
             logger_ti,
-            config
+            effective_config
         )
         logger_ti.info("Successfully initialized %s class", teachbot_class_name)
 

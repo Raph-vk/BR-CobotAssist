@@ -1300,13 +1300,37 @@ def send_response(logger_si, policy_interface_commup, payload, error="None", **k
 
 mp.set_start_method('spawn', force=True)
 
-def run_policy_interface(policy_interface_commup, policy_interface_commdown, color_buffers2_info, depth_buffers2_info, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info=None):
+def run_policy_interface(policy_interface_commup, policy_interface_commdown, color_buffers2_info, depth_buffers2_info, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info=None, setup_id=None):
     """
     Spawn a policyInterface instance and service controller commands.
     """
     component_tag = "POLICY_INTERFACE"
+    
+    # Use setup-specific logging if setup_id is provided
+    if setup_id is not None:
+        component_tag = f"{component_tag}_{setup_id}"
+        
     logger_pi = setup_logging(component_tag)
     logger_pi.info("Starting policy Interface…")
+
+    # Load configuration
+    config = load_config()
+    
+    # Use setup-specific config if setup_id is provided
+    if setup_id is not None:
+        logger_pi.info(f"Using setup-specific config for setup: {setup_id}")
+        if "setups" in config and setup_id in config["setups"]:
+            # Create effective config with setup-specific hardware
+            hw_config = config["setups"][setup_id].get("hardware", {})
+            
+            # Merge with global hardware config as fallback
+            effective_hw_config = {**config.get("hardware", {}), **hw_config}
+            
+            # Update config to use setup-specific hardware
+            config = {**config}  # Shallow copy
+            config["hardware"] = effective_hw_config
+        else:
+            logger_pi.warning(f"Setup {setup_id} not found in config, using global hardware config")
 
     # Reconstruct CameraRingBuffer objects from info dicts
     color_buffers2 = {

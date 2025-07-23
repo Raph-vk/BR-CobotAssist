@@ -1005,9 +1005,9 @@ class TechmanRobot(RobotInterface):
 ##################################################################
 # MAIN FUNCTION
 ##################################################################
-def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2):
+def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, setup_id=None):
     """
-    Main function to run the FanucRobot interface in a loop,
+    Main function to run the TechmanRobot interface in a loop,
     checking for commands on 'robot_interface_commdown' queue.
     """
     component_tag = "ROBOT_INTERFACE"
@@ -1017,9 +1017,26 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
 
     # Load the config
     config = load_config()
+    
+    # Use setup-specific config if setup_id is provided
+    if setup_id is not None:
+        logger_ri.info(f"Using setup-specific config for setup: {setup_id}")
+        if "setups" in config and setup_id in config["setups"]:
+            # Create effective config with setup-specific hardware
+            hw_config = config["setups"][setup_id].get("hardware", {})
+            
+            # Merge with global hardware config as fallback
+            effective_hw_config = {**config.get("hardware", {}), **hw_config}
+            
+            # Update config to use setup-specific hardware
+            config = {**config}  # Shallow copy
+            config["hardware"] = effective_hw_config
+        else:
+            logger_ri.warning(f"Setup {setup_id} not found in config, using global hardware config")
+    
     logger_ri.info("Config loaded successfully.")
 
-    # Robot brand name (e.g., 'Fanuc'), capitalized
+    # Robot brand name (e.g., 'Techman'), capitalized
     robot_brand = config["hardware"]["robot"]["brand"].lower().capitalize()
     check_queue_period = config["general"]["check_queue_period"]
     robot = None

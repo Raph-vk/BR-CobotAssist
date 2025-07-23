@@ -420,7 +420,7 @@ class CameraInterfaceDummy:
 
 def run_camera_interface(camera_interface_commup, camera_interface_commdown, 
                         color_buffer_name, depth_buffer_name, 
-                        color_buffer2_name, depth_buffer2_name, camera_config):
+                        color_buffer2_name, depth_buffer2_name, camera_config, setup_id=None):
     """
     Main function to run a single camera interface process.
     
@@ -431,9 +431,14 @@ def run_camera_interface(camera_interface_commup, camera_interface_commdown,
     :param color_buffer2_name: Name of shared memory for color ring buffer (policy)
     :param depth_buffer2_name: Name of shared memory for depth ring buffer (policy)
     :param camera_config: Dictionary with camera configuration
+    :param setup_id: Setup ID for config isolation
     """
     component_tag = "CAMERA_INTERFACE"
     camera_name = camera_config["name"]
+    
+    # Use setup-specific logging if setup_id is provided
+    if setup_id is not None:
+        component_tag = f"{component_tag}_{setup_id}"
     
     # Setup logging
     logger_ci = setup_logging(f"{component_tag}_{camera_name}")
