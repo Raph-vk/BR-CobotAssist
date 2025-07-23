@@ -260,7 +260,7 @@ class PolicyInterface:
     # Data gathering and processing run policy
     ###################################################################
 
-    def _policy_execution_loop(self, write_chunks_to_csv=False):
+    def _policy_execution_loop(self, write_to_hdf5=False):
         """
         Main policy execution loop that runs in a separate thread.
         """

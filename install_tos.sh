@@ -313,6 +313,9 @@ setup_conda_env() {
         conda create -n "${ENV_NAME}" python=3.9 -y
         log_success "TOS conda environment created using $CONDA_TYPE"
     fi
+    
+    # Disable automatic conda base environment activation
+    conda config --set auto_activate false
 }
 
 # Install Python packages and conda dependencies
@@ -1208,6 +1211,34 @@ main() {
     echo ""
     echo "==============================================="
     log_success "TOS installation completed!"
+    
+    # Final conda configuration cleanup
+    log_info "Finalizing conda configuration..."
+    
+    # Ensure conda base auto-activation is disabled
+    conda config --set auto_activate_base false 2>/dev/null || true
+    
+    # Deactivate any active conda environment to demonstrate the change
+    if [[ "$CONDA_DEFAULT_ENV" != "base" ]] && [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+        conda deactivate 2>/dev/null || true
+    fi
+    
+    echo ""
+    log_info "=== POST-INSTALLATION NOTES ==="
+    echo ""
+    log_info "✓ Conda base environment auto-activation has been DISABLED"
+    log_info "✓ New terminal sessions will NOT automatically activate (base)"
+    echo ""
+    log_info "To use TOS in the future:"
+    echo "  conda activate TOS"
+    echo "  python -m applications.tos_ui.main"
+    echo ""
+    log_info "To manually activate conda base environment if needed:"
+    echo "  conda activate base"
+    echo ""
+    log_info "If you want to re-enable auto-activation of base (not recommended):"
+    echo "  conda config --set auto_activate_base true"
+    echo ""
     echo "==============================================="
     echo ""
     echo "Conda Installation: $CONDA_TYPE at $CONDA_BASE_PATH"

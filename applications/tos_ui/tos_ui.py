@@ -53,7 +53,7 @@ class TOSUIApplication:
     # 1) Setup RabbitMQ (declare exchange, queues, bindings) once
     ###################################################################
     def setup_rabbitmq_infrastructure(self):
-        self.ui_logger.info("Setting up RabbitMQ infrastructure...")
+        self.ui_logger.info("Setting up RabbitMQ infrastructure for multi-setup...")
         with open_channel(self.rabbit_conf, self.ui_logger, client_name="ui_infra_setup") as channel:
             # Exchange
             channel.exchange_declare(
@@ -61,65 +61,126 @@ class TOSUIApplication:
                 exchange_type=self.rabbit_conf["exchange_type"],
                 durable=False
             )
-            # Declare + bind the STATUS queue
+            
+            # Declare + bind the UI STATUS queue to receive from all setups
+            ui_queue_name = self.rabbit_conf["ui_status_queue_name"]
             channel.queue_declare(
-                queue=self.rabbit_conf["ui_queue_name"],
+                queue=ui_queue_name,
                 durable=False,
                 auto_delete=True
             )
-            channel.queue_bind(
-                exchange=self.rabbit_conf["exchange_name"],
-                queue=self.rabbit_conf["ui_queue_name"],
-                routing_key=self.rabbit_conf["status_binding_key"]
-            )
-            # Declare + bind the RESPONSE queue
-            channel.queue_declare(
-                queue=self.rabbit_conf["response_queue_name"],
-                durable=False,
-                auto_delete=True
-            )
-            response_binding = self.rabbit_conf["response_binding_key_prefix"] + "#"
-            channel.queue_bind(
-                exchange=self.rabbit_conf["exchange_name"],
-                queue=self.rabbit_conf["response_queue_name"],
-                routing_key=response_binding
-            )
-            self.ui_logger.info("RabbitMQ exchange/queues/bindings set up successfully.")
+            
+            # Bind UI queue to receive status and responses from all setups
+            binding_patterns = self.rabbit_conf["ui_status_binding_patterns"]
+            for pattern in binding_patterns:
+                channel.queue_bind(
+                    exchange=self.rabbit_conf["exchange_name"],
+                    queue=ui_queue_name,
+                    routing_key=pattern
+                )
+                self.ui_logger.info(f"UI queue bound to pattern: {pattern}")
+            
+            self.ui_logger.info("Multi-setup RabbitMQ infrastructure ready")
 
     ###################################################################
     # 2) Start Consumer Threads (Status & Response)
     ###################################################################
     def _start_consumer_threads(self):
 
-        # Start the response consumer
-        self.response_thread = threading.Thread(
+        # Start the status/response consumer for all setups
+        self.status_thread = threading.Thread(
             target=robust_consume,
             args=(
                 self.rabbit_conf,
                 self.ui_logger,
-                self.rabbit_conf["response_queue_name"],
-                self.rabbit_conf["response_binding_key_prefix"] + "#",
-                self.on_response_message,
+                self.rabbit_conf["ui_status_queue_name"],
+                "robot_controller.*.#",  # Receive all messages from all setups
+                self.on_status_message,
                 lambda: self.stop_flag
             ),
             daemon=True
         )
-        self.response_thread.start()
-        self.ui_logger.info("Started RabbitMQ response consumer in background thread.")
+        self.status_thread.start()
+        self.ui_logger.info("Started RabbitMQ status/response consumer for all setups")
 
     ###################################################################
     # 3) Flask Routing + Start
     ###################################################################
     def register_routes(self):
-        @self.app.route("/")
+        @self.app.route('/')
         def index():
-            return render_template("main_window.html")
-
+            """Main page with dynamic template selection based on application type and number of robots"""
+            
+            try:
+                # Get setup info from config
+                setup_info = self.get_setup_info()
+                
+                # Check application type from config
+                application_type = self.config.get("general", {}).get("application", "AI_robot_controller")
+                
+                # Get total number of setups defined in config
+                total_setups_count = self.get_total_setups_count()
+                
+                # Get default recording speed from config
+                default_recording_speed = self.config.get("general", {}).get("default_recording_speed", 0.5)
+                
+                self.ui_logger.debug(f"Application type: {application_type}")
+                self.ui_logger.debug(f"setup_info is: {setup_info}")
+                self.ui_logger.debug(f"Total setups defined in config: {total_setups_count}")
+                self.ui_logger.debug(f"Default recording speed: {default_recording_speed}")
+                
+                # Choose template based on application type
+                if application_type == "Teachbot_controller":
+                    # Teachbot mode - validate single setup requirement
+                    if len(setup_info) > 1:
+                        error_msg = f"Error: Teachbot_controller mode requires exactly one active setup, but {len(setup_info)} setups are configured: {[s['name'] for s in setup_info]}"
+                        self.ui_logger.error(error_msg)
+                        # Return error page or fallback
+                        return f"<h1>Configuration Error</h1><p>{error_msg}</p><p>Please configure exactly one setup in active_setups for Teachbot mode.</p>"
+                    
+                    template_name = 'teachbot.html'
+                    self.ui_logger.info(f"Using Teachbot mode with setup: {setup_info[0]['name']}")
+                    
+                    # Pass setup info and total setup count to template
+                    return render_template(template_name, setups=setup_info, total_setups=total_setups_count, default_recording_speed=default_recording_speed)
+                    
+                elif application_type == "AI_robot_controller":
+                    # AI robot controller mode - choose based on number of setups
+                    if len(setup_info) <= 1:
+                        # Single robot - use simplified template
+                        template_name = '1_robot.html'
+                    else:
+                        # Multiple robots - use multi-robot template with setup selection
+                        template_name = 'n_robots.html'
+                    
+                    self.ui_logger.info(f"Using AI robot controller mode with {len(setup_info)} setups")
+                else:
+                    # Unknown application type - default to AI mode
+                    self.ui_logger.warning(f"Unknown application type '{application_type}', defaulting to AI_robot_controller mode")
+                    if len(setup_info) <= 1:
+                        template_name = '1_robot.html'
+                    else:
+                        template_name = 'n_robots.html'
+                
+                self.ui_logger.debug(f"Using template: {template_name} for {len(setup_info)} setups")
+                
+                # Pass setup info and total setup count to the template
+                return render_template(template_name, setups=setup_info, total_setups=total_setups_count, default_recording_speed=default_recording_speed)
+            except Exception as e:
+                self.ui_logger.error(f"Error in index route: {e}")
+                import traceback
+                self.ui_logger.error(traceback.format_exc())
+                # Provide a fallback with a simple info object
+                fallback_setup = [{'name': 'Default', 'setup_id': '1', 'id': '1', 'display_name': 'Setup 1'}]
+                return render_template('1_robot.html', setups=fallback_setup, total_setups=1, default_recording_speed=0.5)
+             
+        
         @self.app.route("/send_command", methods=["POST"])
         def handle_command():
             """
             Accepts a command_type and optional recording_name,
             sends them to RabbitMQ, and returns JSON (no page reload).
+            Now supports setup_id parameter to target specific setups.
             """
             message = request.form.get("message", "")
             recording_name = request.form.get("recording_name", "")
@@ -127,8 +188,9 @@ class TOSUIApplication:
             model_name = request.form.get("model_name", "")
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
+            setup_id = request.form.get("setup_id", "1")  # Default to setup 1
 
-            self.ui_logger.info(f"Received form data - message: '{message}', dataset_name: '{dataset_name}', recording_name: '{recording_name}'', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
+            self.ui_logger.info(f"Received form data - message: '{message}', setup_id: '{setup_id}', dataset_name: '{dataset_name}', recording_name: '{recording_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
@@ -146,9 +208,6 @@ class TOSUIApplication:
                 recording_name = time.strftime("%Y%m%d_%H%M%S") + ".json"
                 msg["recording_name"] = recording_name
                 msg["recording_speed"] = recording_speed
-
-
-
 
             elif message == "record_episodes":
                 # If no dataset name is selected, create a new one based on timestamp
@@ -178,14 +237,15 @@ class TOSUIApplication:
             elif message == "start_teleoperation":
                 msg["recording_speed"] = recording_speed
 
-            # Send the command via RabbitMQ
-            self.send_command(msg)
-            self.ui_logger.info("Command sent: %s", msg)
+            # Send the command via RabbitMQ to the specified setup
+            self.send_command(msg, setup_id)
+            self.ui_logger.info("Command sent to setup %s: %s", setup_id, msg)
 
             # Return JSON so we don't reload the page
             return jsonify({
                 "status": "ok",
                 "message_sent": message,
+                "setup_id": setup_id,
                 "recording_name": recording_name if recording_name else None
             })
 
@@ -268,16 +328,18 @@ class TOSUIApplication:
     ###################################################################
     # 4) Publisher Method (Send Commands)
     ###################################################################
-    def send_command(self, cmd):
+    def send_command(self, cmd, setup_id=None):
         """
         Publish a JSON message to RabbitMQ with a routing key
+        setup_id: specific setup to send to, or None for backward compatibility
         """
         ensure_controller_running(
             self.ui_logger,
             open_terminal=self.app_conf["open_terminal_default"],
             controller_path=self.app_conf["controller_path"],
             rabbit_conf=self.rabbit_conf,
-            config=self.config
+            config=self.config,
+            setup_id=setup_id
         )
 
         # Derive the routing key suffix from the "message" field if present
@@ -287,7 +349,13 @@ class TOSUIApplication:
             routing_key_suffix = "unknown"
 
         cmd_json = json.dumps(cmd)  # the actual message body
-        routing_key = f"{self.rabbit_conf['command_binding_key_prefix']}{routing_key_suffix}"
+        
+        # Use new multi-setup routing pattern: robot_controller.{setup_id}.command.{action}
+        if setup_id:
+            routing_key = f"robot_controller.{setup_id}.command.{routing_key_suffix}"
+        else:
+            # Fallback to old pattern for backward compatibility
+            routing_key = f"robot_controller.command.{routing_key_suffix}"
 
         # Publish
         publish_message(
@@ -302,7 +370,7 @@ class TOSUIApplication:
     ###################################################################
     # 5) Consumer Callbacks
     ###################################################################
-    def on_response_message(self, ch, method, properties, body):
+    def on_status_message(self, ch, method, properties, body):
         """
         Handle messages from the response queue.
         The new response format is:
@@ -389,9 +457,64 @@ class TOSUIApplication:
         self.ui_logger.info("All consumer threads stopped.")
 
 
+
+
+
+
+
 ###################################################################
 # Helper Functions
 ###################################################################
+
+    def get_setup_info(self):
+        """Extract setup information from config for UI rendering"""
+        try:
+            active_setups = self.config["hardware"].get("active_setups", [])
+            if not active_setups:
+                active_setups = ["setup_1"]  # Default fallback
+                
+            setup_info = []
+            for setup_name in active_setups:
+                try:
+                    setup_data = self.config["hardware"][setup_name]
+                    setup_id = str(setup_data.get('setup_id', '1'))
+                    setup_info.append({
+                        'name': setup_name,
+                        'setup_id': setup_id,
+                        'id': setup_id,
+                        'display_name': f'Setup {setup_id}'
+                    })
+                except KeyError:
+                    # Fallback based on setup name
+                    setup_id = '1' if setup_name == "setup_1" else '2'
+                    setup_info.append({
+                        'name': setup_name,
+                        'setup_id': setup_id,
+                        'id': setup_id,
+                        'display_name': f'Setup {setup_id}'
+                    })
+            
+            return setup_info
+        except (KeyError, TypeError) as e:
+            self.ui_logger.error(f"Error reading setup info from config: {e}")
+            # Complete fallback
+            return [{'name': 'setup_1', 'setup_id': '1', 'id': '1'}]        
+
+    def get_total_setups_count(self):
+        """Get the total number of setups defined in the config (not just active ones)"""
+        try:
+            hardware_config = self.config.get("hardware", {})
+            # Count setup_1, setup_2, etc. entries
+            setup_count = 0
+            for key in hardware_config.keys():
+                if key.startswith("setup_") and key != "setup_id":  # Exclude any global setup_id if it exists
+                    setup_count += 1
+            return setup_count
+        except Exception as e:
+            self.ui_logger.error(f"Error counting total setups: {e}")
+            return 1  # Fallback
+
+
 
 @contextmanager
 def open_channel(rabbit_conf, ui_logger, client_name=None):
@@ -467,72 +590,115 @@ def robust_consume(rabbit_conf, ui_logger, queue_name, routing_key, on_message_c
             ui_logger.info("Stop flag detected. Exiting consume loop on queue='%s'.", queue_name)
             break
 
-def ensure_controller_running(ui_logger, open_terminal, controller_path, rabbit_conf, config):
+def ensure_controller_running(ui_logger, open_terminal, controller_path, rabbit_conf, config, setup_id=None):
     """
-    Checks if the controller is running; if not, attempts to launch it.
-    If 'open_terminal' is True, opens a new terminal to run it.
-    Otherwise, runs the controller in the background.
-    Then waits for the controller's command queue to appear.
+    Ensures controllers are running for ALL active setups.
+    Launches separate controllers with --setup parameters for each active setup.
+    This function is called for each send_command but ensures all controllers are running.
     """
+    # Get active setups from config
     try:
-        # Check if "robot_controller/main.py" is in the process list.
-        subprocess.check_output(["pgrep", "-f", "robot_controller/main.py"])
-        ui_logger.info("Controller seems to be running already.")
-    except subprocess.CalledProcessError:
-        ui_logger.info("No controller found. Launching main.py...")
+        active_setups = config["hardware"].get("active_setups", [])
+        if not active_setups:
+            active_setups = ["setup_1", "setup_2"]  # Fallback
+        
+        setup_ids = []
+        for setup_name in active_setups:
+            try:
+                setup_data = config["hardware"][setup_name]
+                setup_ids.append(setup_data['setup_id'])
+            except KeyError:
+                # Fallback based on setup name
+                if setup_name == "setup_1":
+                    setup_ids.append(1)
+                elif setup_name == "setup_2":
+                    setup_ids.append(2)
+    except (KeyError, TypeError):
+        ui_logger.error("Error reading active setups from config. Using fallback setups.")
+        setup_ids = [1]  # Complete fallback
 
-        # Check if we need ROS environment based on hardware configuration
+    ui_logger.info(f"Ensuring controllers are running for all setups: {setup_ids}")
+    
+    # Check which controllers are already running by looking for --setup arguments
+    running_setup_ids = set()
+    try:
+        result = subprocess.check_output(["pgrep", "-f", "robot_controller/main.py"], text=True)
+        running_pids = result.strip().split('\n') if result.strip() else []
+        
+        for pid in running_pids:
+            try:
+                cmdline = subprocess.check_output(["ps", "-p", pid, "-o", "args", "--no-headers"], text=True).strip()
+                # Look for --setup argument
+                if "--setup" in cmdline:
+                    parts = cmdline.split()
+                    for i, part in enumerate(parts):
+                        if part == "--setup" and i + 1 < len(parts):
+                            try:
+                                running_setup_id = int(parts[i + 1])
+                                running_setup_ids.add(running_setup_id)
+                                ui_logger.info(f"Found running controller for setup {running_setup_id} (PID: {pid})")
+                            except ValueError:
+                                pass
+            except subprocess.CalledProcessError:
+                pass
+    except subprocess.CalledProcessError:
+        ui_logger.info("No robot controllers found running.")
+    
+    # Launch controllers for missing setups (ALL AT ONCE)
+    missing_setup_ids = [sid for sid in setup_ids if sid not in running_setup_ids]
+    
+    if missing_setup_ids:
+        ui_logger.info(f"Launching controllers for missing setups: {missing_setup_ids}")
+        
+        # Check if we need ROS environment
         needs_ros = False
         try:
-            robot_brand = config.get("hardware", {}).get("robot", {}).get("brand", "").lower()
-            teachbot_brand = config.get("hardware", {}).get("teachbot", {}).get("brand", "").lower()
+            # Check any setup for ROS requirement (assume same for all)
+            first_setup = f"setup_{setup_ids[0]}"
+            setup_config = config.get("hardware", {}).get(first_setup, {})
+            robot_brand = setup_config.get("robot", {}).get("brand", "").lower()
+            teachbot_brand = setup_config.get("teachbot", {}).get("brand", "").lower()
+            
             if robot_brand == "interbotix" or teachbot_brand == "interbotix":
                 needs_ros = True
-                ui_logger.info("Interbotix hardware detected. Launching with ROS environment.")
-            else:
-                ui_logger.info("No Interbotix hardware detected. Launching without ROS environment.")
+                ui_logger.info("Interbotix hardware detected. Launching controllers with ROS environment.")
         except Exception as e:
-            ui_logger.warning("Could not check hardware configuration: %s. Launching without ROS.", e)
-
-        if needs_ros:
-            if open_terminal:
-                subprocess.Popen([
-                    "gnome-terminal", "--window", "--", "bash", "-c",
-                    f"source /opt/ros/noetic/setup.bash && source $HOME/TOS/devel/setup.bash && python3 {controller_path}; exec bash"
-                ])
-                ui_logger.info("Launched controller in a new terminal with ROS environment.")
+            ui_logger.warning(f"Could not check hardware configuration: {e}. Launching without ROS.")
+        
+        # Launch all missing controllers simultaneously
+        for missing_setup_id in missing_setup_ids:
+            controller_cmd = f"python3 {controller_path} --setup {missing_setup_id}"
+            
+            if needs_ros:
+                if open_terminal:
+                    subprocess.Popen([
+                        "gnome-terminal", "--window", "--title", f"Robot Controller Setup {missing_setup_id}", 
+                        "--", "bash", "-c",
+                        f"source /opt/ros/noetic/setup.bash && source $HOME/TOS/devel/setup.bash && {controller_cmd}; exec bash"
+                    ])
+                    ui_logger.info(f"Launched controller for setup {missing_setup_id} in new terminal with ROS.")
+                else:
+                    subprocess.Popen([
+                        "bash", "-c", 
+                        f"source /opt/ros/noetic/setup.bash && source $HOME/TOS/devel/setup.bash && {controller_cmd}"
+                    ])
+                    ui_logger.info(f"Launched controller for setup {missing_setup_id} in background with ROS.")
             else:
-                # For background launch, use bash to source environments first
-                subprocess.Popen([
-                    "bash", "-c", 
-                    f"source /opt/ros/noetic/setup.bash && source $HOME/TOS/devel/setup.bash && python3 {controller_path}"
-                ])
-                ui_logger.info("Launched controller in the background with ROS environment.")
-        else:
-            if open_terminal:
-                subprocess.Popen([
-                    "gnome-terminal", "--window", "--", "bash", "-c",
-                    f"python3 {controller_path}; exec bash"
-                ])
-                ui_logger.info("Launched controller in a new terminal without ROS environment.")
-            else:
-                subprocess.Popen([
-                    "python3", controller_path
-                ])
-                ui_logger.info("Launched controller in the background without ROS environment.")
+                if open_terminal:
+                    subprocess.Popen([
+                        "gnome-terminal", "--window", "--title", f"Robot Controller Setup {missing_setup_id}",
+                        "--", "bash", "-c", f"{controller_cmd}; exec bash"
+                    ])
+                    ui_logger.info(f"Launched controller for setup {missing_setup_id} in new terminal.")
+                else:
+                    subprocess.Popen(["bash", "-c", controller_cmd])
+                    ui_logger.info(f"Launched controller for setup {missing_setup_id} in background.")
+        
+        # Wait for all new controllers to initialize
+        ui_logger.info(f"Waiting for {len(missing_setup_ids)} new controllers to initialize...")
+        time.sleep(3)
+    else:
+        ui_logger.info("All required controllers are already running.")
 
-    # Now wait until the controller's command consumer is active
-    while True:
-        try:
-            # Just check existence of the queue (passive declare)
-            with open_channel(rabbit_conf, ui_logger) as ch:
-                ch.queue_declare(
-                    queue=rabbit_conf["command_queue_name"],
-                    passive=True, 
-                    durable=False
-                )
-            ui_logger.info("Confirmed controller's command queue is active. Proceeding.")
-            break
-        except Exception as e:
-            ui_logger.info("Waiting for controller's command consumer to come up... %s", e)
-            time.sleep(1)
+
+   

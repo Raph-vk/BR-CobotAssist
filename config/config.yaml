@@ -3,207 +3,298 @@
 # --------------------------------------HARDWARE CONFIGURATION--------------------------------
 
 hardware:
+  active_setups: ['setup_2']  # List of active setups to load
 
-# --------------------------------------Robot Configuration--------------------------------
-  # robot:
-  #   # Dummy robot settings (same as FANUC but without actual communication)
-  #   brand: "dummy"
-  #   model: "Dummy Robot"
-  #   control_dt : 0.004
-  #   utool_no: 1 #not used yet
-  #   uframe_no: 1 #not used yet
-  #   payload_weight: 2
-  #   max_payload: 7
-  #   j3_limit: 59
-  #   j3_interaction: True
-  #   dof: 6
-  #   dof_ee: 1
-  #   server_address: 
-  #     - "127.0.0.1"  # Localhost for dummy
-  #     - 8001  # IP and port of the cpp connects to  port + 1
-  #   robot_address: 
-  #     - "127.0.0.1"  # Localhost for dummy
-  #     - 60015
-  #   rmi_port: 16001
-  #   upper_limits: [165, 140, 208, 185, 120, 355]
-  #   lower_limits: [-165, -95, -65, -185, -120, -355]
-  #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-  #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-  #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+  setup_1:
+    setup_id: 1
 
-  robot:
-    # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
-    brand: "fanuc"
-    model: "LRMate 200iD 7l"
-    control_dt : 0.004
-    utool_no: 1 #not used yet
-    uframe_no: 1 #not used yet
-    payload_weight: 2
-    max_payload: 7
-    j3_limit: 59
-    j3_interaction: True
-    dof: 6
-    dof_ee: 1
-    server_address: 
-      - "192.168.1.201"
-      - 8001  # IP and port of the cpp connects to  port + 1
-    robot_address: 
-      - "192.168.1.202"
-      - 60015
-    rmi_port: 16001
-    upper_limits: [165, 140, 208, 185, 120, 355]
-    lower_limits: [-165, -95, -65, -185, -120, -355]
-    velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+  # --------------------------------------Robot Configuration--------------------------------
+    # robot:
+    #   # Dummy robot settings (same as FANUC but without actual communication)
+    #   brand: "dummy"
+    #   model: "Dummy Robot"
+    #   control_dt : 0.004
+    #   utool_no: 1 #not used yet
+    #   uframe_no: 1 #not used yet
+    #   payload_weight: 2
+    #   max_payload: 7
+    #   j3_limit: 59
+    #   j3_interaction: True
+    #   dof: 6
+    #   dof_ee: 1
+    #   server_address: 
+    #     - "127.0.0.1"  # Localhost for dummy
+    #     - 8001  # IP and port of the cpp connects to  port + 1
+    #   robot_address: 
+    #     - "127.0.0.1"  # Localhost for dummy
+    #     - 60015
+    #   rmi_port: 16001
+    #   upper_limits: [165, 140, 208, 185, 120, 355]
+    #   lower_limits: [-165, -95, -65, -185, -120, -355]
+    #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
-  # robot:
-  #   # Robot settings
-  #   brand: "Techman"
-  #   control_dt : 0.01
-  #   dof: 6
-  #   server_adress:
-  #     - "192.168.10.3"
-  #     - 8001
-  #   robot_adress: 
-  #     - "192.168.10.2"
-  #     - 5890
-  #   robot_recv_address: 
-  #     - "192.168.10.3"  # Local machine IP to receive data from robot
-  #     - 5891
-  #   # Techman TMSCT Position command parameters
-  #   move_to_start_params:
-  #     accel_time: 2000        # Time interval to accelerate to top speed (ms), range: 150-2000
-  #     motion_gain: 1          # Motion Control Gain value, range: 1-100, larger is faster response to new value
-  #     protection_time: 100     # Control value protection time interval (ms), min: 20
-    
-  #   continuous_mode_params:
-  #     accel_time: 600        # Time interval to accelerate to top speed (ms), range: 150-2000  
-  #     motion_gain: 80          # Motion Control Gain value, range: 1-100
-  #     protection_time: 100     # Control value protection time interval (ms), min: 20
+    robot:
+      # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
+      number: 1
+      brand: "fanuc"
+      model: "LRMate 200iD 7l"
+      control_dt : 0.004
+      utool_no: 1 #not used yet
+      uframe_no: 1 #not used yet
+      payload_weight: 2
+      max_payload: 7
+      j3_limit: 59
+      j3_interaction: True
+      dof: 6
+      dof_ee: 1
+      server_address: 
+        - "192.168.1.201"
+        - 8001  # IP and port of the cpp connects to  port + 1
+      robot_address: 
+        - "192.168.1.202"
+        - 60015
+      rmi_port: 16001
+      upper_limits: [165, 140, 208, 185, 120, 355]
+      lower_limits: [-165, -95, -65, -185, -120, -355]
+      velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
 
-  # --------------------------------------Teachbot Configuration--------------------------------
+    robot:
+      # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
+      number: 2
+      brand: "fanuc"
+      model: "LRMate 200iD 7l"
+      control_dt : 0.004
+      utool_no: 1 #not used yet
+      uframe_no: 1 #not used yet
+      payload_weight: 2
+      max_payload: 7
+      j3_limit: 59
+      j3_interaction: True
+      dof: 6
+      dof_ee: 1
+      server_address: 
+        - "192.168.1.201"
+        - 8001  # IP and port of the cpp connects to  port + 1
+      robot_address: 
+        - "192.168.1.202"
+        - 60015
+      rmi_port: 16001
+      upper_limits: [165, 140, 208, 185, 120, 355]
+      lower_limits: [-165, -95, -65, -185, -120, -355]
+      velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
-  # teachbot:
-  #   # Teachbot settings
-  #   brand: "dummy"
-  #   model: "_"
-  #   joint_target_period: 0.004
-  #   j6_min_angle: -140
-  #   j6_max_angle: 220
-  #   j6_multiplier: 1
-  #   gripper_treshold: 1085
-
-  # teachbot:
-  #   # TOS encoder settings for teachbot
-  #   brand: "tos"
-  #   joint_target_period: 0.004
-  #   j4_locked: True
-  #   j6_min_angle: -140
-  #   j6_max_angle: 220
-  #   j6_multiplier: 1
-  #   local_ip: "192.168.1.201"
-  #   start_port: 5006
-  #   num_joints: 6
-  #   packet_size: 3  # 3 bytes for 17-bit singleturn encoder
-  #   position_offsets: [42000, 24666, 102000, 67910, 19200, 119840]  # Calibration offsets for each joint
-  #   joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
-  #   port_joint_mapping:
-  #     0: 0  # Joint 0 -> port 5004 (start_port + 0)
-  #     1: 1  # Joint 1 -> port 5005 (start_port + 1)
-  #     2: 2  # Joint 2 -> port 5006 (start_port + 2)
-  #     3: 3  # Joint 3 -> port 5007 (start_port + 3)
-  #     4: 4  # Joint 4 -> port 5008 (start_port + 4)
-  #     5: 5  # Joint 5 -> port 5009 (start_port + 5)
-
-  teachbot:
-    # Teachbot settings
-    brand: "Interbotix"
-    model: "WX250S"
-    j4_locked: True
-    j6_min_angle: -140
-    j6_max_angle: 220
-    j6_multiplier: 1
-    gripper_min: 91.14
-    gripper_max: 102.65
-
-
-# --------------------------------------Camera Configuration--------------------------------
-
-
-  # camera:
-  #   # Camera settings
-  #   brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
-  #   info:
-  #     - name: "cam_1"
-  #       serial_number: "DUMMY_001"
-  #       fps: 90
-  #       color_width: 424
-  #       color_height: 240
-  #       depth_width: 424
-  #       depth_height: 240
-
-  #     - name: "cam_2"
-  #       serial_number: "DUMMY_002"
-  #       fps: 90
-  #       color_width: 424
-  #       color_height: 240
-  #       depth_width: 424
-  #       depth_height: 240
-
-  #     - name: "cam_3"
-  #       serial_number: "DUMMY_001"
-  #       fps: 90
-  #       color_width: 424
-  #       color_height: 240
-  #       depth_width: 424
-  #       depth_height: 240
-
-  #     - name: "cam_4"
-  #       serial_number: "DUMMY_002"
-  #       fps: 90
-  #       color_width: 424
-  #       color_height: 240
-  #       depth_width: 424
-  #       depth_height: 240
+    # robot:
+    #   # Robot settings
+    #   brand: "Techman"
+    #   control_dt : 0.01
+    #   dof: 6
+    #   server_adress:
+    #     - "192.168.10.3"
+    #     - 8001
+    #   robot_adress: 
+    #     - "192.168.10.2"
+    #     - 5890
+    #   robot_recv_address: 
+    #     - "192.168.10.3"  # Local machine IP to receive data from robot
+    #     - 5891
+    #   # Techman TMSCT Position command parameters
+    #   move_to_start_params:
+    #     accel_time: 2000        # Time interval to accelerate to top speed (ms), range: 150-2000
+    #     motion_gain: 1          # Motion Control Gain value, range: 1-100, larger is faster response to new value
+    #     protection_time: 100     # Control value protection time interval (ms), min: 20
+      
+    #   continuous_mode_params:
+    #     accel_time: 600        # Time interval to accelerate to top speed (ms), range: 150-2000  
+    #     motion_gain: 80          # Motion Control Gain value, range: 1-100
+    #     protection_time: 100     # Control value protection time interval (ms), min: 20
 
 
-  camera:
-    # Camera settings
-    brand: "inteld405" 
-    info:
-      - name: "cam_1"
-        serial_number: "218622271425"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
+    # --------------------------------------Teachbot Configuration--------------------------------
 
-      - name: "cam_2"
-        serial_number: "218622271391"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
+    teachbot:
+      # Teachbot settings
+      brand: "dummy"
+      model: "_"
+      joint_target_period: 0.004
+      j6_min_angle: -140
+      j6_max_angle: 220
+      j6_multiplier: 1
+      gripper_treshold: 1085
 
-      - name: "cam_3"
-        serial_number: "130322272626"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
+    # teachbot:
+    #   # TOS encoder settings for teachbot
+    #   brand: "tos"
+    #   joint_target_period: 0.004
+    #   j4_locked: True
+    #   j6_min_angle: -140
+    #   j6_max_angle: 220
+    #   j6_multiplier: 1
+    #   local_ip: "192.168.1.201"
+    #   start_port: 5006
+    #   num_joints: 6
+    #   packet_size: 3  # 3 bytes for 17-bit singleturn encoder
+    #   position_offsets: [42000, 24666, 102000, 67910, 19200, 119840]  # Calibration offsets for each joint
+    #   joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
+    #   port_joint_mapping:
+    #     0: 0  # Joint 0 -> port 5004 (start_port + 0)
+    #     1: 1  # Joint 1 -> port 5005 (start_port + 1)
+    #     2: 2  # Joint 2 -> port 5006 (start_port + 2)
+    #     3: 3  # Joint 3 -> port 5007 (start_port + 3)
+    #     4: 4  # Joint 4 -> port 5008 (start_port + 4)
+    #     5: 5  # Joint 5 -> port 5009 (start_port + 5)
 
-      - name: "cam_4"
-        serial_number: "218622271529"
-        fps: 90
-        color_width: 424
-        color_height: 240
-        depth_width: 424
-        depth_height: 240
+    # teachbot:
+    #   # Teachbot settings
+    #   brand: "Interbotix"
+    #   model: "WX250S"
+    #   j4_locked: True
+    #   j6_min_angle: -140
+    #   j6_max_angle: 220
+    #   j6_multiplier: 1
+    #   gripper_min: 91.14
+    #   gripper_max: 102.65
+
+
+  # --------------------------------------Camera Configuration--------------------------------
+
+
+    camera:
+      # Camera settings
+      brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
+      info:
+        - name: "cam_1"
+          serial_number: "DUMMY_001"
+          fps: 90
+          color_width: 424
+          color_height: 240
+          depth_width: 424
+          depth_height: 240
+
+        # - name: "cam_2"
+        #   serial_number: "DUMMY_002"
+        #   fps: 90
+        #   color_width: 424
+        #   color_height: 240
+        #   depth_width: 424
+        #   depth_height: 240
+
+        # - name: "cam_3"
+        #   serial_number: "DUMMY_001"
+        #   fps: 90
+        #   color_width: 424
+        #   color_height: 240
+        #   depth_width: 424
+        #   depth_height: 240
+
+        # - name: "cam_4"
+        #   serial_number: "DUMMY_002"
+        #   fps: 90
+        #   color_width: 424
+        #   color_height: 240
+        #   depth_width: 424
+        #   depth_height: 240
+
+
+    # camera:
+    #   # Camera settings
+    #   brand: "inteld405" 
+    #   info:
+    #     - name: "cam_1"
+    #       serial_number: "218622271425"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+    #     - name: "cam_2"
+    #       serial_number: "218622271391"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+    #     - name: "cam_3"
+    #       serial_number: "130322272626"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+    #     - name: "cam_4"
+    #       serial_number: "218622271529"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+  setup_2:
+    setup_id: 2
+
+  # --------------------------------------Robot Configuration--------------------------------
+    robot:
+      # Dummy robot settings (same as FANUC but without actual communication)
+      brand: "dummy"
+      model: "Dummy Robot"
+      control_dt : 0.004
+      utool_no: 1 #not used yet
+      uframe_no: 1 #not used yet
+      payload_weight: 2
+      max_payload: 7
+      j3_limit: 59
+      j3_interaction: True
+      dof: 6
+      dof_ee: 1
+      server_address: 
+        - "127.0.0.1"  # Localhost for dummy
+        - 8001  # IP and port of the cpp connects to  port + 1
+      robot_address: 
+        - "127.0.0.1"  # Localhost for dummy
+        - 60015
+      rmi_port: 16001
+      upper_limits: [165, 140, 208, 185, 120, 355]
+      lower_limits: [-165, -95, -65, -185, -120, -355]
+      velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+
+    # --------------------------------------Teachbot Configuration 2--------------------------------
+
+    teachbot:
+      # Teachbot settings
+      brand: "dummy"
+      model: "_"
+      joint_target_period: 0.004
+      j6_min_angle: -140
+      j6_max_angle: 220
+      j6_multiplier: 1
+      gripper_treshold: 1085
+
+  # --------------------------------------Camera Configuration 2--------------------------------
+
+    camera:
+      # Camera settings
+      brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
+      info:
+        - name: "cam_1"
+          serial_number: "DUMMY_006"
+          fps: 90
+          color_width: 424
+          color_height: 240
+          depth_width: 424
+          depth_height: 240
+
+
 
 
 
@@ -211,6 +302,10 @@ hardware:
 
 
 general:
+  # Application
+  # application: 'AI_robot_controller'
+  application: 'Teachbot_controller' 
+
   # Update settings
   status_refresh_period:  0.016067
   check_queue_period:     0.005556 
@@ -220,7 +315,7 @@ general:
   start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
   start_joint_tolerance: 10
   joint_synchronization: False
-  default_recording_speed: 0.25
+  default_recording_speed: 0.5
   gripper_delay: 0.3 # In seconds on robot speed 1
   gripper_treshold: 0.5
   action_buffer_length: 3
@@ -228,20 +323,24 @@ general:
   j6_factor: 3.0
 
 
+  # Directories
   app_directory: "."
   data_directory: "../tos_app_data"
 
+  # Recording settings
   record_duration: 7
   record_divisor: 4
   
   # Policy interface buffer settings
   policy_img_buffer_size: 1  # Size of policy interface camera buffers
 
+  # Control loop settings
   control_loop_language: "python"  # Options: "cpp", "python"
   
   # Robot interface priority settings
   robot_interface_sudo_priority: True  # Enable high priority for robot interface
   robot_interface_priority_value: -10  # Nice value (-20 to 19, lower = higher priority)
+
 
 
 
@@ -294,17 +393,36 @@ rabbitmq:
   exchange_name: "tos_exchange"
   exchange_type: "topic"
 
-  # Status queue/binding
-  ui_queue_name: "ui_status_queue"
-  status_binding_key: "robot_controller.status.package"
+  # Multi-setup routing configuration using topic exchange with numeric setup_id
+  # Routing key patterns:
+  # - robot_controller.1.command.move        -> Send move command to setup 1 robot
+  # - robot_controller.2.command.move        -> Send move command to setup 2 robot  
+  # - robot_controller.all.command.stop      -> Send stop command to all robots (broadcasts to all active setups)
+  # - robot_controller.1.status.package      -> Status update from setup 1 robot
+  # - robot_controller.2.response.done       -> Response from setup 2 robot
 
-  # Command queue/binding
-  command_queue_name: "robot_controller_commands"
-  command_binding_key_prefix: "robot_controller.command."
+  # UI queue configuration - receives from all active setups
+  ui_status_queue_name: "ui_status_queue"
+  ui_status_binding_patterns:
+    # UI will automatically bind to all active setups based on hardware.active_setups
+    # For active_setups: ["setup_1", "setup_2"], this creates bindings:
+    - "robot_controller.*.status.*"    # Receive all robot status updates
+    - "robot_controller.*.response.*"  # Receive all robot responses
 
-  # response queue/binding
-  response_queue_name: "robot_controller_response"
-  response_binding_key_prefix: "robot_controller.response."
+  # Robot controller queue patterns (dynamically created based on setup_id)
+  # Each robot controller will create queues based on its setup_id:
+  robot_queue_patterns:
+    command_queue: "robot_controller_{setup_id}_commands"     # e.g., "robot_controller_1_commands", "robot_controller_2_commands"
+    response_queue: "robot_controller_{setup_id}_responses"   # e.g., "robot_controller_1_responses", "robot_controller_2_responses"
+    
+    # Command bindings for each robot (what commands they listen to)
+    command_bindings:
+      - "robot_controller.{setup_id}.command.*"  # Individual commands: robot_controller.1.command.move
+      - "robot_controller.all.command.*"         # Broadcast commands: robot_controller.all.command.stop
+    
+    # Publishing patterns for robot responses and status
+    status_routing_key: "robot_controller.{setup_id}.status.package"
+    response_routing_key: "robot_controller.{setup_id}.response.{action}"
 
   # Connection defaults
   host: "localhost"

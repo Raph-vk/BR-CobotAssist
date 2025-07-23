@@ -202,20 +202,29 @@
     <!-- Top Box -->
     <div class="box-top">
       <h2>TOS UI Controls</h2>
+      
+      <!-- Teachbot mode: Show setup info only when multiple setups are defined -->
+      {% if total_setups >= 2 %}
+      <div style="text-align: center; margin: 20px 0;">
+        <span style="font-size: 16px; color: var(--color-blue); font-weight: bold;">
+          Using {{ setups[0].display_name }}
+        </span>
+      </div>
+      {% endif %}
 
 
 
-      <!-- <div class="button-row">
+      <div class="button-row">
         <button class="btn" onclick="sendCommand('start_teleoperation')">
           Start Teleop
         </button>
         <button class="btn" onclick="sendCommand('start_teleoperation_record')">
           Start Teleop &amp; Record
         </button>
-      </div> -->
+      </div>
 
 
-      <!-- <div class="button-row">
+      <div class="button-row">
         <select id="recordingsDropdown"
                 onmouseover="fetchRecordingsInBackground()" 
                 onfocus="fetchRecordingsInBackground()"
@@ -230,66 +239,8 @@
         <button class="btn" onclick="deleteSelectedRecording()">
           Delete Recording
         </button>
-      </div> -->
-
-
-
-
-      <!-- Datasets dropdown and models dropdown -->
-
-      <div class="button-row">
-        <select id="datasetsDropdown"
-                onmouseover="fetchDatasetsInBackground()" 
-                onfocus="fetchDatasetsInBackground()"
-                onchange="onDatasetSelected()">
-          <option hidden value="">Select dataset...</option>
-        </select>
-        <button class="btn" onclick="sendCommand('train_policy')">
-          Train Policy
-        </button>
-
-      </div>
-
-
-      <div class="button-row">
-        <button class="btn" onclick="sendCommand('record_episodes')">
-          Record Episodes
-        </button>
-        <button class="btn" onclick="sendCommand('record_mistake')">
-          Record Mistake
-        </button>
-      </div>
-
-      <!-- <div class="button-row">
-        <button class="btn" onclick="sendCommand('record_episode')">
-          Record Episode
-        </button>
-      </div> -->
-
-
-
-      <div class="button-row">
-        <select id="modelsDropdown"
-                onmouseover="fetchModelsInBackground()" 
-                onfocus="fetchModelsInBackground()"
-                onchange="onModelSelected()">
-          <option hidden value="">Select model...</option>
-        </select>
-
-        <button class="btn" onclick="sendCommand('run_policy')">
-          Run Policy
-        </button>
-      </div>
-
-
-
-
-      <div class="button-row">
-        <button class="btn" onclick="sendCommand('stop')">
+      <button class="btn" onclick="sendCommand('stop')">
           Stop
-        </button>
-        <button class="btn" onclick="sendCommand('hard_stop')">
-          Hard Stop
         </button>
       </div>
     </div>
@@ -503,15 +454,19 @@
       params.append('recording_speed', rSpeed);
       params.append('playback_speed', pSpeed);
 
-      // POST to /send_command
+      // Teachbot mode: automatically use the single active setup
+      const setupId = '{{ setups[0].setup_id }}';
+      params.append('setup_id', setupId);
+      
+      // Send command to the single setup
       fetch('/send_command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params
       })
       .then(r => r.json())
-      .then(data => console.log("Command response:", data))
-      .catch(err => console.error("Error sending command:", err));
+      .then(data => console.log(`Command response for setup ${setupId}:`, data))
+      .catch(err => console.error(`Error sending command to setup ${setupId}:`, err));
     }
 
     /**

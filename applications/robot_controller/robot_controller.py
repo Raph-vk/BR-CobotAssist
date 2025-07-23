@@ -368,8 +368,6 @@ class RobotController:
 
         try:
             dataset_name = payload.get("dataset_name", "")
-            if not dataset_name:
-                raise ValueError("No dataset_name provided in payload")
 
             # Construct path to Models directory within the dataset
             models_path = get_data_path(self.config, os.path.join(dataset_name, "Models"))

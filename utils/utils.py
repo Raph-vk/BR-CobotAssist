@@ -278,6 +278,7 @@ class RingBufferReader:
                 "timestamp":           data[3*kMaxDof + 3],                 # timestamp double
                 "robot_position_timestamp": data[3*kMaxDof + 4],            # robot_position_timestamp double
             }
+    
     def close(self, unlink: bool = False):
         self.shm.close()
         if unlink:
@@ -333,6 +334,7 @@ def get_data_path(config, relative_path=""):
     """
     Get the absolute path to the data directory, optionally with a relative path appended.
     Handles both relative and absolute data directory configurations.
+    Creates the directory if it doesn't exist.
     
     Args:
         config: The loaded configuration dictionary
@@ -357,6 +359,11 @@ def get_data_path(config, relative_path=""):
     
     # Append the relative path if provided
     if relative_path:
-        return os.path.join(base_path, relative_path)
+        full_path = os.path.join(base_path, relative_path)
     else:
-        return base_path
+        full_path = base_path
+    
+    # Create the directory if it doesn't exist
+    os.makedirs(full_path, exist_ok=True)
+    
+    return full_path

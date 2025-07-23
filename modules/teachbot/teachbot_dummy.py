@@ -73,7 +73,7 @@ class DummyTeachbot(TeachbotInterface):
 
         # Movement direction/state
         self._direction = 1  # +1 or -1
-        self.step_size = 0.5  # degrees per second
+        self.step_size = 10  # degrees per second
         self.random_degrees = [-0, 0]
         
         # State for the new movement pattern
