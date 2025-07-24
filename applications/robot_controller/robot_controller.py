@@ -1316,7 +1316,7 @@ class RobotController:
             
             self.logger_tc.info(f"Sent command to all {len(self.camera_processes)} camera interfaces: {command}")
 
-        elif interface_name == "POLICY_INTERFACE":
+        elif base_interface_name == "POLICY_INTERFACE":
             if self.policy_interface_process is None:
                 self.logger_tc.warning("POLICY_INTERFACE process not running.")
                 return

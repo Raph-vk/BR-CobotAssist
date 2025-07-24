@@ -176,7 +176,7 @@
     }
     
     .datasets-dropdown, .models-dropdown {
-      width: 100%;
+      width: 220px;
       padding: 0.4rem;
       font-size: 1rem;
       border: 1px solid #ccc;
@@ -307,47 +307,7 @@
       </div>
 
 
-
-      <!-- <div class="button-row">
-        <button class="btn" onclick="sendCommand('start_teleoperation')">
-          Start Teleop
-        </button>
-        <button class="btn" onclick="sendCommand('start_teleoperation_record')">
-          Start Teleop &amp; Record
-        </button>
-      </div> -->
-
-
-      <!-- <div class="button-row">
-        <select id="recordingsDropdown"
-                onmouseover="fetchRecordingsInBackground()" 
-                onfocus="fetchRecordingsInBackground()"
-                onchange="onRecordingSelected()">
-          <option hidden value="">Select name...</option>
-        </select>
-        <button class="btn" onclick="playSelectedRecording()">
-          Play Recording
-        </button>
-      </div>
-      <div class="button-row">
-        <button class="btn" onclick="deleteSelectedRecording()">
-          Delete Recording
-        </button>
-      </div> -->
-
-
-
-
       <!-- Action buttons -->
-      <div class="button-row">
-        <button class="btn" onclick="sendCommand('train_policy')">
-          Train Policy
-        </button>
-        <button class="btn" onclick="sendCommand('run_policy')">
-          Run Policy
-        </button>
-      </div>
-
       <div class="button-row">
         <button class="btn" onclick="sendCommand('record_episodes')">
           Record Episodes
@@ -357,6 +317,16 @@
         </button>
       </div>
 
+
+
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('train_policy')">
+          Train Policy
+        </button>
+        <button class="btn" onclick="sendCommand('run_policy')">
+          Run Policy
+        </button>
+      </div>
 
 
 
@@ -390,7 +360,7 @@
         valueSpan.textContent = speeds[index];
         }
         // Initialize with default value from config
-        const defaultRecordingSpeed = {{ default_recording_speed|default(0.5) }};
+        const defaultRecordingSpeed = 0.5;
         const speeds = [0.25, 0.5, 1.0];
         const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
         if (defaultIndex >= 0) {

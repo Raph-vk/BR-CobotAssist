@@ -10,60 +10,6 @@ hardware:
     setup_id: 1
 
   # --------------------------------------Robot Configuration--------------------------------
-    # robot:
-    #   # Dummy robot settings (same as FANUC but without actual communication)
-    #   brand: "dummy"
-    #   model: "Dummy Robot"
-    #   control_dt : 0.004
-    #   utool_no: 1 #not used yet
-    #   uframe_no: 1 #not used yet
-    #   payload_weight: 2
-    #   max_payload: 7
-    #   j3_limit: 59
-    #   j3_interaction: True
-    #   dof: 6
-    #   dof_ee: 1
-    #   server_address: 
-    #     - "127.0.0.1"  # Localhost for dummy
-    #     - 8001  # IP and port of the cpp connects to  port + 1
-    #   robot_address: 
-    #     - "127.0.0.1"  # Localhost for dummy
-    #     - 60015
-    #   rmi_port: 16001
-    #   upper_limits: [165, 140, 208, 185, 120, 355]
-    #   lower_limits: [-165, -95, -65, -185, -120, -355]
-    #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
-
-    robot:
-      # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
-      number: 1
-      brand: "fanuc"
-      model: "LRMate 200iD 7l"
-      control_dt : 0.004
-      utool_no: 1 #not used yet
-      uframe_no: 1 #not used yet
-      payload_weight: 2
-      max_payload: 7
-      j3_limit: 59
-      j3_interaction: True
-      dof: 6
-      dof_ee: 1
-      server_address: 
-        - "192.168.1.201"
-        - 8001  # IP and port of the cpp connects to  port + 1
-      robot_address: 
-        - "192.168.1.202"
-        - 60015
-      rmi_port: 16001
-      upper_limits: [165, 140, 208, 185, 120, 355]
-      lower_limits: [-165, -95, -65, -185, -120, -355]
-      velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-      acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-      jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
-
-
     robot:
       # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
       number: 2
@@ -115,6 +61,32 @@ hardware:
     #     accel_time: 600        # Time interval to accelerate to top speed (ms), range: 150-2000  
     #     motion_gain: 80          # Motion Control Gain value, range: 1-100
     #     protection_time: 100     # Control value protection time interval (ms), min: 20
+
+    # robot:
+    #   # Dummy robot settings (same as FANUC but without actual communication)
+    #   brand: "dummy"
+    #   model: "Dummy Robot"
+    #   control_dt : 0.004
+    #   utool_no: 1 #not used yet
+    #   uframe_no: 1 #not used yet
+    #   payload_weight: 2
+    #   max_payload: 7
+    #   j3_limit: 59
+    #   j3_interaction: True
+    #   dof: 6
+    #   dof_ee: 1
+    #   server_address: 
+    #     - "127.0.0.1"  # Localhost for dummy
+    #     - 8001  # IP and port of the cpp connects to  port + 1
+    #   robot_address: 
+    #     - "127.0.0.1"  # Localhost for dummy
+    #     - 60015
+    #   rmi_port: 16001
+    #   upper_limits: [165, 140, 208, 185, 120, 355]
+    #   lower_limits: [-165, -95, -65, -185, -120, -355]
+    #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+    #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
 
     # --------------------------------------Teachbot Configuration--------------------------------
@@ -304,8 +276,8 @@ hardware:
 
 general:
   # Application
-  application: 'AI_robot_controller'
-  # application: 'Teachbot_controller' 
+  # application: 'AI_robot_controller'
+  application: 'Teachbot_controller' 
 
   # Update settings
   status_refresh_period:  0.016067
@@ -394,23 +366,13 @@ rabbitmq:
   exchange_name: "tos_exchange"
   exchange_type: "topic"
 
-  # Multi-setup routing configuration using topic exchange with numeric setup_id
-  # Routing key patterns:
-  # - robot_controller.1.command.move        -> Send move command to setup 1 robot
-  # - robot_controller.2.command.move        -> Send move command to setup 2 robot  
-  # - robot_controller.all.command.stop      -> Send stop command to all robots (broadcasts to all active setups)
-  # - robot_controller.1.status.package      -> Status update from setup 1 robot
-  # - robot_controller.2.response.done       -> Response from setup 2 robot
-
   # UI queue configuration - receives from all active setups
   ui_status_queue_name: "ui_status_queue"
   ui_status_binding_patterns:
-    # UI will automatically bind to all active setups based on hardware.active_setups
-    # For active_setups: ["setup_1", "setup_2"], this creates bindings:
+    # For active_setups, this creates bindings:
     - "robot_controller.*.status.*"    # Receive all robot status updates
     - "robot_controller.*.response.*"  # Receive all robot responses
 
-  # Robot controller queue patterns (dynamically created based on setup_id)
   # Each robot controller will create queues based on its setup_id:
   robot_queue_patterns:
     command_queue: "robot_controller_{setup_id}_commands"     # e.g., "robot_controller_1_commands", "robot_controller_2_commands"
@@ -442,7 +404,6 @@ rabbitmq:
   information: "A robust RabbitMQ client using Pika"
 
 
-
 cpp:
   # Shared memory configuration for C++ interface
   shared_memory:
@@ -457,7 +418,6 @@ cpp:
       capacity: 100
       slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
       header_format: "=IIII" 
-
 
 
 policy:
