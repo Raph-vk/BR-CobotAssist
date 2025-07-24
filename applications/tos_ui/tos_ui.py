@@ -217,8 +217,13 @@ class TOSUIApplication:
                 msg["recording_name"] = recording_name
 
             elif message == "start_teleoperation_record":
-                # generate recording name based on current date/time
-                recording_name = time.strftime("%Y%m%d_%H%M%S") + ".json"
+                # Use the recording name from the frontend if provided, otherwise generate one
+                if not recording_name:
+                    recording_name = time.strftime("%Y%m%d_%H%M%S") + ".json"
+                else:
+                    # Ensure the recording name has .json extension
+                    if not recording_name.endswith('.json'):
+                        recording_name = recording_name + '.json'
                 msg["recording_name"] = recording_name
                 msg["recording_speed"] = recording_speed
 

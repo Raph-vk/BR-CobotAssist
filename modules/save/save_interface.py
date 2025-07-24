@@ -116,17 +116,21 @@ class SaveInterface:
             self.logger_si.warning("start_teleoperation_record invoked, but already recording.")
             return
 
-        # Create the output directory if it doesn't exist
+        # Get the recording filename and ensure proper path handling
         filename = full_message["recording_name"]
         recording_speed = full_message.get("recording_speed", self.default_recording_speed)
-        filename = get_data_path(self.config, filename)
+        
+        # For teleoperation recording, we want to save a single file, not create a directory
+        # So we get the data directory path and append the filename
+        data_dir = get_data_path(self.config)  # Get data directory without creating a subdirectory
+        full_filename = os.path.join(data_dir, filename)
 
-        # if it exists, error
-        if os.path.exists(filename):
-            self.logger_si.error("File already exists: %s", filename)
+        # Check if the file already exists
+        if os.path.exists(full_filename):
+            self.logger_si.error("File already exists: %s", full_filename)
             return
         else:
-            self.output_filename = filename
+            self.output_filename = full_filename
 
         # Clear old data (fresh each time)
         self.recorded_data = {

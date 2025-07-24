@@ -331,15 +331,16 @@ class RingBufferReader:
             
         return entries
 
-def get_data_path(config, relative_path=""):
+def get_data_path(config, relative_path="", create_dirs=True):
     """
     Get the absolute path to the data directory, optionally with a relative path appended.
     Handles both relative and absolute data directory configurations.
-    Creates the directory if it doesn't exist.
+    Optionally creates the directory if it doesn't exist.
     
     Args:
         config: The loaded configuration dictionary
         relative_path: Optional relative path to append to the data directory
+        create_dirs: Whether to create directories if they don't exist (default: True)
         
     Returns:
         str: Absolute path to the data directory (optionally with relative_path appended)
@@ -364,7 +365,8 @@ def get_data_path(config, relative_path=""):
     else:
         full_path = base_path
     
-    # Create the directory if it doesn't exist
-    os.makedirs(full_path, exist_ok=True)
+    # Create the directory if it doesn't exist and create_dirs is True
+    if create_dirs:
+        os.makedirs(full_path, exist_ok=True)
     
     return full_path

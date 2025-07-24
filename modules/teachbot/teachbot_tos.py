@@ -269,6 +269,10 @@ class TosTeachbot(TeachbotInterface):
                 scale_factor = self.joint_scale_factors[i] if i < len(self.joint_scale_factors) else 1.0
                 degrees *= scale_factor
                 
+                # Apply joint6 clamping like in interbotix teachbot
+                if i == 5:  # Joint 6 (0-based index)
+                    degrees = max(self.min_joint6, min(degrees, self.max_joint6))
+                
                 translated_action.append(degrees)
                 
                 # self.logger_ti.info(f"Joint {i+1}: raw={raw_position}, offset={offset}, degrees={degrees:.2f}")

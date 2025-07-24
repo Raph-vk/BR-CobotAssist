@@ -1,5 +1,48 @@
 # config.yaml
 
+
+
+general:
+  # Application
+  # application: 'AI_robot_controller'
+  application: 'Teachbot_controller' 
+
+  # Update settings
+  status_refresh_period:  0.016067
+  check_queue_period:     0.005556 
+  check_queue_period_divisor: 3
+
+  # start_position: [0, -20, -50, 0, 30, 50, 0]  # 6 joints + gripper state
+  start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
+  start_joint_tolerance: 10
+  joint_synchronization: False
+  default_recording_speed: 0.5
+  gripper_delay: 0.3 # In seconds on robot speed 1
+  gripper_treshold: 0.5
+  action_buffer_length: 3
+  j4_locked: True
+  j6_factor: 3.0
+
+
+  # Directories
+  app_directory: "."
+  data_directory: "../tos_app_data"
+
+  # Recording settings
+  record_duration: 7
+  record_divisor: 4
+  
+  # Policy interface buffer settings
+  policy_img_buffer_size: 1  # Size of policy interface camera buffers
+
+  # Control loop settings
+  control_loop_language: "python"  # Options: "cpp", "python"
+  
+  # Robot interface priority settings
+  robot_interface_sudo_priority: True  # Enable high priority for robot interface
+  robot_interface_priority_value: -10  # Nice value (-20 to 19, lower = higher priority)
+
+
 # --------------------------------------HARDWARE CONFIGURATION--------------------------------
 
 hardware:
@@ -274,45 +317,6 @@ hardware:
 # --------------------------------------GENERAL CONFIGURATION--------------------------------
 
 
-general:
-  # Application
-  application: 'AI_robot_controller'
-  # application: 'Teachbot_controller' 
-
-  # Update settings
-  status_refresh_period:  0.016067
-  check_queue_period:     0.005556 
-  check_queue_period_divisor: 3
-
-  # start_position: [0, -20, -50, 0, 30, 50, 0]  # 6 joints + gripper state
-  start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
-  start_joint_tolerance: 10
-  joint_synchronization: False
-  default_recording_speed: 0.5
-  gripper_delay: 0.3 # In seconds on robot speed 1
-  gripper_treshold: 0.5
-  action_buffer_length: 3
-  j4_locked: True
-  j6_factor: 3.0
-
-
-  # Directories
-  app_directory: "."
-  data_directory: "../tos_app_data"
-
-  # Recording settings
-  record_duration: 7
-  record_divisor: 4
-  
-  # Policy interface buffer settings
-  policy_img_buffer_size: 1  # Size of policy interface camera buffers
-
-  # Control loop settings
-  control_loop_language: "python"  # Options: "cpp", "python"
-  
-  # Robot interface priority settings
-  robot_interface_sudo_priority: True  # Enable high priority for robot interface
-  robot_interface_priority_value: -10  # Nice value (-20 to 19, lower = higher priority)
 
 
 

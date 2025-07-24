@@ -105,10 +105,11 @@ class FanucRobot():
       - Additional logic previously from "RobotServer" code.
     """
 
-    def __init__(self, robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config):
+    def __init__(self, robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config, component_tag):
         # Logging and config - set these first
         self.logger_ri = logger_ri
         self.config = config
+        self.component_tag = component_tag
         self.record_duration = config["general"]["record_duration"]
 
         # Shared memory queues
@@ -330,6 +331,45 @@ class FanucRobot():
             self.logger_ri.error("play_recording, robot not connected.")
             return False
 
+        # Load recording data first before starting threads
+        try:
+            filename = full_message["recording_name"]
+            data_dir = get_data_path(self.config, create_dirs=False)  # Get base data directory without creating dirs
+            full_filename = os.path.join(data_dir, filename)
+            if not os.path.exists(full_filename):
+                self.logger_ri.error("play_recording, file %s not found.", full_filename)
+                return False
+        except KeyError:
+            self.logger_ri.error("play_recording, missing recording_name in message.")
+            return False
+
+        # Load JSON
+        with open(full_filename, 'r') as f:
+            data = json.load(f)
+            self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
+            try:
+                self.first_joint_position = data["samples"][0]["robot_position"]
+            except IndexError:
+                self.logger_ri.error("play_recording, no robot positions found in %s.", filename)
+                return False
+
+        if not data:
+            self.logger_ri.error("play_recording, %s is empty.", filename)
+            return False
+
+        # Check playback_speed
+        self.default_recording_speed = data["metadata"]["recording_speed"]
+        playback_speed = full_message.get("playback_speed", "")
+        if playback_speed == "" or playback_speed is None:
+            self.robot_speed = self.default_recording_speed
+            self.logger_ri.info(
+                "play_recording: Empty or null playback_speed, using default: %s",
+                self.default_recording_speed
+            )
+        else:
+            self.robot_speed = playback_speed * self.default_recording_speed
+            self.logger_ri.info("play_recording, playback_speed: %s", self.robot_speed)
+
         # Create thread that generates target positions
         self.update_target_info_thread = threading.Thread(
             target=self._update_target_info, args=(full_message, ), daemon=True
@@ -470,43 +510,8 @@ class FanucRobot():
                 time.sleep(self.control_dt / self.check_queue_period_divisor)
 
         if message == "play_recording":
-            # Load recording data
-            try:
-                filename = full_message["recording_name"]
-                filename = os.path.join("data", filename)
-                if not os.path.exists(filename):
-                    self.logger_ri.error("play_recording, file %s not found.", filename)
-                    return False
-            except KeyError:
-                self.logger_ri.error("_update_target_info, missing recording_name in message.")
-                return False
-
-            # Load JSON
-            with open(filename, 'r') as f:
-                data = json.load(f)
-                self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
-                try:
-                    self.first_joint_position = data["samples"][0]["robot_position"]
-                except IndexError:
-                    self.logger_ri.error("_update_target_info, no robot positions found in %s.", filename)
-                    return False
-
-            if not data:
-                self.logger_ri.error("_update_target_info, %s is empty.", filename)
-                return False
-
-            # Check playback_speed
-            self.default_recording_speed = data["metadata"]["recording_speed"]
-            playback_speed = full_message.get("playback_speed", "")
-            if playback_speed == "" or playback_speed is None:
-                self.robot_speed = self.default_recording_speed
-                self.logger_ri.info(
-                    "_update_target_info: Empty or null playback_speed, using default: %s",
-                    self.default_recording_speed
-                )
-            else:
-                self.robot_speed = playback_speed * self.default_recording_speed
-                self.logger_ri.info("_update_target_info, playback_speed: %s", self.robot_speed)
+            # Data already loaded in play_recording method, just log that we're ready
+            self.logger_ri.info("_update_target_info: Recording data already loaded, ready for playback")
 
     def _control_robot(self, full_message):
         """
@@ -669,7 +674,7 @@ class FanucRobot():
                 # Get next action
                 if self.play_recording_active:
                     if self.teachbot_positions:
-                        action_teachbot = self.teachbot_positions.popleft()
+                        action_master = self.teachbot_positions.popleft()
                     else:
                         self.logger_ri.info("control_loop, recording playback completed")
                         break
@@ -1420,7 +1425,7 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
     try:
         robot_class_name = f"{robot_brand}Robot"
         robotClass = globals()[robot_class_name]
-        robot = robotClass(robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config)
+        robot = robotClass(robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config, component_tag)
         logger_ri.info("Initialized %s Robot Interface", robot_brand)
         
         # Adjust process priority if configured

@@ -307,7 +307,7 @@
         valueSpan.textContent = speeds[index];
         }
         // Initialize with default value from config
-        const defaultRecordingSpeed = {{ default_recording_speed|default(0.5) }};
+        const defaultRecordingSpeed = 0.5; // Will be set by server template
         const speeds = [0.25, 0.5, 1.0];
         const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
         if (defaultIndex >= 0) {

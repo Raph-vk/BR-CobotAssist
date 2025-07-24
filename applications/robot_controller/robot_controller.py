@@ -1235,7 +1235,16 @@ class RobotController:
         Publish a command back into the "controller.command.#" queue
         (like a self-trigger, or triggered from an interface event).
         """
-        routing_key = f"{self.config['rabbitmq']['command_binding_key_prefix']}from_rc"
+        if self.setup_routing_id:
+            # Multi-setup mode: use setup-specific routing
+            routing_key = f"robot_controller.{self.setup_routing_id}.command.from_rc"
+        else:
+            # Legacy mode or single setup: try old config first, then fallback
+            if hasattr(self, 'RESPONSE_ROUTING_KEY_BASE') and 'command_binding_key_prefix' in self.config.get('rabbitmq', {}):
+                routing_key = f"{self.config['rabbitmq']['command_binding_key_prefix']}from_rc"
+            else:
+                self.logger_tc.warning("No setup-specific routing found, using default 'robot_controller.command.from_rc'")
+        
         cmd_json = json.dumps(cmd)
         publish_message(
             self._rabbit_conf_dict(),
