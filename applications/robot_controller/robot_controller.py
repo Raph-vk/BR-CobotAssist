@@ -16,9 +16,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 import pika
 from pika.exceptions import AMQPConnectionError, AMQPChannelError
 from utils.utils import RingBufferReader, get_data_path
-from utils.rabbitmq_utils import open_channel, publish_message, robust_consume, robust_connect
+from utils.rabbitmq_utils import open_channel, publish_message, robust_consume
 from utils.shm_utils import _initialize_single_shared_memory, _get_buffer_info_dict
-from utils.file_utils import _move_files_to_mistakes, _move_directory_files_to_mistakes
+from utils.file_utils import _move_files_to_mistakes
 from modules.camera.cam_utils import CameraRingBufferManager
 
 
