@@ -184,9 +184,9 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
     # Load the config
     config = load_config()
 
-    # Setup logging
+    # Setup logging with setup-specific tag
     if setup_id:
-        component_tag = f"TEACHBOT_INTERFACE_SETUP_{setup_id}"
+        component_tag = f"{int(setup_id):02d}_TEACHBOT_INTERFACE"
     else:
         component_tag = "TEACHBOT_INTERFACE"
     logger_ti = setup_logging(component_tag)
@@ -232,19 +232,25 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
         logger_ti.info("Successfully initialized %s class", teachbot_class_name)
 
         # Notify controller that initialization succeeded
+        response_msg = {"interface": component_tag, "message": "initialization"}
+        if setup_id:
+            response_msg["setup_id"] = setup_id
         send_response(
             logger_ti,
             teachbot_interface_commup,
-            {"interface": component_tag, "message": "initialization"},
+            response_msg,
             error="None"
         )
     except Exception as e:
         logger_ti.error("Error instantiating %s: %s", teachbot_class_name, e)
         error_msg = f"Error instantiating {teachbot_class_name}: {e}"
+        response_msg = {"interface": component_tag, "message": "initialization"}
+        if setup_id:
+            response_msg["setup_id"] = setup_id
         send_response(
             logger_ti,
             teachbot_interface_commup,
-            {"interface": component_tag, "message": "initialization"},
+            response_msg,
             error=error_msg
         )
         return
@@ -260,7 +266,7 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
             msg_interface = full_message.get("interface", "")
             message = full_message.get("message", "")
 
-            if msg_type == "CMD" and msg_interface == "TEACHBOT_INTERFACE":
+            if msg_type == "CMD" and msg_interface == component_tag:
                 if message == "stop":
                     try:
                         if teachbot is None:

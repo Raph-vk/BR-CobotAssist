@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     # Setup logging with setup ID in component tag
     if setup_id:
-        component_tag = f"ROBOT_CONTROLLER_SETUP_{setup_id}"
+        component_tag = f"{int(setup_id):02d}_ROBOT_CONTROLLER"
         print(f"Starting robot controller for setup {setup_id}")
     else:
         component_tag = "ROBOT_CONTROLLER"

@@ -180,7 +180,7 @@ class TOSUIApplication:
             """
             Accepts a command_type and optional recording_name,
             sends them to RabbitMQ, and returns JSON (no page reload).
-            Now supports setup_id parameter to target specific setups.
+            Now supports robot_setups parameter to target multiple setups.
             """
             message = request.form.get("message", "")
             recording_name = request.form.get("recording_name", "")
@@ -188,12 +188,25 @@ class TOSUIApplication:
             model_name = request.form.get("model_name", "")
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
-            setup_id = request.form.get("setup_id", "1")  # Default to setup 1
+            
+            # Handle multiple robot setups (comma-separated) or single setup_id for backward compatibility
+            robot_setups_str = request.form.get("robot_setups", "")
+            setup_id = request.form.get("setup_id", "1")  # Fallback for backward compatibility
+            
+            if robot_setups_str:
+                # Parse comma-separated robot setups
+                target_setups = [setup.strip() for setup in robot_setups_str.split(",") if setup.strip()]
+            else:
+                # Fall back to single setup_id for backward compatibility
+                target_setups = [setup_id]
 
-            self.ui_logger.info(f"Received form data - message: '{message}', setup_id: '{setup_id}', dataset_name: '{dataset_name}', recording_name: '{recording_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
+            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
+
+            if not target_setups:
+                return jsonify({"status": "error", "message": "No robot setups selected"}), 400
 
             # Build a dict for the message, with the message and optional recording_name
             msg = {"type": "CMD", "message": message}
@@ -237,86 +250,125 @@ class TOSUIApplication:
             elif message == "start_teleoperation":
                 msg["recording_speed"] = recording_speed
 
-            # Send the command via RabbitMQ to the specified setup
-            self.send_command(msg, setup_id)
-            self.ui_logger.info("Command sent to setup %s: %s", setup_id, msg)
+            # Send the command via RabbitMQ to all selected setups
+            sent_to_setups = []
+            for setup in target_setups:
+                try:
+                    self.send_command(msg, setup)
+                    sent_to_setups.append(setup)
+                    self.ui_logger.info("Command sent to setup %s: %s", setup, msg)
+                except Exception as e:
+                    self.ui_logger.error("Failed to send command to setup %s: %s", setup, e)
 
             # Return JSON so we don't reload the page
             return jsonify({
                 "status": "ok",
                 "message_sent": message,
-                "setup_id": setup_id,
+                "sent_to_setups": sent_to_setups,
                 "recording_name": recording_name if recording_name else None
             })
 
         @self.app.route("/request_recordings", methods=["POST"])
         def request_recordings():
             """
-            1) Publish the command 'report_recording_names'
-            2) Wait up to 2 seconds for on_response_message to fill self.recording_names
-            3) Return the filenames as JSON (no redirect).
+            1) Publish the command 'report_recording_names' to all available setups
+            2) Wait up to 2 seconds for responses from all setups
+            3) Return the aggregated recording names as JSON
             """
             self.recv_recording_names_status = False
+            self.recording_names = []  # Reset recording names
+            
+            available_setup_ids = self.get_available_setup_ids()
+            self.ui_logger.info(f"Requesting recordings from setups: {available_setup_ids}")
 
-            # Note we include type="CMD"
+            # Send command to all available setups
             msg = {"type": "CMD", "message": "report_recording_names"}
-            self.send_command(msg)
+            for setup_id in available_setup_ids:
+                try:
+                    self.send_command(msg, setup_id=setup_id)
+                    self.ui_logger.debug(f"Sent report_recording_names to setup {setup_id}")
+                except Exception as e:
+                    self.ui_logger.warning(f"Failed to send report_recording_names to setup {setup_id}: {e}")
 
             start_time = time.time()
-            while time.time() - start_time < 2.0:
+            while time.time() - start_time < 3.0:  # Increased timeout for multiple setups
                 if self.recv_recording_names_status:
                     break
                 time.sleep(0.01)
 
-            # Return whatever we have (could be empty if no names arrived in time)
-            return jsonify(self.recording_names or [])
+            # Return whatever we have (could be empty if no responses arrived in time)
+            result = self.recording_names or []
+            self.ui_logger.info(f"Returning {len(result)} recording names from all setups")
+            return jsonify(result)
 
         @self.app.route("/request_datasets", methods=["POST"])
         def request_datasets():
             """
-            1) Publish the command 'report_dataset_names'
-            2) Wait up to 2 seconds for on_response_message to fill self.dataset_names
-            3) Return the dataset names as JSON (no redirect).
+            1) Publish the command 'report_dataset_names' to all available setups
+            2) Wait up to 2 seconds for responses from all setups
+            3) Return the aggregated dataset names as JSON
             """
             self.recv_dataset_names_status = False
-
-            # Note we include type="CMD"
+            self.dataset_names = []  # Reset dataset names
+            
+            available_setup_ids = self.get_available_setup_ids()
+            self.ui_logger.info(f"Requesting datasets from setups: {available_setup_ids}")
+            
+            # Send command to all available setups
             msg = {"type": "CMD", "message": "report_dataset_names"}
-            self.send_command(msg)
+            for setup_id in available_setup_ids:
+                try:
+                    self.send_command(msg, setup_id=setup_id)
+                    self.ui_logger.debug(f"Sent report_dataset_names to setup {setup_id}")
+                except Exception as e:
+                    self.ui_logger.warning(f"Failed to send report_dataset_names to setup {setup_id}: {e}")
 
             start_time = time.time()
-            while time.time() - start_time < 2.0:
+            while time.time() - start_time < 3.0:  # Increased timeout for multiple setups
                 if self.recv_dataset_names_status:
                     break
                 time.sleep(0.01)
 
-            # Return whatever we have (could be empty if no names arrived in time)
-            return jsonify(self.dataset_names or [])
+            # Return whatever we have (could be empty if no responses arrived in time)
+            result = self.dataset_names or []
+            self.ui_logger.info(f"Returning {len(result)} dataset names from all setups")
+            return jsonify(result)
 
         @self.app.route("/request_models", methods=["POST"])
         def request_models():
             """
-            1) Publish the command 'report_model_names'
-            2) Wait up to 2 seconds for on_response_message to fill self.model_names
-            3) Return the model names as JSON (no redirect).
+            1) Publish the command 'report_model_names' to all available setups
+            2) Wait up to 2 seconds for responses from all setups
+            3) Return the aggregated model names as JSON
             """
             self.recv_model_names_status = False
+            self.model_names = []  # Reset model names
 
             dataset_name = request.form.get("dataset_name", "")
             self.ui_logger.info(f"Retrieved dataset_name for models: '{dataset_name}'")
+            
+            available_setup_ids = self.get_available_setup_ids()
+            self.ui_logger.info(f"Requesting models from setups: {available_setup_ids}")
 
-            # Note we include type="CMD"
+            # Send command to all available setups
             msg = {"type": "CMD", "message": "report_model_names", "dataset_name": dataset_name}
-            self.send_command(msg)
+            for setup_id in available_setup_ids:
+                try:
+                    self.send_command(msg, setup_id=setup_id)
+                    self.ui_logger.debug(f"Sent report_model_names to setup {setup_id}")
+                except Exception as e:
+                    self.ui_logger.warning(f"Failed to send report_model_names to setup {setup_id}: {e}")
 
             start_time = time.time()
-            while time.time() - start_time < 2.0:
+            while time.time() - start_time < 3.0:  # Increased timeout for multiple setups
                 if self.recv_model_names_status:
                     break
                 time.sleep(0.01)
 
-            # Return whatever we have (could be empty if no names arrived in time)
-            return jsonify(self.model_names or [])
+            # Return whatever we have (could be empty if no responses arrived in time)
+            result = self.model_names or []
+            self.ui_logger.info(f"Returning {len(result)} model names from all setups")
+            return jsonify(result)
 
 
     def start(self, host, port):
@@ -417,9 +469,21 @@ class TOSUIApplication:
                 # The new format includes "files": [ {...}, {...} ]
                 files_list = data.get("files", [])
                 if isinstance(files_list, list):
-                    self.dataset_names = files_list
+                    # Aggregate responses from multiple setups
+                    if not hasattr(self, 'dataset_names') or self.dataset_names is None:
+                        self.dataset_names = []
+                    
+                    # Add new files, avoiding duplicates based on dataset_name
+                    existing_names = {item.get('dataset_name', '') for item in self.dataset_names if isinstance(item, dict)}
+                    for file_item in files_list:
+                        if isinstance(file_item, dict):
+                            dataset_name = file_item.get('dataset_name', '')
+                            if dataset_name and dataset_name not in existing_names:
+                                self.dataset_names.append(file_item)
+                                existing_names.add(dataset_name)
+                    
                     self.recv_dataset_names_status = True
-                    self.ui_logger.info("Dataset files: %s", self.dataset_names)
+                    self.ui_logger.info("Aggregated dataset files: %s", self.dataset_names)
                 else:
                     self.ui_logger.warning("'report_dataset_names' response has no 'files' list.")
             # For "report_model_names" if the controller sends that
@@ -427,9 +491,21 @@ class TOSUIApplication:
                 # The new format includes "files": [ {...}, {...} ]
                 files_list = data.get("files", [])
                 if isinstance(files_list, list):
-                    self.model_names = files_list
+                    # Aggregate responses from multiple setups
+                    if not hasattr(self, 'model_names') or self.model_names is None:
+                        self.model_names = []
+                    
+                    # Add new files, avoiding duplicates based on model_name
+                    existing_names = {item.get('model_name', '') for item in self.model_names if isinstance(item, dict)}
+                    for file_item in files_list:
+                        if isinstance(file_item, dict):
+                            model_name = file_item.get('model_name', '')
+                            if model_name and model_name not in existing_names:
+                                self.model_names.append(file_item)
+                                existing_names.add(model_name)
+                    
                     self.recv_model_names_status = True
-                    self.ui_logger.info("Model files: %s", self.model_names)
+                    self.ui_logger.info("Aggregated model files: %s", self.model_names)
                 else:
                     self.ui_logger.warning("'report_model_names' response has no 'files' list.")
             else:
@@ -513,6 +589,11 @@ class TOSUIApplication:
         except Exception as e:
             self.ui_logger.error(f"Error counting total setups: {e}")
             return 1  # Fallback
+
+    def get_available_setup_ids(self):
+        """Get the setup IDs that are currently active/available"""
+        setup_info = self.get_setup_info()
+        return [setup['setup_id'] for setup in setup_info]
 
 
 

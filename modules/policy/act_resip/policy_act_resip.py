@@ -1305,10 +1305,6 @@ def run_policy_interface(policy_interface_commup, policy_interface_commdown, col
     Spawn a policyInterface instance and service controller commands.
     """
     component_tag = "POLICY_INTERFACE"
-    
-    # Use setup-specific logging if setup_id is provided
-    if setup_id is not None:
-        component_tag = f"{component_tag}_{setup_id}"
         
     logger_pi = setup_logging(component_tag)
     logger_pi.info("Starting policy Interface…")
@@ -1318,10 +1314,11 @@ def run_policy_interface(policy_interface_commup, policy_interface_commdown, col
     
     # Use setup-specific config if setup_id is provided
     if setup_id is not None:
-        logger_pi.info(f"Using setup-specific config for setup: {setup_id}")
-        if "setups" in config and setup_id in config["setups"]:
+        setup_name = f"setup_{setup_id}"
+        logger_pi.info(f"Using setup-specific config for setup: {setup_name}")
+        if "hardware" in config and setup_name in config["hardware"]:
             # Create effective config with setup-specific hardware
-            hw_config = config["setups"][setup_id].get("hardware", {})
+            hw_config = config["hardware"][setup_name]
             
             # Merge with global hardware config as fallback
             effective_hw_config = {**config.get("hardware", {}), **hw_config}
@@ -1330,7 +1327,7 @@ def run_policy_interface(policy_interface_commup, policy_interface_commdown, col
             config = {**config}  # Shallow copy
             config["hardware"] = effective_hw_config
         else:
-            logger_pi.warning(f"Setup {setup_id} not found in config, using global hardware config")
+            logger_pi.warning(f"Setup {setup_name} not found in config, using global hardware config")
 
     # Reconstruct CameraRingBuffer objects from info dicts
     color_buffers2 = {

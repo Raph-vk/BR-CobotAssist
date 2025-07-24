@@ -37,7 +37,7 @@ def send_response(logger_ci, camera_interface_commup, payload, error="None"):
     """
     response = {
         "type": "RESP",
-        "interface": "CAMERA_INTERFACE", 
+        "interface": payload.get("interface", "CAMERA_INTERFACE"),  # Use interface from payload if available
         "message": payload.get("message", ""),
         "camera_name": payload.get("camera_name", ""),
         "error": error
@@ -433,14 +433,13 @@ def run_camera_interface(camera_interface_commup, camera_interface_commdown,
     :param camera_config: Dictionary with camera configuration
     :param setup_id: Setup ID for config isolation
     """
-    component_tag = "CAMERA_INTERFACE"
+    if setup_id:
+        component_tag = f"{int(setup_id):02d}_CAMERA_INTERFACE"
+    else:
+        component_tag = "CAMERA_INTERFACE"
     camera_name = camera_config["name"]
     
-    # Use setup-specific logging if setup_id is provided
-    if setup_id is not None:
-        component_tag = f"{component_tag}_{setup_id}"
-    
-    # Setup logging
+    # Setup logging with camera name
     logger_ci = setup_logging(f"{component_tag}_{camera_name}")
     logger_ci.info(f"Starting Camera Interface for '{camera_name}'...")
     
@@ -528,7 +527,7 @@ def run_camera_interface(camera_interface_commup, camera_interface_commdown,
             msg_interface = full_message.get("interface", "")
             message = full_message.get("message", "")
 
-            if msg_type == "CMD" and msg_interface == "CAMERA_INTERFACE":
+            if msg_type == "CMD" and msg_interface == component_tag:
                 try:
                     if message == "record_episodes":
                         camera_interface.record_episodes()

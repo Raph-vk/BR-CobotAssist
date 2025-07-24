@@ -45,7 +45,7 @@ class SaveInterface:
     from shm_joint_data.
     """
 
-    def __init__(self, save_interface_commup, save_interface_commdown, shm_joint_data, logger_si, config, color_buffers1=None, depth_buffers1=None):
+    def __init__(self, save_interface_commup, save_interface_commdown, shm_joint_data, logger_si, config, color_buffers1=None, depth_buffers1=None, setup_id="1"):
         """
         :param save_interface_commup: multiprocessing.Queue, from interface to controller
         :param save_interface_commdown: multiprocessing.Queue, from controller to interface
@@ -65,8 +65,15 @@ class SaveInterface:
         self.shm_joint_data = shm_joint_data
         self.logger_si = logger_si
         self.config = config
+        self.setup_id = setup_id
         self.color_buffers1 = color_buffers1 or {}
         self.depth_buffers1 = depth_buffers1 or {}
+        
+        # Generate component tag for setup-specific naming
+        if setup_id:
+            self.component_tag = f"{int(setup_id):02d}_SAVE_INTERFACE"
+        else:
+            self.component_tag = "SAVE_INTERFACE"
 
         # Flags & State
         self.recording = False
@@ -140,7 +147,7 @@ class SaveInterface:
         if self.control_loop_language == "cpp":
             self.logger_si.info("Initializing RingBufferReader for C++ shared memory (start_teleoperation_record)")
             try:
-                self.shm_reader = RingBufferReader(self.config, "shm_joint_data1")
+                self.shm_reader = RingBufferReader(self.config, "shm_joint_data1", setup_id=str(self.setup_id))
                 self.logger_si.info("RingBufferReader initialized successfully")
                 self.logger_si.info("SLOT_FMT: %s, SLOT_SIZE: %d bytes", 
                                   self.shm_reader.SLOT_FMT, self.shm_reader.SLOT_SIZE)
@@ -201,7 +208,7 @@ class SaveInterface:
         if self.control_loop_language == "cpp":
             self.logger_si.info("Initializing RingBufferReader for C++ shared memory (record_episodes)")
             try:
-                self.shm_reader = RingBufferReader(self.config, "shm_joint_data1")
+                self.shm_reader = RingBufferReader(self.config, "shm_joint_data1", setup_id=str(self.setup_id))
                 self.logger_si.info("RingBufferReader initialized successfully")
                 self.logger_si.info("SLOT_FMT: %s, SLOT_SIZE: %d bytes", 
                                   self.shm_reader.SLOT_FMT, self.shm_reader.SLOT_SIZE)
@@ -394,7 +401,7 @@ class SaveInterface:
                 if self.record_one_episode:
                     self.logger_si.info("Recording one episode, stopping after this.")
                     # send stop command to the robot_controller
-                    message = {"type": "CMD", "interface": "SAVE_INTERFACE", "message": "stop"}
+                    message = {"type": "CMD", "interface": self.component_tag, "message": "stop"}
                     self.save_interface_commup.put(message)
                     break
 
@@ -865,7 +872,10 @@ def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint
     """
     Spawn a SaveInterface instance and service controller commands.
     """
-    component_tag = "SAVE_INTERFACE"
+    if setup_id:
+        component_tag = f"{int(setup_id):02d}_SAVE_INTERFACE"
+    else:
+        component_tag = "SAVE_INTERFACE"
     logger_si = setup_logging(component_tag)
     logger_si.info("Starting Save Interface…")
 
@@ -874,10 +884,11 @@ def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint
     
     # Use setup-specific config if setup_id is provided
     if setup_id is not None:
-        logger_si.info(f"Using setup-specific config for setup: {setup_id}")
-        if "setups" in config and setup_id in config["setups"]:
+        setup_name = f"setup_{setup_id}"
+        logger_si.info(f"Using setup-specific config for setup: {setup_name}")
+        if "hardware" in config and setup_name in config["hardware"]:
             # Create effective config with setup-specific hardware
-            hw_config = config["setups"][setup_id].get("hardware", {})
+            hw_config = config["hardware"][setup_name]
             
             # Merge with global hardware config as fallback
             effective_hw_config = {**config.get("hardware", {}), **hw_config}
@@ -886,12 +897,12 @@ def run_save_interface(save_interface_commup, save_interface_commdown, shm_joint
             config = {**config}  # Shallow copy
             config["hardware"] = effective_hw_config
         else:
-            logger_si.warning(f"Setup {setup_id} not found in config, using global hardware config")
+            logger_si.warning(f"Setup {setup_name} not found in config, using global hardware config")
 
     # Instantiate interface
     try:
         saver = SaveInterface(save_interface_commup, save_interface_commdown,
-                              shm_joint_data, logger_si, config, color_buffers1, depth_buffers1)
+                              shm_joint_data, logger_si, config, color_buffers1, depth_buffers1, setup_id=setup_id)
         queue_check_period = config["general"]["check_queue_period"]
         # Notify controller that we’re alive and healthy
         send_response(logger_si, save_interface_commup,

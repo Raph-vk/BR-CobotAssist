@@ -474,11 +474,12 @@ class CameraRingBufferManager:
     Manages multiple camera ring buffers.
     """
     
-    def __init__(self):
+    def __init__(self, setup_id: str = "1"):
         self.color_buffers1 = {}
         self.depth_buffers1 = {}
         self.color_buffers2 = {}
         self.depth_buffers2 = {}
+        self.setup_id = setup_id
     
     def create_buffers(self, camera_configs: List[Dict], record_duration: int = 1, policy_img_buffer_size: int = 1) -> Dict[str, Any]:
         """
@@ -513,7 +514,7 @@ class CameraRingBufferManager:
             capacity2 = policy_img_buffer_size
             
             # Color buffer 1 (for recording)
-            color_name1 = f"camera_color1_{name}"
+            color_name1 = f"{int(self.setup_id):02d}_camera_color1_{name}"
             color_buffer1 = CameraRingBuffer(
                 name=color_name1,
                 width=camera_config["color_width"],
@@ -526,7 +527,7 @@ class CameraRingBufferManager:
             buffers_info["color_buffers1"][name] = color_buffer1
             
             # Color buffer 2 (for policy)
-            color_name2 = f"camera_color2_{name}"
+            color_name2 = f"{int(self.setup_id):02d}_camera_color2_{name}"
             color_buffer2 = CameraRingBuffer(
                 name=color_name2,
                 width=camera_config["color_width"],
@@ -539,7 +540,7 @@ class CameraRingBufferManager:
             buffers_info["color_buffers2"][name] = color_buffer2
             
             # Depth buffer 1 (for recording)
-            depth_name1 = f"camera_depth1_{name}"
+            depth_name1 = f"{int(self.setup_id):02d}_camera_depth1_{name}"
             depth_buffer1 = CameraRingBuffer(
                 name=depth_name1,
                 width=camera_config["depth_width"],
@@ -552,7 +553,7 @@ class CameraRingBufferManager:
             buffers_info["depth_buffers1"][name] = depth_buffer1
             
             # Depth buffer 2 (for policy)
-            depth_name2 = f"camera_depth2_{name}"
+            depth_name2 = f"{int(self.setup_id):02d}_camera_depth2_{name}"
             depth_buffer2 = CameraRingBuffer(
                 name=depth_name2,
                 width=camera_config["depth_width"],

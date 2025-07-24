@@ -91,6 +91,22 @@ class RobotController:
             error=error_msg,
         )
 
+    def get_interface_name(self, base_interface_name):
+        """Get setup-specific interface name."""
+        if self.setup_id:
+            return f"{int(self.setup_id):02d}_{base_interface_name}"
+        else:
+            return base_interface_name
+
+    def get_base_interface_name(self, interface_name):
+        """Extract base interface name from setup-specific interface name."""
+        if self.setup_id and interface_name.startswith(f"{int(self.setup_id):02d}_"):
+            # Find the first underscore and return everything after it
+            underscore_pos = interface_name.find('_')
+            if underscore_pos != -1:
+                return interface_name[underscore_pos + 1:]
+        return interface_name
+
     def start_teleoperation_record(self, payload):
         """
         Connect the necessary interfaces and start teleoperation+recording.
@@ -105,13 +121,13 @@ class RobotController:
             # Save interface copy
             save_cmd = dict(payload)
             save_cmd["type"] = "CMD"
-            save_cmd["interface"] = "SAVE_INTERFACE"
+            save_cmd["interface"] = self.get_interface_name("SAVE_INTERFACE")
             self.send_command(save_cmd)
 
             # Robot interface copy
             robot_cmd = dict(payload)
             robot_cmd["type"] = "CMD"
-            robot_cmd["interface"] = "ROBOT_INTERFACE"
+            robot_cmd["interface"] = self.get_interface_name("ROBOT_INTERFACE")
             self.send_command(robot_cmd)
 
             self.logger_tc.info("teleoperation_running True")
@@ -233,19 +249,19 @@ class RobotController:
             # Camera interface copy
             camera_cmd = dict(payload)
             camera_cmd["type"] = "CMD"
-            camera_cmd["interface"] = "CAMERA_INTERFACE"
+            camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
             self.send_command(camera_cmd)
 
             # Save interface copy
             save_cmd = dict(payload)
             save_cmd["type"] = "CMD"
-            save_cmd["interface"] = "SAVE_INTERFACE"
+            save_cmd["interface"] = self.get_interface_name("SAVE_INTERFACE")
             self.send_command(save_cmd)
 
             # Robot interface copy
             robot_cmd = dict(payload)
             robot_cmd["type"] = "CMD"
-            robot_cmd["interface"] = "ROBOT_INTERFACE"
+            robot_cmd["interface"] = self.get_interface_name("ROBOT_INTERFACE")
             self.send_command(robot_cmd)
 
         except Exception as e:
@@ -269,19 +285,19 @@ class RobotController:
             # Camera interface copy
             camera_cmd = dict(payload)
             camera_cmd["type"] = "CMD"
-            camera_cmd["interface"] = "CAMERA_INTERFACE"
+            camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
             self.send_command(camera_cmd)
 
             # Save interface copy
             save_cmd = dict(payload)
             save_cmd["type"] = "CMD"
-            save_cmd["interface"] = "SAVE_INTERFACE"
+            save_cmd["interface"] = self.get_interface_name("SAVE_INTERFACE")
             self.send_command(save_cmd)
 
             # Robot interface copy
             robot_cmd = dict(payload)
             robot_cmd["type"] = "CMD"
-            robot_cmd["interface"] = "ROBOT_INTERFACE"
+            robot_cmd["interface"] = self.get_interface_name("ROBOT_INTERFACE")
             self.send_command(robot_cmd)
 
         except Exception as e:
@@ -421,19 +437,19 @@ class RobotController:
             # Camera interface copy
             camera_cmd = dict(payload)
             camera_cmd["type"] = "CMD"
-            camera_cmd["interface"] = "CAMERA_INTERFACE"
+            camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
             self.send_command(camera_cmd)
 
             # Policy interface copy
             policy_cmd = dict(payload)
             policy_cmd["type"] = "CMD"
-            policy_cmd["interface"] = "POLICY_INTERFACE"
+            policy_cmd["interface"] = self.get_interface_name("POLICY_INTERFACE")
             self.send_command(policy_cmd)
 
             # Robot interface copy
             robot_cmd = dict(payload)
             robot_cmd["type"] = "CMD"
-            robot_cmd["interface"] = "ROBOT_INTERFACE"
+            robot_cmd["interface"] = self.get_interface_name("ROBOT_INTERFACE")
             self.send_command(robot_cmd)
 
         except Exception as e:
@@ -457,7 +473,7 @@ class RobotController:
             # Policy interface copy
             policy_cmd = dict(payload)
             policy_cmd["type"] = "CMD"
-            policy_cmd["interface"] = "POLICY_INTERFACE"
+            policy_cmd["interface"] = self.get_interface_name("POLICY_INTERFACE")
             self.send_command(policy_cmd)
 
         except Exception as e:
@@ -777,8 +793,8 @@ class RobotController:
         self._initialize_single_shared_memory("shm_joint_data2", policy_capacity, DOF)
         
         # Initialize the readers with effective config (setup-specific hardware + global other sections)
-        self.shm_reader1 = RingBufferReader(self.effective_config, "shm_joint_data1")
-        self.shm_reader2 = RingBufferReader(self.effective_config, "shm_joint_data2")
+        self.shm_reader1 = RingBufferReader(self.effective_config, "shm_joint_data1", setup_id=str(self.setup_id))
+        self.shm_reader2 = RingBufferReader(self.effective_config, "shm_joint_data2", setup_id=str(self.setup_id))
         return self.shm_reader1, self.shm_reader2
         
     def _initialize_single_shared_memory(self, shm_key, capacity, dof):
@@ -792,7 +808,8 @@ class RobotController:
         SLOT_SIZE = struct.calcsize(SLOT_FMT)
         HEADER_FMT = cpp_config["header_format"]
         HEADER_SIZE = struct.calcsize(HEADER_FMT)
-        SHM_NAME = cpp_config["shm_name"]
+        # Make shared memory name setup-specific
+        SHM_NAME = f"{int(self.setup_id):02d}_{cpp_config['shm_name']}"
         
         self.logger_tc.info("Creating shared memory segment: %s with DOF=%d", SHM_NAME, dof)
         self.logger_tc.info("SLOT_FMT_TEMPLATE: %s", SLOT_FMT_TEMPLATE)
@@ -875,7 +892,7 @@ class RobotController:
         HEADER_FMT = cpp_config["header_format"]
         
         return {
-            'name': cpp_config["shm_name"],
+            'name': f"{int(self.setup_id):02d}_{cpp_config['shm_name']}",
             'capacity': cpp_config["capacity"],
             'slot_format': SLOT_FMT,
             'slot_size': struct.calcsize(SLOT_FMT),
@@ -895,7 +912,7 @@ class RobotController:
         # Initialize ring buffer manager and create buffers for each camera
         self.logger_tc.info("Initializing camera ring buffers.")
         
-        self.camera_ring_buffer_manager = CameraRingBufferManager()
+        self.camera_ring_buffer_manager = CameraRingBufferManager(setup_id=str(self.setup_id))
         buffers_info = self.camera_ring_buffer_manager.create_buffers(
             self.camera_cfgs, 
             record_duration=self.record_duration,
@@ -995,7 +1012,8 @@ class RobotController:
         DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
         DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
-        SHM_NAME = self.shm_target_pos2_config["shm_name"]
+        # Make shared memory name setup-specific
+        SHM_NAME = f"{int(self.setup_id):02d}_{self.shm_target_pos2_config['shm_name']}"
         CAPACITY = self.shm_target_pos2_config["capacity"]
         ENTRY_FMT_TEMPLATE = self.shm_target_pos2_config["entry_format_template"]
         
@@ -1046,7 +1064,7 @@ class RobotController:
         ENTRY_FMT = ENTRY_FMT_TEMPLATE.format(dof=DOF)
         
         return {
-            'name': self.shm_target_pos2_config["shm_name"],
+            'name': f"{int(self.setup_id):02d}_{self.shm_target_pos2_config['shm_name']}",
             'capacity': self.shm_target_pos2_config["capacity"],
             'entry_format': ENTRY_FMT,
             'entry_size': struct.calcsize(ENTRY_FMT),
@@ -1058,7 +1076,8 @@ class RobotController:
         Clean up shared memory for policy interface.
         """
         try:
-            SHM_NAME = self.shm_target_pos2_config["shm_name"]
+            # Use setup-specific name for cleanup
+            SHM_NAME = f"{int(self.setup_id):02d}_{self.shm_target_pos2_config['shm_name']}"
             shm = shared_memory.SharedMemory(name=SHM_NAME, create=False)
             shm.close()
             shm.unlink()  # Remove the shared memory segment
@@ -1241,7 +1260,10 @@ class RobotController:
             self.logger_tc.error("No 'interface' in command. Ignoring.")
             return
 
-        if interface_name == "TEACHBOT_INTERFACE":
+        # Extract base interface name for routing
+        base_interface_name = self.get_base_interface_name(interface_name)
+
+        if base_interface_name == "TEACHBOT_INTERFACE":
             if self.teachbot_interface_process is None:
                 self.logger_tc.warning("TEACHBOT_INTERFACE process not running.")
                 return
@@ -1253,7 +1275,7 @@ class RobotController:
             self.teachbot_interface_commdown.put(command)
             self.logger_tc.info(f"Sent local command: {command}")
 
-        elif interface_name == "ROBOT_INTERFACE":
+        elif base_interface_name == "ROBOT_INTERFACE":
             if self.robot_interface_process is None:
                 self.logger_tc.warning("ROBOT_INTERFACE process not running.")
                 return
@@ -1264,7 +1286,7 @@ class RobotController:
             self.robot_interface_commdown.put(command)
             self.logger_tc.info(f"Sent local command: {command}")
 
-        elif interface_name == "SAVE_INTERFACE":
+        elif base_interface_name == "SAVE_INTERFACE":
             if self.save_interface_process is None:
                 self.logger_tc.warning("SAVE_INTERFACE process not running.")
                 return
@@ -1275,7 +1297,7 @@ class RobotController:
             self.save_interface_commdown.put(command)
             self.logger_tc.info(f"Sent local command: {command}")
 
-        elif interface_name == "CAMERA_INTERFACE":
+        elif base_interface_name == "CAMERA_INTERFACE":
             if not hasattr(self, 'camera_processes') or not self.camera_processes:
                 self.logger_tc.warning("CAMERA_INTERFACE processes not running.")
                 return
@@ -1608,7 +1630,8 @@ class RobotController:
         while self.checking_status:
             while not self.teachbot_interface_commup.empty():
                 payload = self.teachbot_interface_commup.get()
-                self.logger_tc.info("Received message: %s", payload)
+                setup_info = f" (setup {payload.get('setup_id', 'unknown')})" if payload.get('setup_id') else ""
+                self.logger_tc.info("Received message%s: %s", setup_info, payload)
 
                 # Expecting dict with keys: type, interface, message, error, etc.
                 msg_type = payload.get("type", "")
@@ -1617,7 +1640,7 @@ class RobotController:
                 msg_error = payload.get("error", "")
 
                 # Must match TEACHBOT_INTERFACE
-                if msg_type == "RESP" and interface == "TEACHBOT_INTERFACE":
+                if msg_type == "RESP" and (interface == "TEACHBOT_INTERFACE" or interface.endswith("_TEACHBOT_INTERFACE")):
                     # Check for errors FIRST, before clearing occupied flag
                     if msg_error != "None":
                         self.success = False
@@ -1647,7 +1670,8 @@ class RobotController:
         while self.checking_status:
             while not self.robot_interface_commup.empty():
                 payload = self.robot_interface_commup.get()
-                self.logger_tc.info("Received message from robot interface: %s", payload)
+                setup_info = f" (setup {payload.get('setup_id', 'unknown')})" if payload.get('setup_id') else ""
+                self.logger_tc.info("Received message from robot interface%s: %s", setup_info, payload)
 
                 msg_type = payload.get("type", "")
                 interface = payload.get("interface", "")
@@ -1655,7 +1679,7 @@ class RobotController:
                 msg_error = payload.get("error", "None")
 
                 # Must match ROBOT_INTERFACE
-                if msg_type == "RESP" and interface == "ROBOT_INTERFACE":
+                if msg_type == "RESP" and (interface == "ROBOT_INTERFACE" or interface.endswith("_ROBOT_INTERFACE")):
                     # Check for errors FIRST, before clearing occupied flag
                     if msg_error != "None":
                         self.success = False
@@ -1670,10 +1694,10 @@ class RobotController:
                         self.logger_tc.info("Untracked ROBOT_INTERFACE response: %s", msg_message)
 
 
-                elif msg_type == "CMD" and interface == "ROBOT_INTERFACE":
+                elif msg_type == "CMD" and (interface == "ROBOT_INTERFACE" or interface.endswith("_ROBOT_INTERFACE")):
                     # Example: If the robot signals a 'stop' command to be re-broadcast
                     if msg_message == "stop":
-                        full_message = {"type": "CMD", "interface": "ROBOT_INTERFACE", "message": "stop"}
+                        full_message = {"type": "CMD", "interface": self.get_interface_name("ROBOT_INTERFACE"), "message": "stop"}
                         self.publish_controller_command(full_message)
                 else:
                     self.logger_tc.warning("Unknown message from ROBOT_INTERFACE: %s", payload)
@@ -1697,8 +1721,8 @@ class RobotController:
                 msg_message = payload.get("message", "")
                 msg_error = payload.get("error", "None")
 
-                # Must match SAVE_INTERFACE
-                if msg_type == "RESP" and interface == "SAVE_INTERFACE":
+                # Must match SAVE_INTERFACE (with or without setup prefix)
+                if msg_type == "RESP" and (interface == "SAVE_INTERFACE" or interface.endswith("_SAVE_INTERFACE")):
                     # Check for errors FIRST, before clearing occupied flag
                     if msg_error != "None":
                         self.success = False
@@ -1712,10 +1736,10 @@ class RobotController:
                     else:
                         self.logger_tc.info("Untracked SAVE_INTERFACE response: %s", msg_message)
 
-                elif msg_type == "CMD" and interface == "SAVE_INTERFACE":
+                elif msg_type == "CMD" and (interface == "SAVE_INTERFACE" or interface.endswith("_SAVE_INTERFACE")):
                     # Example: If the robot signals a 'stop' command to be re-broadcast
                     if msg_message == "stop":
-                        full_message = {"type": "CMD", "interface": "SAVE_INTERFACE", "message": "stop"}
+                        full_message = {"type": "CMD", "interface": self.get_interface_name("SAVE_INTERFACE"), "message": "stop"}
                         self.publish_controller_command(full_message)
 
                 else:
@@ -1747,7 +1771,7 @@ class RobotController:
                 camera_name = payload.get("camera_name", "")
 
                 # Must match CAMERA_INTERFACE
-                if msg_type == "RESP" and interface == "CAMERA_INTERFACE":
+                if msg_type == "RESP" and (interface == "CAMERA_INTERFACE" or interface.endswith("_CAMERA_INTERFACE")):
                     # Check for errors FIRST, before any state changes
                     if msg_error != "None":
                         self.success = False
@@ -1802,7 +1826,7 @@ class RobotController:
                 msg_error = payload.get("error", "None")
 
                 # Must match POLICY_INTERFACE
-                if msg_type == "RESP" and interface == "POLICY_INTERFACE":
+                if msg_type == "RESP" and (interface == "POLICY_INTERFACE" or interface.endswith("_POLICY_INTERFACE")):
                     # Check for errors FIRST, before clearing occupied flag
                     if msg_error != "None":
                         self.success = False
@@ -1846,10 +1870,10 @@ class RobotController:
 
     def disconnect_interfaces(self):
         self.logger_tc.info("Disconnecting all interfaces...")
-        self._disconnect_interface(self.robot_interface_process, "ROBOT_INTERFACE")
-        self._disconnect_interface(self.policy_interface_process, "POLICY_INTERFACE")
-        self._disconnect_interface(self.teachbot_interface_process, "TEACHBOT_INTERFACE")
-        self._disconnect_interface(self.save_interface_process, "SAVE_INTERFACE")
+        self._disconnect_interface(self.robot_interface_process, self.get_interface_name("ROBOT_INTERFACE"))
+        self._disconnect_interface(self.policy_interface_process, self.get_interface_name("POLICY_INTERFACE"))
+        self._disconnect_interface(self.teachbot_interface_process, self.get_interface_name("TEACHBOT_INTERFACE"))
+        self._disconnect_interface(self.save_interface_process, self.get_interface_name("SAVE_INTERFACE"))
         self._disconnect_camera_interfaces()
 
         self.checking_status = False
@@ -1873,19 +1897,20 @@ class RobotController:
         self.logger_tc.info(f"Disconnecting {interface_name}...")
 
         # For TEACHBOT_INTERFACE, wait for its occupant flag to clear
-        if interface_name == "ROBOT_INTERFACE":
+        base_interface_name = self.get_base_interface_name(interface_name)
+        if base_interface_name == "ROBOT_INTERFACE":
             while self.robot_interface_occupied is not False:
                 time.sleep(self.status_refresh_period)
             self.robot_interface_process = None
-        elif interface_name == "TEACHBOT_INTERFACE":
+        elif base_interface_name == "TEACHBOT_INTERFACE":
             while self.teachbot_interface_occupied is not False:
                 time.sleep(self.status_refresh_period)
             self.teachbot_interface_process = None
-        elif interface_name == "SAVE_INTERFACE":
+        elif base_interface_name == "SAVE_INTERFACE":
             while self.save_interface_occupied is not False:
                 time.sleep(self.status_refresh_period)
             self.save_interface_process = None
-        elif interface_name == "POLICY_INTERFACE":
+        elif base_interface_name == "POLICY_INTERFACE":
             while self.policy_interface_occupied is not False:
                 time.sleep(self.status_refresh_period)
             self.policy_interface_process = None
@@ -1904,7 +1929,7 @@ class RobotController:
         # Send stop command to all camera processes
         disconnect_cmd = {
             "type": "CMD",
-            "interface": "CAMERA_INTERFACE",
+            "interface": self.get_interface_name("CAMERA_INTERFACE"),
             "message": "stop"
         }
         
@@ -1974,23 +1999,23 @@ class RobotController:
 
         self._join_status_threads()
 
-        self._stop_interface_process(self.robot_interface_process, "ROBOT_INTERFACE")
+        self._stop_interface_process(self.robot_interface_process, self.get_interface_name("ROBOT_INTERFACE"))
         self.robot_interface_process = None
 
-        self._stop_interface_process(self.teachbot_interface_process, "TEACHBOT_INTERFACE")
+        self._stop_interface_process(self.teachbot_interface_process, self.get_interface_name("TEACHBOT_INTERFACE"))
         self.teachbot_interface_process = None
 
-        self._stop_interface_process(self.save_interface_process, "SAVE_INTERFACE")
+        self._stop_interface_process(self.save_interface_process, self.get_interface_name("SAVE_INTERFACE"))
         self.save_interface_process = None
 
         # stop camera interfaces
         if hasattr(self, 'camera_processes') and self.camera_processes:
             for camera_name, process in self.camera_processes.items():
-                self._stop_interface_process(process, f"CAMERA_INTERFACE_{camera_name}")
+                self._stop_interface_process(process, self.get_interface_name(f"CAMERA_INTERFACE_{camera_name}"))
             self.camera_processes = {}
 
         # stop policy interface
-        self._stop_interface_process(self.policy_interface_process, "POLICY_INTERFACE")
+        self._stop_interface_process(self.policy_interface_process, self.get_interface_name("POLICY_INTERFACE"))
         self.policy_interface_process = None
 
         # Clean up shared memory for C++ control loop

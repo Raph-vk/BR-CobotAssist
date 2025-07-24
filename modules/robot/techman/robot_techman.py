@@ -633,7 +633,7 @@ class TechmanRobot(RobotInterface):
         """
         message = full_message.get("message", "")
         if message == "play_recording":
-            send_tc_command(self.robot_interface_commup, {"type": "CMD", "message": "stop", "interface": "ROBOT_INTERFACE"})
+            send_tc_command(self.robot_interface_commup, {"type": "CMD", "message": "stop", "interface": self.component_tag})
             self.logger_ri.info("_send_stop_response, sent stop command to queue.")
 
     def _execute_teleoperation(self):
@@ -1010,7 +1010,18 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
     Main function to run the TechmanRobot interface in a loop,
     checking for commands on 'robot_interface_commdown' queue.
     """
-    component_tag = "ROBOT_INTERFACE"
+    def get_base_interface_name(interface_name):
+        """Extract base interface name from setup-specific interface name."""
+        if setup_id and interface_name.startswith(f"{int(setup_id):02d}_"):
+            underscore_pos = interface_name.find('_')
+            if underscore_pos != -1:
+                return interface_name[underscore_pos + 1:]
+        return interface_name
+    
+    if setup_id:
+        component_tag = f"{int(setup_id):02d}_ROBOT_INTERFACE"
+    else:
+        component_tag = "ROBOT_INTERFACE"
     logger_ri = setup_logging(component_tag)
 
     logger_ri.info("Starting Robot Interface...")
@@ -1020,10 +1031,11 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
     
     # Use setup-specific config if setup_id is provided
     if setup_id is not None:
-        logger_ri.info(f"Using setup-specific config for setup: {setup_id}")
-        if "setups" in config and setup_id in config["setups"]:
+        setup_name = f"setup_{setup_id}"
+        logger_ri.info(f"Using setup-specific config for setup: {setup_name}")
+        if "hardware" in config and setup_name in config["hardware"]:
             # Create effective config with setup-specific hardware
-            hw_config = config["setups"][setup_id].get("hardware", {})
+            hw_config = config["hardware"][setup_name]
             
             # Merge with global hardware config as fallback
             effective_hw_config = {**config.get("hardware", {}), **hw_config}
@@ -1032,7 +1044,7 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
             config = {**config}  # Shallow copy
             config["hardware"] = effective_hw_config
         else:
-            logger_ri.warning(f"Setup {setup_id} not found in config, using global hardware config")
+            logger_ri.warning(f"Setup {setup_name} not found in config, using global hardware config")
     
     logger_ri.info("Config loaded successfully.")
 
@@ -1054,7 +1066,8 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
             logger_ri,
             robot_interface_commup,
             {"interface": component_tag, "message": "initialization"},
-            error="None"
+            error="None",
+            setup_id=setup_id
         )
     except Exception as e:
         logger_ri.error(
@@ -1065,7 +1078,8 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
             logger_ri,
             robot_interface_commup,
             {"message": "initialization", "interface": component_tag},
-            error=f"{e}"
+            error=f"{e}",
+            setup_id=setup_id
         )
 
     # Listen for commands in a loop
@@ -1077,8 +1091,11 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
             msg_type = full_message.get("type", "")
             msg_interface = full_message.get("interface", "")
             message = full_message.get("message", "")
+            
+            # Extract base interface name for comparison
+            base_interface = get_base_interface_name(msg_interface)
 
-            if msg_type == "CMD" and msg_interface == "ROBOT_INTERFACE":
+            if msg_type == "CMD" and base_interface == "ROBOT_INTERFACE":
                 if message == "stop":
                     logger_ri.info("[CMD] stop robot_interface and %s robot", robot_brand)
                     if robot is None:

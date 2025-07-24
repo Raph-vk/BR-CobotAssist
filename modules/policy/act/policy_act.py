@@ -38,7 +38,7 @@ class PolicyInterface:
     from shm_joint_data.
     """
 
-    def __init__(self, policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi):
+    def __init__(self, policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi, setup_id="1"):
         self.policy_interface_commup = policy_interface_commup
         self.policy_interface_commdown = policy_interface_commdown
         self.logger_pi = logger_pi
@@ -68,6 +68,7 @@ class PolicyInterface:
         self.shm_joint_data2 = shm_joint_data2
         self.shm_cpp_joint_data2_info = shm_cpp_joint_data2_info
         self.config = config
+        self.setup_id = setup_id
 
         # Attach to shm_target_pos2 shared memory segment
         self.shm_target_pos2_info = shm_target_pos2_info
@@ -96,7 +97,7 @@ class PolicyInterface:
                 self.shm_cpp_joint_data2_header_size = shm_cpp_joint_data2_info['header_size']
                 # Initialize ring buffer reader for C++ shared memory
                 from utils.utils import RingBufferReader
-                self.shm_cpp_joint_data2_reader = RingBufferReader(config, "shm_joint_data2")
+                self.shm_cpp_joint_data2_reader = RingBufferReader(config, "shm_joint_data2", setup_id=str(self.setup_id))
                 self.logger_pi.info(f"Policy: Attached to shm_cpp_joint_data2: {shm_cpp_joint_data2_info['name']}")
             except Exception as e:
                 self.logger_pi.error(f"Policy: Failed to attach to shm_cpp_joint_data2: {e}")
@@ -1606,20 +1607,40 @@ def send_response(logger_si, policy_interface_commup, payload, error="None", **k
 
 
 
-def run_policy_interface(policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info=None):
+def run_policy_interface(policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info=None, setup_id=None):
     """
     Spawn a policyInterface instance and service controller commands.
     """
-    component_tag = "POLICY_INTERFACE"
+    if setup_id:
+        component_tag = f"{int(setup_id):02d}_POLICY_INTERFACE"
+    else:
+        component_tag = "POLICY_INTERFACE"
     logger_pi = setup_logging(component_tag)
     logger_pi.info("Starting policy Interface…")
 
     # Load configuration
     config = load_config()
+    
+    # Use setup-specific config if setup_id is provided
+    if setup_id is not None:
+        setup_name = f"setup_{setup_id}"
+        logger_pi.info(f"Using setup-specific config for setup: {setup_name}")
+        if "hardware" in config and setup_name in config["hardware"]:
+            # Create effective config with setup-specific hardware
+            hw_config = config["hardware"][setup_name]
+            
+            # Merge with global hardware config as fallback
+            effective_hw_config = {**config.get("hardware", {}), **hw_config}
+            
+            # Update config to use setup-specific hardware
+            config = {**config}  # Shallow copy
+            config["hardware"] = effective_hw_config
+        else:
+            logger_pi.warning(f"Setup {setup_name} not found in config, using global hardware config")
 
     # Instantiate interface
     try:
-        policy = PolicyInterface(policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi)
+        policy = PolicyInterface(policy_interface_commup, policy_interface_commdown, color_buffers2, depth_buffers2, shm_target_pos2_info, shm_joint_data2, shm_cpp_joint_data2_info, config, logger_pi, setup_id=setup_id)
         queue_check_period = config["general"]["check_queue_period"]
         send_response(logger_pi, policy_interface_commup,
                     {"interface": component_tag, "message": "initialization"}, error="None")     

@@ -315,12 +315,15 @@ class InterbotixTeachbot(TeachbotInterface):
 # The main interface loop
 #################################################################
 
-def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1):
+def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1, setup_id=None):
     # Load the config
     config = load_config()
 
-    # Setup logging
-    component_tag = "TEACHBOT_INTERFACE"
+    # Setup logging with setup-specific tag
+    if setup_id:
+        component_tag = f"{int(setup_id):02d}_TEACHBOT_INTERFACE"
+    else:
+        component_tag = "TEACHBOT_INTERFACE"
     logger_ti = setup_logging(component_tag)
     
     robot_brand = config["hardware"]["teachbot"]["brand"].lower().capitalize()
@@ -381,7 +384,7 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
             msg_interface = full_message.get("interface", "")
             message = full_message.get("message", "")
 
-            if msg_type == "CMD" and msg_interface == "TEACHBOT_INTERFACE":
+            if msg_type == "CMD" and msg_interface == component_tag:
                 if message == "stop":
                     try:
                         if teachbot.connected:

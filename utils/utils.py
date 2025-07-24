@@ -148,7 +148,7 @@ def robust_connect(rabbit_conf, ui_logger=None, client_name=None):
 
 
 class RingBufferReader:
-    def __init__(self, config=None, shm_key="shm_joint_data1"):
+    def __init__(self, config=None, shm_key="shm_joint_data1", setup_id="1"):
         if config is None:
             config = load_config()
         
@@ -161,7 +161,8 @@ class RingBufferReader:
         self.SLOT_SIZE = struct.calcsize(self.SLOT_FMT)
         self.HEADER_FMT = cpp_config["header_format"]
         self.HEADER_SIZE = struct.calcsize(self.HEADER_FMT)
-        self.SHM_NAME = cpp_config["shm_name"]
+        # Make shared memory name setup-specific
+        self.SHM_NAME = f"{int(setup_id):02d}_{cpp_config['shm_name']}"
         
         self.shm = shared_memory.SharedMemory(name=self.SHM_NAME, create=False)
         self.buf  = self.shm.buf

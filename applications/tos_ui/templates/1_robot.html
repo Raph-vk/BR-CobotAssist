@@ -354,6 +354,12 @@
 
   <script>
     /**
+     * Setup information for single robot mode
+     */
+    const currentSetup = {{ setups[0]|tojson if setups else {'setup_id': '1'} }};
+    const setupId = currentSetup.setup_id || '1';
+    
+    /**
      * Global: We'll store the latest array of {file_name, recording_speed} objects here.
      */
     window.recordings = [];
@@ -457,6 +463,9 @@
 
     function sendCommand(cmd, itemName = null) {
       const params = new URLSearchParams({ 'message': cmd });
+      
+      // Add the setup_id for single robot mode
+      params.append('setup_id', setupId);
 
       // Always attach the itemName if provided.
       // For recording commands, this will be the recording_name

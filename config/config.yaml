@@ -4,6 +4,7 @@
 
 hardware:
   active_setups: ['setup_1', 'setup_2']  # List of active setups to load
+  # active_setups: ['setup_1']
 
   setup_1:
     setup_id: 1
