@@ -276,8 +276,8 @@ hardware:
 
 general:
   # Application
-  # application: 'AI_robot_controller'
-  application: 'Teachbot_controller' 
+  application: 'AI_robot_controller'
+  # application: 'Teachbot_controller' 
 
   # Update settings
   status_refresh_period:  0.016067
