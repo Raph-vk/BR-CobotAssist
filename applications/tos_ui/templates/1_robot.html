@@ -138,13 +138,6 @@
     }
 
     /* Fixed-width dropdown */
-    #recordingsDropdown {
-      width: 220px; 
-      padding: 0.4rem;
-      font-size: 1rem;
-      margin: 0.5rem 0.75rem;
-    }
-
     #datasetsDropdown {
       width: 220px; 
       padding: 0.4rem;
@@ -356,110 +349,19 @@
     /**
      * Setup information for single robot mode
      */
-    const currentSetup = {{ setups[0]|tojson if setups else {'setup_id': '1'} }};
+    const currentSetup = JSON.parse('{{ (setups[0]|tojson) if setups else ({"setup_id": "1"}|tojson) }}');
     const setupId = currentSetup.setup_id || '1';
     
-    /**
-     * Global: We'll store the latest array of {file_name, recording_speed} objects here.
-     */
-    window.recordings = [];
-
     /**
      * Global: We'll store the latest array of {dataset_name} objects here.
      */
     window.datasets = [];
 
     /**
-     * Called whenever the user selects a new recording in the dropdown.
-     * We find its associated recording_speed and set up the playback_speed slider accordingly.
+     * Global: Store locally created dataset and model names to persist them across refreshes
      */
-    function onRecordingSelected() {
-      const dropdown = document.getElementById('recordingsDropdown');
-      const selectedFile = dropdown.value;
-      if (!selectedFile) return;
-
-      // Find the recording object in window.recordings
-      const selectedObj = window.recordings.find(
-        rec => rec.file_name === selectedFile
-      );
-      if (!selectedObj) {
-        console.warn("No matching recording object found for:", selectedFile);
-        return;
-      }
-
-      // Extract the speed. If it's 0.25, 0.5, or 1.0, we choose a set of discrete speeds.
-      // Otherwise, provide a fallback or your desired default set.
-      const recordingSpeed = selectedObj.recording_speed;
-      setPlaybackSpeedOptions(recordingSpeed);
-    }
-
-    /**
-     * Depending on the recording speed, limit the playback speeds to a discrete set.
-     * Then set the slider to "index" mode, defaulting to the index where speed=1.0 (if found).
-     */
-    function setPlaybackSpeedOptions(recordingSpeed) {
-      let speeds;
-      switch (recordingSpeed) {
-        case 0.25:
-          speeds = [0.5, 1.0, 2.0, 4.0];
-          break;
-        case 0.5:
-          speeds = [0.25, 0.5, 1.0, 2.0];
-          break;
-        case 1.0:
-          speeds = [0.25, 0.5, 0.75, 1.0];
-          break;
-        default:
-          // If recordingSpeed is something else (null or 0.8?), pick a fallback:
-          speeds = [0.25, 0.5, 1.0, 2.0]; // up to you
-          break;
-      }
-
-      const playbackSlider = document.getElementById('playback_speed');
-      // Store the discrete speed array in a data attribute
-      playbackSlider.setAttribute('data-speeds', JSON.stringify(speeds));
-
-      // Adjust the slider's min/max/step
-      playbackSlider.min = 0;
-      playbackSlider.max = speeds.length - 1;
-      playbackSlider.step = 1;
-
-      // Default to the index of "1.0" if present, else 0
-      let defaultIndex = speeds.indexOf(1.0);
-      if (defaultIndex < 0) {
-        defaultIndex = 0;
-      }
-      playbackSlider.value = defaultIndex;
-
-      // Update the label
-      updateSliderValue('playback_speed', defaultIndex);
-    }
-
-    /**
-     * Called when "Play Recording" button is clicked.
-     */
-    function playSelectedRecording() {
-      const dropdown = document.getElementById('recordingsDropdown');
-      const selected = dropdown.value;
-      if (!selected) {
-        alert("No recording selected to play!");
-        return;
-      }
-      sendCommand('play_recording', selected);
-    }
-
-    /**
-     * Called when "Delete Recording" button is clicked.
-     */
-    function deleteSelectedRecording() {
-      const dropdown = document.getElementById('recordingsDropdown');
-      const selected = dropdown.value;
-      if (!selected) {
-        alert("No recording selected to delete!");
-        return;
-      }
-      sendCommand('delete_recording', selected);
-    }
+    window.localDatasets = new Set(); // Set of dataset names for this single setup
+    window.localModels = new Set();   // Set of model names for this single setup
 
     function sendCommand(cmd, itemName = null) {
       const params = new URLSearchParams({ 'message': cmd });
@@ -550,55 +452,10 @@
     }
 
     /**
-     * Fetch latest recordings from server, store them globally in window.recordings,
-     * and repopulate the <select> with the .file_name values only.
-     */
-    function fetchRecordingsInBackground() {
-      const dropdown = document.getElementById('recordingsDropdown');
-      const oldSelected = dropdown.value;
-
-      fetch('/request_recordings', { method: 'POST' })
-        .then(response => response.json())
-        .then(recordingObjects => {
-          // Store entire array so we can look up speeds
-          window.recordings = recordingObjects;
-
-          dropdown.innerHTML = "";
-          const placeholder = document.createElement('option');
-          placeholder.value = "";
-          placeholder.hidden = true;
-          placeholder.textContent = "Select name...";
-          dropdown.appendChild(placeholder);
-
-          // For each {file_name, recording_speed}, we only show file_name.
-          // We'll store the speed in data attributes or just lookup from window.recordings.
-          recordingObjects.forEach(obj => {
-            const { file_name, recording_speed } = obj;
-            const opt = document.createElement('option');
-            opt.value = file_name;
-            opt.textContent = file_name; // Only show the filename
-            // Store speed in data attribute if you want quick lookups
-            opt.dataset.speed = recording_speed;
-            dropdown.appendChild(opt);
-          });
-
-          // restore old selection if valid
-          const validNames = recordingObjects.map(r => r.file_name);
-          if (validNames.includes(oldSelected)) {
-            dropdown.value = oldSelected;
-          } else {
-            dropdown.value = "";
-          }
-        })
-        .catch(err => console.error('Error fetching recordings:', err));
-    }
-
-    /**
      * Fetch latest datasets from server, store them globally in window.datasets,
      * and repopulate a datasets dropdown with the dataset_name values.
      */
     function fetchDatasetsInBackground() {
-      // Note: This assumes you have a datasetsDropdown element in your HTML
       const dropdown = document.getElementById('datasetsDropdown');
       if (!dropdown) {
         console.warn('datasetsDropdown element not found');
@@ -606,17 +463,6 @@
       }
       
       const oldSelected = dropdown.value;
-      
-      // Store any custom dataset names that were added locally
-      const customDatasets = [];
-      for (let option of dropdown.options) {
-        if (option.value && 
-            option.value !== "" && 
-            option.value !== "NEW_DATASET" && 
-            !window.datasets?.some(d => d.dataset_name === option.value)) {
-          customDatasets.push(option.value);
-        }
-      }
 
       fetch('/request_datasets', { method: 'POST' })
         .then(response => response.json())
@@ -624,6 +470,7 @@
           // Store entire array so we can look up additional info later
           window.datasets = datasetObjects;
 
+          // Clear dropdown completely and rebuild
           dropdown.innerHTML = "";
           const placeholder = document.createElement('option');
           placeholder.value = "";
@@ -631,21 +478,30 @@
           placeholder.textContent = "Select dataset...";
           dropdown.appendChild(placeholder);
 
-          // For each {dataset_name}, we show the dataset_name
+          // Create a set to track all dataset names to avoid duplicates
+          const allDatasetNames = new Set();
+
+          // Add server-provided datasets first
           datasetObjects.forEach(obj => {
             const { dataset_name } = obj;
-            const opt = document.createElement('option');
-            opt.value = dataset_name;
-            opt.textContent = dataset_name; // Show the dataset name
-            dropdown.appendChild(opt);
+            if (!allDatasetNames.has(dataset_name)) {
+              const opt = document.createElement('option');
+              opt.value = dataset_name;
+              opt.textContent = dataset_name;
+              dropdown.appendChild(opt);
+              allDatasetNames.add(dataset_name);
+            }
           });
 
-          // Re-add any custom dataset names that were added locally
-          customDatasets.forEach(customName => {
-            const opt = document.createElement('option');
-            opt.value = customName;
-            opt.textContent = customName;
-            dropdown.appendChild(opt);
+          // Add locally created datasets that aren't already in the server list
+          window.localDatasets.forEach(localDataset => {
+            if (!allDatasetNames.has(localDataset)) {
+              const opt = document.createElement('option');
+              opt.value = localDataset;
+              opt.textContent = localDataset;
+              dropdown.appendChild(opt);
+              allDatasetNames.add(localDataset);
+            }
           });
 
           // Add "New..." option
@@ -654,9 +510,8 @@
           newOpt.textContent = "New...";
           dropdown.appendChild(newOpt);
 
-          // restore old selection if valid (now including custom names)
-          const validNames = datasetObjects.map(d => d.dataset_name).concat(customDatasets);
-          if (validNames.includes(oldSelected)) {
+          // Restore old selection if it exists in the combined list
+          if (allDatasetNames.has(oldSelected)) {
             dropdown.value = oldSelected;
           } else {
             dropdown.value = "";
@@ -676,7 +531,8 @@
       // Handle "New..." option
       if (selectedDataset === "NEW_DATASET") {
         const now = new Date();
-        const defaultName = now.getFullYear().toString() + 
+        const defaultName = setupId.padStart(2, '0') + '_' +
+                           now.getFullYear().toString() + 
                            (now.getMonth() + 1).toString().padStart(2, '0') + 
                            now.getDate().toString().padStart(2, '0') + '_' +
                            now.getHours().toString().padStart(2, '0') + 
@@ -685,6 +541,9 @@
         
         const newName = prompt('Enter new dataset name:', defaultName);
         if (newName && newName.trim()) {
+          // Track this locally created dataset
+          window.localDatasets.add(newName.trim());
+          
           // Create a new option with the entered name
           const newOpt = document.createElement('option');
           newOpt.value = newName.trim();
@@ -701,8 +560,24 @@
 
       console.log('Selected dataset:', dropdown.value);
       
-      // Refresh the models dropdown when dataset changes
-      fetchModelsInBackground();
+      // Clear the models dropdown and fetch models for the new dataset
+      const modelsDropdown = document.getElementById('modelsDropdown');
+      if (modelsDropdown) {
+        modelsDropdown.innerHTML = '<option hidden value="">Select model...</option>';
+        
+        // Only fetch models if this is not a locally created dataset
+        const isLocalDataset = window.localDatasets.has(dropdown.value);
+        if (!isLocalDataset) {
+          // Fetch models for the new dataset
+          fetchModelsInBackground();
+        } else {
+          // For locally created datasets, just add the "New..." option
+          const newOpt = document.createElement('option');
+          newOpt.value = "NEW_MODEL";
+          newOpt.textContent = "New...";
+          modelsDropdown.appendChild(newOpt);
+        }
+      }
     }
 
     /**
@@ -736,25 +611,54 @@
       
       const oldSelected = dropdown.value;
       
-      // Store any custom model names that were added locally
-      const customModels = [];
-      for (let option of dropdown.options) {
-        if (option.value && 
-            option.value !== "" && 
-            option.value !== "NEW_MODEL" && 
-            !window.models?.some(m => m.model_name === option.value)) {
-          customModels.push(option.value);
-        }
-      }
-      
       // Get the currently selected dataset to filter models
       const datasetsDropdown = document.getElementById('datasetsDropdown');
       const selectedDataset = datasetsDropdown ? datasetsDropdown.value : '';
 
-      const formData = new FormData();
-      if (selectedDataset) {
-        formData.append('dataset_name', selectedDataset);
+      if (!selectedDataset || selectedDataset === "NEW_DATASET") {
+        console.log('No valid dataset selected, skipping model fetch');
+        return;
       }
+
+      // Check if this is a locally created dataset that doesn't exist on server yet
+      const isLocalDataset = window.localDatasets.has(selectedDataset);
+      if (isLocalDataset) {
+        console.log(`Dataset ${selectedDataset} is locally created, skipping server fetch`);
+        // Build dropdown with locally created models
+        dropdown.innerHTML = "";
+        const placeholder = document.createElement('option');
+        placeholder.value = "";
+        placeholder.hidden = true;
+        placeholder.textContent = "Select model...";
+        dropdown.appendChild(placeholder);
+        
+        // Add any locally created models
+        const allModelNames = new Set();
+        window.localModels.forEach(localModel => {
+          const opt = document.createElement('option');
+          opt.value = localModel;
+          opt.textContent = localModel;
+          dropdown.appendChild(opt);
+          allModelNames.add(localModel);
+        });
+        
+        // Add "New..." option
+        const newOpt = document.createElement('option');
+        newOpt.value = "NEW_MODEL";
+        newOpt.textContent = "New...";
+        dropdown.appendChild(newOpt);
+        
+        // Restore old selection if it exists in the local models
+        if (allModelNames.has(oldSelected)) {
+          dropdown.value = oldSelected;
+        } else {
+          dropdown.value = "";
+        }
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('dataset_name', selectedDataset);
 
       fetch('/request_models', { 
         method: 'POST',
@@ -765,6 +669,7 @@
           // Store entire array so we can look up additional info later
           window.models = modelObjects;
 
+          // Clear dropdown completely and rebuild
           dropdown.innerHTML = "";
           const placeholder = document.createElement('option');
           placeholder.value = "";
@@ -772,21 +677,30 @@
           placeholder.textContent = "Select model...";
           dropdown.appendChild(placeholder);
 
-          // For each {model_name}, we show the model_name
+          // Create a set to track all model names to avoid duplicates
+          const allModelNames = new Set();
+
+          // Add server-provided models first
           modelObjects.forEach(obj => {
             const { model_name } = obj;
-            const opt = document.createElement('option');
-            opt.value = model_name;
-            opt.textContent = model_name; // Show the model name
-            dropdown.appendChild(opt);
+            if (!allModelNames.has(model_name)) {
+              const opt = document.createElement('option');
+              opt.value = model_name;
+              opt.textContent = model_name;
+              dropdown.appendChild(opt);
+              allModelNames.add(model_name);
+            }
           });
 
-          // Re-add any custom model names that were added locally
-          customModels.forEach(customName => {
-            const opt = document.createElement('option');
-            opt.value = customName;
-            opt.textContent = customName;
-            dropdown.appendChild(opt);
+          // Add locally created models that aren't already in the server list
+          window.localModels.forEach(localModel => {
+            if (!allModelNames.has(localModel)) {
+              const opt = document.createElement('option');
+              opt.value = localModel;
+              opt.textContent = localModel;
+              dropdown.appendChild(opt);
+              allModelNames.add(localModel);
+            }
           });
 
           // Add "New..." option
@@ -795,9 +709,8 @@
           newOpt.textContent = "New...";
           dropdown.appendChild(newOpt);
 
-          // restore old selection if valid (now including custom names)
-          const validNames = modelObjects.map(m => m.model_name).concat(customModels);
-          if (validNames.includes(oldSelected)) {
+          // Restore old selection if it exists in the combined list
+          if (allModelNames.has(oldSelected)) {
             dropdown.value = oldSelected;
           } else {
             dropdown.value = "";
@@ -817,7 +730,8 @@
       // Handle "New..." option
       if (selectedModel === "NEW_MODEL") {
         const now = new Date();
-        const defaultName = now.getFullYear().toString() + 
+        const defaultName = setupId.padStart(2, '0') + '_' +
+                           now.getFullYear().toString() + 
                            (now.getMonth() + 1).toString().padStart(2, '0') + 
                            now.getDate().toString().padStart(2, '0') + '_' +
                            now.getHours().toString().padStart(2, '0') + 
@@ -826,6 +740,9 @@
         
         const newName = prompt('Enter new model name:', defaultName);
         if (newName && newName.trim()) {
+          // Track this locally created model
+          window.localModels.add(newName.trim());
+          
           // Create a new option with the entered name
           const newOpt = document.createElement('option');
           newOpt.value = newName.trim();

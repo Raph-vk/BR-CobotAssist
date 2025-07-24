@@ -9,6 +9,7 @@ import importlib
 import threading
 import multiprocessing
 import struct
+from contextlib import contextmanager
 from multiprocessing import shared_memory
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
@@ -16,9 +17,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 import pika
 from pika.exceptions import AMQPConnectionError, AMQPChannelError
 from utils.utils import RingBufferReader, get_data_path
-from utils.rabbitmq_utils import open_channel, publish_message, robust_consume
-from utils.shm_utils import _initialize_single_shared_memory, _get_buffer_info_dict
-from utils.file_utils import _move_files_to_mistakes
 from modules.camera.cam_utils import CameraRingBufferManager
 
 
@@ -789,15 +787,63 @@ class RobotController:
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
         
         # Initialize both shared memory segments
-        _initialize_single_shared_memory("shm_joint_data1", capacity, DOF, self.logger_tc, self.config, self.setup_id)
+        self._initialize_single_shared_memory("shm_joint_data1", capacity, DOF)
         # Use deterministic calculation for policy interface too (smaller buffer for real-time data)
         policy_capacity = self.config["cpp"]["shared_memory"]["shm_joint_data2"]["capacity"]
-        _initialize_single_shared_memory("shm_joint_data2", policy_capacity, DOF, self.logger_tc, self.config, self.setup_id)
+        self._initialize_single_shared_memory("shm_joint_data2", policy_capacity, DOF)
         
         # Initialize the readers with effective config (setup-specific hardware + global other sections)
         self.shm_reader1 = RingBufferReader(self.effective_config, "shm_joint_data1", setup_id=str(self.setup_id))
         self.shm_reader2 = RingBufferReader(self.effective_config, "shm_joint_data2", setup_id=str(self.setup_id))
         return self.shm_reader1, self.shm_reader2
+        
+    def _initialize_single_shared_memory(self, shm_key, capacity, dof):
+        """
+        Initialize a single shared memory segment.
+        """
+        cpp_config = self.config["cpp"]["shared_memory"][shm_key]
+        CAPACITY = capacity
+        SLOT_FMT_TEMPLATE = cpp_config["slot_format_template"]
+        SLOT_FMT = SLOT_FMT_TEMPLATE.format(dof=dof)  # Dynamically substitute total DOF
+        SLOT_SIZE = struct.calcsize(SLOT_FMT)
+        HEADER_FMT = cpp_config["header_format"]
+        HEADER_SIZE = struct.calcsize(HEADER_FMT)
+        # Make shared memory name setup-specific
+        SHM_NAME = f"{int(self.setup_id):02d}_{cpp_config['shm_name']}"
+        
+        self.logger_tc.info("Creating shared memory segment: %s with DOF=%d", SHM_NAME, dof)
+        self.logger_tc.info("SLOT_FMT_TEMPLATE: %s", SLOT_FMT_TEMPLATE)
+        self.logger_tc.info("SLOT_FMT: %s", SLOT_FMT)
+        self.logger_tc.info("SLOT_SIZE: %d bytes", SLOT_SIZE)
+        self.logger_tc.info("HEADER_SIZE: %d bytes", HEADER_SIZE)
+        self.logger_tc.info("CAPACITY: %d slots", CAPACITY)
+        bytes_needed = HEADER_SIZE + CAPACITY * SLOT_SIZE
+        self.logger_tc.info("Total bytes needed: %d", bytes_needed)
+        
+        # Try to create shared memory, handling the case where it already exists
+        try:
+            shm = shared_memory.SharedMemory(name=SHM_NAME, create=True, size=bytes_needed)
+            # initialise header once
+            struct.pack_into(HEADER_FMT, shm.buf, 0, 0, 0, CAPACITY, SLOT_SIZE)
+            self.logger_tc.info("Shared memory segment created with size: %d bytes", bytes_needed)
+            shm.close()
+        except FileExistsError:
+            self.logger_tc.warning("Shared memory segment already exists, cleaning up and recreating")
+            try:
+                # Try to attach to existing memory and clean it up
+                existing_shm = shared_memory.SharedMemory(name=SHM_NAME, create=False)
+                existing_shm.close()
+                existing_shm.unlink()
+                self.logger_tc.info("Cleaned up existing shared memory segment")
+                
+                # Now create new shared memory
+                shm = shared_memory.SharedMemory(name=SHM_NAME, create=True, size=bytes_needed)
+                struct.pack_into(HEADER_FMT, shm.buf, 0, 0, 0, CAPACITY, SLOT_SIZE)
+                self.logger_tc.info("Shared memory segment recreated with size: %d bytes", bytes_needed)
+                shm.close()
+            except Exception as cleanup_error:
+                self.logger_tc.error("Failed to clean up existing shared memory: %s", cleanup_error)
+                raise
         
     def cleanup_shared_memory_cpp(self):
         """
@@ -1501,6 +1547,21 @@ class RobotController:
 
         self.logger_tc.info("All CAMERA_INTERFACE processes are ready for commands.")
 
+    def _get_buffer_info_dict(self, buffer_dict):
+            """
+            Convert a dict of CameraRingBuffer objects to a dict of buffer info dicts.
+            """
+            return {
+                name: {
+                    "name": buf.name,
+                    "width": buf.width,
+                    "height": buf.height,
+                    "channels": buf.channels,
+                    "capacity": buf.capacity
+                }
+                for name, buf in buffer_dict.items()
+            }
+
     def connect_policy_interface(self):
         """
         Start the policy interface process.
@@ -1519,8 +1580,8 @@ class RobotController:
         
 
         self.logger_tc.info("Starting POLICY_INTERFACE process.")
-        color_buffers2_info = _get_buffer_info_dict(self.color_buffers2)
-        depth_buffers2_info = _get_buffer_info_dict(self.depth_buffers2)
+        color_buffers2_info = self._get_buffer_info_dict(self.color_buffers2)
+        depth_buffers2_info = self._get_buffer_info_dict(self.depth_buffers2)
         self.policy_interface_process = multiprocessing.Process(
             target=self.run_policy_interface,
             args=(self.policy_interface_commup,
@@ -2026,8 +2087,8 @@ class RobotController:
             parent_directory = get_data_path(self.config)
             
             # Process directories
-            moved_files_count = _move_files_to_mistakes(
-                dataset_name, recent_threshold, parent_directory, self.logger_tc
+            moved_files_count = self._move_files_to_mistakes(
+                dataset_name, recent_threshold, parent_directory
             )
             
             # Send completion response to TOS UI
@@ -2052,4 +2113,186 @@ class RobotController:
             response_payload["type"] = "RESP"
             self.send_response(payload=response_payload, error=error_msg)
 
+    def _move_files_to_mistakes(self, dataset_name, recent_threshold, parent_directory):
+        """
+        Move files that are within the recent_threshold to '_mistakes' subdirectories.
+        Returns the count of moved files.
+        """
+        current_time = time.time()
+        moved_files_count = 0
+        
+        try:
+            # Generate a list of directory paths that start with the dataset name
+            if not os.path.exists(parent_directory):
+                self.logger_tc.warning(f"Parent directory does not exist: {parent_directory}")
+                return 0
+                
+            directories = [
+                d for d in os.listdir(parent_directory) 
+                if d.startswith(dataset_name) and os.path.isdir(os.path.join(parent_directory, d))
+            ]
+            
+            # Process each relevant directory
+            for dir_name in directories:
+                if dir_name.endswith("_mistakes"):
+                    continue  # Skip existing mistake directories
+                    
+                directory_path = os.path.join(parent_directory, dir_name)
+                moved_count = self._move_directory_files_to_mistakes(
+                    directory_path, recent_threshold, current_time
+                )
+                moved_files_count += moved_count
+                
+        except Exception as e:
+            self.logger_tc.error(f"Error in _move_files_to_mistakes: {e}")
+            raise
+            
+        return moved_files_count
 
+    def _move_directory_files_to_mistakes(self, directory_path, recent_threshold, current_time):
+        """
+        Move files within a single directory that are within the recent_threshold to a '_mistakes' subdirectory.
+        Returns the count of moved files.
+        """
+        moved_count = 0
+        
+        try:
+            mistakes_directory = directory_path + '_mistakes'
+            
+            # Create the '_mistakes' directory if it does not exist
+            if not os.path.exists(mistakes_directory):
+                os.makedirs(mistakes_directory)
+                self.logger_tc.info(f"Created mistakes directory: {mistakes_directory}")
+            
+            # Process each file in the directory
+            if not os.path.exists(directory_path):
+                return 0
+                
+            for filename in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, filename)
+                if os.path.isfile(file_path):
+                    creation_time = os.path.getctime(file_path)
+                    if (current_time - creation_time) <= recent_threshold:
+                        new_path = os.path.join(mistakes_directory, filename)
+                        self.logger_tc.info(f"Moving file to mistakes directory: {filename}")
+                        os.rename(file_path, new_path)
+                        moved_count += 1
+                        
+        except Exception as e:
+            self.logger_tc.error(f"Error moving files in directory {directory_path}: {e}")
+            raise
+            
+        return moved_count
+        
+
+
+
+
+
+###################################################################
+# 10) Helper Functions
+###################################################################
+
+@contextmanager
+def open_channel(rabbit_conf, logger, client_name=None):
+    """
+    Context manager that yields a Pika channel, then cleans it up.
+    """
+    connection = robust_connect(rabbit_conf, logger, client_name=client_name)
+    channel = connection.channel()
+    try:
+        yield channel
+    finally:
+        channel.close()
+        connection.close()
+
+def publish_message(rabbit_conf, logger, routing_key, message, client_name=None):
+    """
+    Ephemeral publish: opens a connection/channel, publishes, then closes.
+    """
+    with open_channel(rabbit_conf, logger, client_name) as channel:
+        channel.basic_publish(
+            exchange=rabbit_conf["exchange_name"],
+            routing_key=routing_key,
+            body=message.encode("utf-8") if isinstance(message, str) else message
+        )
+
+def robust_consume(rabbit_conf, logger, queue_name, routing_key, on_message_callback, stop_flag_func):
+    """
+    Repeatedly connect + channel.start_consuming().
+    If disconnected, retry. If 'stop_flag_func()' is True, exit.
+    """
+    logger.info(f"Starting robust_consume on {queue_name} with key {routing_key}...")
+    while not stop_flag_func():
+        try:
+            connection = robust_connect(rabbit_conf, logger, client_name=f"tc_consumer_{queue_name}")
+            channel = connection.channel()
+
+            channel.basic_consume(
+                queue=queue_name,
+                on_message_callback=on_message_callback,
+                auto_ack=False
+            )
+            logger.info(f"Begin consuming commands on queue={queue_name}")
+            channel.start_consuming()
+
+        except (AMQPConnectionError, AMQPChannelError) as e:
+            logger.warning(f"Consumer lost connection: {e}. Reconnecting in 1s...")
+            time.sleep(1)
+        except Exception as e:
+            logger.error(f"Unexpected error in robust_consume: {e}. Retrying in 1s...")
+            time.sleep(1)
+        finally:
+            try: 
+                channel.close()
+            except:
+                pass
+            try:
+                connection.close()
+            except:
+                pass
+
+        if stop_flag_func():
+            logger.info(f"Stop flag detected. Exiting consume loop for {queue_name}.")
+            break
+
+def robust_connect(rabbit_conf, logger, client_name=None):
+    """
+    Attempt to connect to RabbitMQ with advanced parameters:
+      - client_properties => custom "connection_name"
+      - heartbeat => keep the connection alive
+      - blocked_connection_timeout => how long to wait if RabbitMQ is blocking
+      - max_retries => 0 means infinite
+      - wait_seconds => delay between retries
+      - product / information => additional metadata
+    """
+    if not client_name:
+        client_name = rabbit_conf["client_name_default"]
+    attempts = 0
+    creds = pika.PlainCredentials(rabbit_conf["user"], rabbit_conf["pass"])
+    client_props = {
+        "connection_name": client_name,
+        "product": rabbit_conf["product"],
+        "information": rabbit_conf["information"]
+    }
+
+    while True:
+        try:
+            params = pika.ConnectionParameters(
+                host=rabbit_conf["host"],
+                credentials=creds,
+                heartbeat=rabbit_conf["heartbeat"],
+                blocked_connection_timeout=rabbit_conf["blocked_connection_timeout"],
+                client_properties=client_props
+            )
+            conn = pika.BlockingConnection(params)
+            return conn
+        except (AMQPConnectionError, AMQPChannelError) as e:
+            attempts += 1
+            logger.warning(
+                f"[robust_connect] Connection failed: {e} (attempt {attempts}). "
+                f"Waiting {rabbit_conf['wait_seconds']}s."
+            )
+            time.sleep(rabbit_conf["wait_seconds"])
+            if rabbit_conf["max_retries"] > 0 and attempts >= rabbit_conf["max_retries"]:
+                raise

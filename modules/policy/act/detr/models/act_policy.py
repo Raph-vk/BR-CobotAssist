@@ -75,7 +75,7 @@ def get_args_parser():
 def build_ACT_model_and_optimizer(args_override):
     """Build ACT model and optimizer with given configuration overrides."""
     parser = argparse.ArgumentParser('DETR training and evaluation script', parents=[get_args_parser()])
-    args = parser.parse_args(args=[])  # Don't parse actual command line arguments
+    args = parser.parse_args()
 
     for k, v in args_override.items():
         print(f"Overriding {k} with {v}")
