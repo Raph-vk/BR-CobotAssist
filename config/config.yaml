@@ -7,11 +7,8 @@ general:
   # application: 'AI_robot_controller'
   application: 'Teachbot_controller' 
 
-  # Update settings
-  status_refresh_period:  0.016067
-  check_queue_period:     0.005556 
-  check_queue_period_divisor: 3
 
+  # Robot controller settings
   # start_position: [0, -20, -50, 0, 30, 50, 0]  # 6 joints + gripper state
   start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
   start_joint_tolerance: 10
@@ -21,12 +18,18 @@ general:
   gripper_treshold: 0.5
   action_buffer_length: 3
   j4_locked: True
-  j6_factor: 3.0
 
+  # End Effector settings
+  EE_type: "integrated" # or "external"
 
   # Directories
   app_directory: "."
   data_directory: "../tos_app_data"
+
+  # Timing update settings
+  status_refresh_period:  0.016067
+  check_queue_period:     0.005556 
+  check_queue_period_divisor: 3
 
   # Recording settings
   record_duration: 7
@@ -66,7 +69,7 @@ hardware:
       j3_limit: 59
       j3_interaction: True
       dof: 6
-      dof_ee: 1
+      dof_ee: 2
       server_address: 
         - "192.168.1.201"
         - 8001  # IP and port of the cpp connects to  port + 1
@@ -134,43 +137,66 @@ hardware:
 
     # --------------------------------------Teachbot Configuration--------------------------------
 
+    # teachbot:
+      # # Teachbot settings
+      # brand: "dummy"
+      # model: "_"
+      # joint_target_period: 0.004
+      # j6_min_angle: -140
+      # j6_max_angle: 220
+      # j6_multiplier: 1
+      # gripper_treshold: 1085
+      # gripper_min: 91.14
+      # gripper_max: 102.65
+
     teachbot:
-      # Teachbot settings
-      brand: "dummy"
-      model: "_"
+      # TOS encoder settings for teachbot
+      brand: "tos"
+      model: "Teachbot"
       joint_target_period: 0.004
       j6_min_angle: -140
       j6_max_angle: 220
       j6_multiplier: 1
-      gripper_treshold: 1085
+      local_ip: "192.168.1.201"
+      start_port: 5006
+      dof: 6
+      dof_ee: 2
+      packet_size: 3  # 3 bytes for 17-bit singleturn encoder
+      position_offsets: [71100, 10200, 63100, 103200, 2900, 99800]  # Calibration offsets for each joint (from teachbot_viewer mapping)
+      joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
+      port_joint_mapping:
+        0: 1  # Joint 0 (Encoder 1) -> port 5007 (start_port + 1)
+        1: 5  # Joint 1 (Encoder 2) -> port 5011 (start_port + 5) 
+        2: 3  # Joint 2 (Encoder 3) -> port 5009 (start_port + 3)
+        3: 2  # Joint 3 (Encoder 4) -> port 5008 (start_port + 2)
+        4: 4  # Joint 4 (Encoder 5) -> port 5010 (start_port + 4)
+        5: 0  # Joint 5 (Encoder 6) -> port 5006 (start_port + 0)
 
-    # teachbot:
-    #   # TOS encoder settings for teachbot
-    #   brand: "tos"
-    #   joint_target_period: 0.004
-    #   j4_locked: True
-    #   j6_min_angle: -140
-    #   j6_max_angle: 220
-    #   j6_multiplier: 1
-    #   local_ip: "192.168.1.201"
-    #   start_port: 5006
-    #   num_joints: 6
-    #   packet_size: 3  # 3 bytes for 17-bit singleturn encoder
-    #   position_offsets: [42000, 24666, 102000, 67910, 19200, 119840]  # Calibration offsets for each joint
-    #   joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
-    #   port_joint_mapping:
-    #     0: 0  # Joint 0 -> port 5004 (start_port + 0)
-    #     1: 1  # Joint 1 -> port 5005 (start_port + 1)
-    #     2: 2  # Joint 2 -> port 5006 (start_port + 2)
-    #     3: 3  # Joint 3 -> port 5007 (start_port + 3)
-    #     4: 4  # Joint 4 -> port 5008 (start_port + 4)
-    #     5: 5  # Joint 5 -> port 5009 (start_port + 5)
+
+      # When action is EE_dof_n, this is parsed as dof_ee to the robot controller
+      grippers:
+        active_grippers: ['pot']
+          pot:
+            min: 208
+            max: 970
+            label: "Trigger"
+            action: "EE_dof_1"
+
+      buttons:
+        active_buttons: ['btn1', 'btn2']  # List of active buttons (matches RS485 data keys)
+        treshold: 0.2 # Seconds after which button can be pressed again
+        btn1:
+          label: "Red button"
+          action: "stop"  # Action to perform when button 1 is pressed
+        btn2:
+          label: "Green button"
+          action: "EE_dof_2"  # Action to perform when button 2 is pressed
+
 
     # teachbot:
     #   # Teachbot settings
     #   brand: "Interbotix"
     #   model: "WX250S"
-    #   j4_locked: True
     #   j6_min_angle: -140
     #   j6_max_angle: 220
     #   j6_multiplier: 1
@@ -253,6 +279,12 @@ hardware:
     #       color_height: 240
     #       depth_width: 424
     #       depth_height: 240
+
+
+
+
+
+
 
   setup_2:
     setup_id: 2

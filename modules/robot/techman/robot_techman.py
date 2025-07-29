@@ -908,6 +908,7 @@ class TechmanRobot(RobotInterface):
         self.logger_ri.info("Starting listener thread.")
         try:
             self.recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.recv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             # Bind to all interfaces on the specified port to receive data from robot
             bind_address = ("", self.robot_recv_address[1])  # Empty string means all interfaces
             self.recv_sock.bind(bind_address)

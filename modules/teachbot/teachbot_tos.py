@@ -6,6 +6,7 @@ import sys
 import socket
 from threading import Thread
 from collections import deque
+
 from .teachbot_0interface import TeachbotInterface
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
@@ -15,6 +16,14 @@ from utils.utils import setup_logging, load_config
 #################################################################
 # Helper: Same response function as in dummy code
 #################################################################
+
+def send_tc_command(queue, command):
+    """
+    Helper function to put a command into a queue.
+    """
+    queue.put(command)
+
+
 
 def send_response(logger_ti, teachbot_interface_commup, payload, error="None", **kwargs):
     """
@@ -50,12 +59,13 @@ def send_response(logger_ti, teachbot_interface_commup, payload, error="None", *
 
 class TosTeachbot(TeachbotInterface):
 
-    def __init__(self, teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1, logger_ti, config):
+    def __init__(self, teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1, logger_ti, config, component_tag):
         self.teachbot_interface_commup = teachbot_interface_commup
         self.teachbot_interface_commdown = teachbot_interface_commdown
         self.shm_target_pos1 = shm_target_pos1
         self.logger_ti = logger_ti
-        self.config = config        # Config variables
+        self.config = config
+        self.component_tag = component_tag        # Config variables
         try:
             self.control_loop_language = config["general"]["control_loop_language"]
             self.status_refresh_period = config["general"]["status_refresh_period"]
@@ -63,20 +73,40 @@ class TosTeachbot(TeachbotInterface):
             self.min_joint6 = config["hardware"]["teachbot"]["j6_min_angle"]
             self.max_joint6 = config["hardware"]["teachbot"]["j6_max_angle"]
             self.joint6_multiplier = config["hardware"]["teachbot"]["j6_multiplier"]
-            self.joint4_locked = config["hardware"]["teachbot"]["j4_locked"]
-            self.teachbot_gripper_treshold = config["hardware"]["teachbot"].get("gripper_treshold", 1085)
+                              
         except KeyError as e:
             self.logger_ti.error(f"Missing required config key: {e}")
             raise
 
             # TOS encoder configuration from config
         tos_config = self.config.get("hardware", {}).get("teachbot", {})
+        
+        # Button configuration
+        button_config = tos_config.get("buttons", {})
+        self.button_threshold = button_config.get("treshold", 0.2)  # Note: keeping 'treshold' typo from config
+        self.active_buttons = button_config.get("active_buttons", [])
+        self.button_configs = {}
+        for button_name in self.active_buttons:
+            if button_name in button_config:
+                self.button_configs[button_name] = button_config[button_name]
+        
+        # Gripper trigger configuration
+        grippers_config = tos_config.get("grippers", {})
+        self.active_grippers = grippers_config.get("active_grippers", [])
+        self.gripper_trigger_enabled = False
+        self.gripper_configs = {}
+        for gripper_name in self.active_grippers:
+            if gripper_name in grippers_config:
+                self.gripper_configs[gripper_name] = grippers_config[gripper_name]
+                self.gripper_min = self.gripper_configs[gripper_name].get("min", 208)
+                self.gripper_max = self.gripper_configs[gripper_name].get("max", 970)
+
+        
         self.local_ip = tos_config.get("local_ip", "192.168.1.201")
         self.start_port = tos_config.get("start_port", 5004)
-        self.num_joints = tos_config.get("num_joints", 6)
+        self.dof = tos_config.get("dof", 6)
+        self.dof_ee = tos_config.get("dof_ee", 2)
         self.packet_size = tos_config.get("packet_size", 3)
-          # Port to joint mapping - allows flexible assignment of ports to joints
-        # Format: {joint_index: port_offset} where port = start_port + port_offset
         raw_mapping = tos_config.get("port_joint_mapping", {
             0: 0,  # Joint 0 -> port 5004 (start_port + 0)
             1: 1,  # Joint 1 -> port 5005 (start_port + 1)
@@ -90,12 +120,28 @@ class TosTeachbot(TeachbotInterface):
         self.port_joint_mapping = {}
         for k, v in raw_mapping.items():
             self.port_joint_mapping[int(k)] = int(v)# Position offset for zero position calibration
-        self.position_offsets = tos_config.get("position_offsets", [0] * self.num_joints)
-        self.joint_scale_factors = tos_config.get("joint_scale_factors", [1.0] * self.num_joints)
+        self.position_offsets = tos_config.get("position_offsets", [0] * self.dof)
+        self.joint_scale_factors = tos_config.get("joint_scale_factors", [1.0] * self.dof)
 
         # Streams
         self.joint_target_streaming = False
         self.joint_target_streaming_thread = None
+        self.dof_1_status = 0  # Potential status for ee
+        self.dof_2_status = 0  #  Potential status for ee
+        
+
+        # Gripper state tracking
+        self.gripper_states = {}  # Current gripper states (0-1 normalized)
+        for gripper_name in self.active_grippers:
+            self.gripper_states[gripper_name] = 0.0  # Initialize gripper states to 0.0
+
+        # Button state tracking
+        self.button_states = {}  # Current button states (pressed/not pressed)
+        self.button_last_action_time = {}  # Last time action was triggered for each button
+        for button_name in self.active_buttons:
+            self.button_states[button_name] = False
+            self.button_last_action_time[button_name] = 0.0
+
 
         self.logger_ti.info("Initialized TOS Teachbot, now connecting to encoders...")
         self.connect()
@@ -109,7 +155,9 @@ class TosTeachbot(TeachbotInterface):
     def stop(self):
         # Stop streaming first
         if self.joint_target_streaming:
-            self.stop_joint_target_streaming()        # Stop and cleanup encoder threads
+            self.stop_joint_target_streaming()
+            
+        # Stop and cleanup encoder threads
         if hasattr(self, 'encoder_threads') and self.encoder_threads:
             self.logger_ti.info("Stopping TOS encoder threads...")
             for joint_idx, thread in self.encoder_threads.items():
@@ -118,8 +166,58 @@ class TosTeachbot(TeachbotInterface):
                 self.logger_ti.info(f"Stopped encoder thread for joint {joint_idx}")
             self.encoder_threads = {}
 
+        # Stop RS485 thread
+        if hasattr(self, 'rs485_thread') and self.rs485_thread:
+            self.logger_ti.info("Stopping RS485 gripper thread...")
+            self.rs485_thread.stop()
+            self.rs485_thread.join(timeout=1.0)
+            self.logger_ti.info("Stopped RS485 gripper thread")
+
         self.connected = False
         self.logger_ti.info("TOS Teachbot stopped successfully")
+
+    def button_push(self, label):
+        """
+        Placeholder method for button press actions.
+        This method is called when a button is pressed and the debounce threshold has passed.
+        
+        Args:
+            label (str): The label of the button that was pressed (e.g., "Red button", "Green button")
+        """
+        self.logger_ti.info(f"Button pressed: {label}")
+
+        if label.startswith("EE_dof"):
+            # Handle end effector specific actions
+            if label == "EE_dof_1":
+                self.logger_ti.info("Triggering action for EE_dof_1")
+                if self.dof_1_status == 0:
+                    self.dof_1_status = 1
+                else:
+                    self.dof_1_status = 0
+            elif label == "EE_dof_2":
+                self.logger_ti.info("Triggering action for EE_dof_2")
+                if self.dof_2_status == 0:
+                    self.dof_2_status = 1
+                else:
+                    self.dof_2_status = 0
+
+        else:
+            # Find the button config that matches this label
+            button_action = None
+            for button_name, button_config in self.button_configs.items():
+                if button_config.get("label") == label:
+                    button_action = button_config.get("action", "None")
+                    break
+            
+            if button_action and button_action != "None":
+                self.logger_ti.info(f"Executing button action: {button_action}")
+                send_tc_command(self.teachbot_interface_commup, {
+                    "type": "CMD", 
+                    "message": button_action, 
+                    "interface": self.component_tag
+                })
+            else:
+                self.logger_ti.info(f"No action configured for button: {label}")
 
 
     ###########################################################
@@ -133,11 +231,12 @@ class TosTeachbot(TeachbotInterface):
         try:
             self.logger_ti.info("Connecting to TOS encoders...")
 
-              # Create encoder listeners for each joint using the port mapping
+            # Create encoder listeners for each joint using the port mapping
             self.encoder_threads = {}  # Change to dict to map joint_index -> thread
             self.joint_to_port = {}    # Map joint index to actual port number
             self.logger_ti.info(f"Using local IP: {self.local_ip}, start port: {self.start_port}, packet size: {self.packet_size}")
-            for joint_index in range(self.num_joints):
+            
+            for joint_index in range(self.dof):
                 if joint_index in self.port_joint_mapping:
                     port_offset = self.port_joint_mapping[joint_index]
                     port = self.start_port + port_offset
@@ -149,6 +248,11 @@ class TosTeachbot(TeachbotInterface):
                     self.logger_ti.info(f"Started encoder listener for joint {joint_index} on port {port}")
                 else:
                     self.logger_ti.warning(f"No port mapping found for joint {joint_index}")
+            
+            # Start RS-485 listener for gripper on port 5004
+            self.rs485_thread = RS485Listener(self.local_ip, 5004)
+            self.rs485_thread.start()
+            self.logger_ti.info("Started RS-485 listener for gripper on port 5004")
             
             self.logger_ti.info(f"Joint to port mapping: {self.joint_to_port}")
             
@@ -194,9 +298,9 @@ class TosTeachbot(TeachbotInterface):
         while self.joint_target_streaming:
             if self.connected and hasattr(self, 'encoder_threads') and self.encoder_threads:
                 try:                    # Read raw encoder positions from all joints in order
-                    joint_states = [0.0] * self.num_joints  # Initialize with zeros
+                    joint_states = [0.0] * self.dof  # Initialize with zeros
                     
-                    for joint_index in range(self.num_joints):
+                    for joint_index in range(self.dof):
                         if joint_index in self.encoder_threads:
                             encoder_thread = self.encoder_threads[joint_index]
                             encoder_data = encoder_thread.get_data()
@@ -214,17 +318,78 @@ class TosTeachbot(TeachbotInterface):
                             self.logger_ti.warning(f"No encoder thread for joint {joint_index}")
                             joint_states[joint_index] = 0.0  # Default to 0 if no encoder
                     
-                    # Add gripper state (placeholder for now)
-                    if len(joint_states) == self.num_joints:
-                        joint_states.append(0.0)  # Gripper position placeholder
+                    # Read gripper value from RS485 interface
+                    if hasattr(self, 'rs485_thread') and self.rs485_thread:
+                        rs485_data = self.rs485_thread.get_data()
+
+                        for gripper_name in self.active_grippers:
+                            if gripper_name in rs485_data:
+                                gripper_value = rs485_data[gripper_name]
+                                # Normalize gripper value to 0-1 range based on gripper min/max of gripper_name from active_grippers
+                                gripper_min = self.active_grippers[gripper_name].get("min", 208)
+                                gripper_max = self.active_grippers[gripper_name].get("max", 970)
+                                if gripper_value > gripper_max:
+                                    gripper_value = gripper_max
+                                elif gripper_value < gripper_min:
+                                    gripper_value = gripper_min
+                                self.gripper_states[gripper_name] = (gripper_value - gripper_min) / (gripper_max - gripper_min)
+
+                            else:
+                                self.logger_ti.warning(f"Gripper {gripper_name} not found in RS485 data")
+                                                       
+
+                        # Check button states for active buttons
+                        current_time = time.time()
+                        for button_name in self.active_buttons:
+                            if button_name in rs485_data:
+                                button_pressed = bool(rs485_data[button_name])
+                                
+                                # Check if button state changed from not-pressed to pressed
+                                if button_pressed and not self.button_states[button_name]:
+                                    # Check if enough time has passed since last action
+                                    time_since_last = current_time - self.button_last_action_time[button_name]
+                                    if time_since_last >= self.button_threshold:
+                                        # Trigger button action
+                                        button_config = self.button_configs.get(button_name, {})
+                                        button_label = button_config.get("label", button_name)
+                                        self.button_push(button_label)
+                                        self.button_last_action_time[button_name] = current_time
+                                
+                                # Update button state
+                                self.button_states[button_name] = button_pressed
+
+
                     joint_states_translated, safe = self.action_translation_and_check(joint_states)
+
+                    # Add EE DOF values based on grippers and buttons with EE_dof_n actions
+                    if safe:
+                        ee_dof_values = [0.0] * self.dof_ee
+                        
+                        # Process all components with EE_dof_n actions
+                        components = [
+                            (self.gripper_configs, lambda name, _: self.gripper_states.get(name, 0.0)),
+                            (self.button_configs, lambda name, _: float(self.button_states.get(name, False)))
+                        ]
+                        
+                        for config_dict, status_func in components:
+                            for name, config in config_dict.items():
+                                action = config.get("action", "")
+                                if action.startswith("EE_dof_"):
+                                    try:
+                                        dof_index = int(action.split("_")[-1]) - 1
+                                        if 0 <= dof_index < self.dof_ee:
+                                            ee_dof_values[dof_index] = status_func(name, config)
+                                    except (ValueError, IndexError):
+                                        self.logger_ti.warning(f"Invalid EE DOF action format: {action}")
+                        
+                        joint_states_translated.extend(ee_dof_values)
+
 
                     # If safe, push to shared memory
                     if safe:
-                        if self.control_loop_language == "python":
-                            if self.shm_target_pos1.full():
-                                self.shm_target_pos1.get_nowait()
-                            self.shm_target_pos1.put(joint_states_translated, timeout=0.1)
+                        if self.shm_target_pos1.full():
+                            self.shm_target_pos1.get_nowait()
+                        self.shm_target_pos1.put(joint_states_translated, timeout=0.1)
                     else:
                         self.logger_ti.warning("Joint target not safe: %s", joint_states_translated)
 
@@ -233,6 +398,7 @@ class TosTeachbot(TeachbotInterface):
 
             time.sleep(self.target_pos_period)
 
+
     def action_translation_and_check(self, action):
         """
         Translate TOS encoder positions to robot joint angles and check for safety.
@@ -240,14 +406,14 @@ class TosTeachbot(TeachbotInterface):
         Returns the translated action and whether it is safe.
         """
         try:
-            if len(action) < self.num_joints:
-                self.logger_ti.warning(f"Insufficient joint data: got {len(action)}, expected {self.num_joints}")
+            if len(action) < self.dof:
+                self.logger_ti.warning(f"Insufficient joint data: got {len(action)}, expected {self.dof}")
                 return action, False
             
             translated_action = []
             
             # Convert encoder positions to degrees for each joint
-            for i in range(self.num_joints):
+            for i in range(self.dof):
                 raw_position = action[i]
                 
                 # Convert from encoder counts to degrees
@@ -275,12 +441,6 @@ class TosTeachbot(TeachbotInterface):
                 
                 translated_action.append(degrees)
                 
-                # self.logger_ti.info(f"Joint {i+1}: raw={raw_position}, offset={offset}, degrees={degrees:.2f}")
-            
-            # Add gripper if present
-            if len(action) > self.num_joints:
-                translated_action.append(action[self.num_joints])  # Pass through gripper value
-            
             # Safety checks
             safe = True
             # safe = self.check_joint_limits(translated_action)
@@ -317,19 +477,43 @@ class TosTeachbot(TeachbotInterface):
 
 
 
+
+
+
+
+
+
 #################################################################
 # The main interface loop
 #################################################################
 
-def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1):
+def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1, setup_id=None):
     # Load the config
     config = load_config()
 
-    # Setup logging
-    component_tag = "TEACHBOT_INTERFACE"
+    # Setup logging with setup-specific tag
+    if setup_id:
+        component_tag = f"{int(setup_id):02d}_TEACHBOT_INTERFACE"
+    else:
+        component_tag = "TEACHBOT_INTERFACE"
     logger_ti = setup_logging(component_tag)
     
-    robot_brand = config["hardware"]["teachbot"]["brand"].lower().capitalize()
+    # Get setup-specific configuration
+    if setup_id:
+        setup_name = f"setup_{setup_id}"
+        logger_ti.info(f"Loading configuration for {setup_name}")
+        
+        if setup_name not in config["hardware"]:
+            logger_ti.error(f"Setup {setup_name} not found in hardware configuration")
+            return
+        
+        hw = config["hardware"][setup_name]
+    else:
+        # Fallback to global hardware config (legacy mode)
+        logger_ti.warning("No setup_id provided, using global hardware configuration")
+        hw = config["hardware"]
+    
+    robot_brand = hw["teachbot"]["brand"].lower().capitalize()
     check_queue_period = config["general"]["check_queue_period"]
 
     logger_ti.info("Starting %s Teachbot Interface", robot_brand)
@@ -351,12 +535,17 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
 
     # Instantiate the teachbot
     try:
+        # Create modified config with setup-specific hardware config
+        modified_config = config.copy()
+        modified_config["hardware"] = hw
+        
         teachbot = TeachbotClass(
             teachbot_interface_commup,
             teachbot_interface_commdown,
             shm_target_pos1,
             logger_ti,
-            config
+            modified_config,
+            component_tag
         )
         logger_ti.info("Successfully initialized %s class", teachbot_class_name)
 
@@ -387,7 +576,7 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
             msg_interface = full_message.get("interface", "")
             message = full_message.get("message", "")
 
-            if msg_type == "CMD" and msg_interface == "TEACHBOT_INTERFACE":
+            if msg_type == "CMD" and msg_interface == component_tag:
                 if message == "stop":
                     try:
                         if teachbot.connected:
@@ -424,6 +613,67 @@ def run_teachbot_interface(teachbot_interface_commup, teachbot_interface_commdow
 
 
 ###############################################################################
+# RS485 Listener for gripper/trigger interface
+###############################################################################
+class RS485Listener(threading.Thread):
+    """Receives 5‑byte trigger frames: 0xAA LSB MSB BTN CRC."""
+
+    def __init__(self, local_ip: str, port: int = 5004) -> None:
+        super().__init__(daemon=True)
+        self.port = port
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._sock.settimeout(1.0)
+        self._sock.bind((local_ip, port))
+
+        self._lock = threading.Lock()
+        self.pot = 0       # 0‑1023 potentiometer value
+        self.btn1 = False
+        self.btn2 = False
+        self._running = threading.Event()
+
+    def run(self) -> None:
+        self._running.set()
+        while self._running.is_set():
+            try:
+                data, _ = self._sock.recvfrom(64)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            self._decode(data)
+
+    def _decode(self, buf: bytes) -> None:
+        if len(buf) != 5 or buf[0] != 0xAA:  # START_BYTE = 0xAA
+            return
+        if (sum(buf[:4]) & 0xFF) != buf[4]:
+            return
+
+        pot = (buf[2] << 8) | buf[1]
+        btn = buf[3]
+
+        with self._lock:
+            self.pot = pot & 0x3FF  # 10‑bit (0-1023)
+            self.btn1 = bool(btn & 0x01)
+            self.btn2 = bool(btn & 0x02)
+
+    def stop(self) -> None:
+        self._running.clear()
+        try:
+            self._sock.close()
+        except OSError:
+            pass
+
+    def get_data(self):
+        with self._lock:
+            return {
+                "pot": self.pot,
+                "btn1": self.btn1,
+                "btn2": self.btn2,
+            }
+
+
+###############################################################################
 # 1) ListenerThread for each encoder port
 ###############################################################################
 class ListenerThread(threading.Thread):
@@ -441,6 +691,7 @@ class ListenerThread(threading.Thread):
 
         # Create the socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.settimeout(1.0)
         self.sock.bind((local_ip, local_port))
 

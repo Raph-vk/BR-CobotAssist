@@ -222,7 +222,7 @@ class RobotController:
             if not recording_name:
                 raise ValueError("No file name provided for deletion.")
 
-            path = get_data_path(self.config, recording_name)
+            path = get_data_path(self.config, recording_name, create_dirs=False)
             os.remove(path)
             self.logger_tc.info(f"Deleted recording: {recording_name}")
 
@@ -1663,6 +1663,11 @@ class RobotController:
                     else:
                         self.logger_tc.info("Untracked TEACHBOT_INTERFACE response: %s", msg_message)
 
+                elif msg_type == "CMD" and (interface == "TEACHBOT_INTERFACE" or interface.endswith("_TEACHBOT_INTERFACE")):
+                    # Example: If the robot signals a 'stop' command to be re-broadcast
+                    if msg_message == "stop":
+                        full_message = {"type": "CMD", "interface": self.get_interface_name("TEACHBOT_INTERFACE"), "message": "stop"}
+                        self.publish_controller_command(full_message)
 
                 else:
                     self.logger_tc.warning("Unknown message from TEACHBOT_INTERFACE: %s", payload)

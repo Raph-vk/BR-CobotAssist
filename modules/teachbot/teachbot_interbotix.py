@@ -101,7 +101,7 @@ class InterbotixTeachbot(TeachbotInterface):
         self.min_joint6 = config["hardware"]["teachbot"]["j6_min_angle"]
         self.max_joint6 = config["hardware"]["teachbot"]["j6_max_angle"]
         self.joint6_multiplier = config["hardware"]["teachbot"]["j6_multiplier"]
-        self.joint4_locked = config["hardware"]["teachbot"]["j4_locked"]
+        self.joint4_locked = config["general"]["j4_locked"]
         self.teachbot_gripper_min = config["hardware"]["teachbot"]["gripper_min"]
         self.teachbot_gripper_max = config["hardware"]["teachbot"]["gripper_max"]
         self.j6_factor = config["general"]["j6_factor"]
@@ -267,7 +267,6 @@ class InterbotixTeachbot(TeachbotInterface):
                     joint_states = np.zeros(7)
                     joint_states[:6] = joints
                     joint_states[6] = gripper  # Use raw gripper value without normalization
-
                     
                     joint_states_translated, safe = self.action_translation_and_check(joint_states)
 
