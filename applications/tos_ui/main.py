@@ -64,8 +64,14 @@ def run(config, ui_logger):
     flask_port = config["application"]["flask_port"]
     url = f"http://{flask_host}:{flask_port}"
 
-    # Open the UI in the browser or focus existing window
-    focus_or_open_browser(url, ui_logger)
+    # Check if browser should be opened automatically
+    open_browser = config["application"].get("open_browser_default", True)
+    
+    if open_browser:
+        # Open the UI in the browser or focus existing window
+        focus_or_open_browser(url, ui_logger)
+    else:
+        ui_logger.info(f"Browser auto-open disabled. TOS UI available at: {url}")
 
     # Start the Flask app
     tos_ui.start(host=flask_host, port=flask_port)

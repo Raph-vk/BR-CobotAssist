@@ -148,6 +148,8 @@ class FanucRobot():
         self.start_joint_tolerance = config["general"]["start_joint_tolerance"]
         self.joint_synchronization = config["general"]["joint_synchronization"]
         self.dof = config["hardware"]["robot"]["dof"]
+        self.dof_ee = config["hardware"]["robot"]["dof_ee"]
+        self.total_dof = self.dof + self.dof_ee
         self.default_recording_speed = config["general"]["default_recording_speed"]
         self.upper_limits = config["hardware"]["robot"]["upper_limits"]
         self.lower_limits = config["hardware"]["robot"]["lower_limits"]
@@ -167,6 +169,7 @@ class FanucRobot():
         self.gripper_on = False
         self.gripper_off = False
         self.teachbot_positions = deque()
+        self.ee_dof_states = [0.0] * self.dof_ee  # Track all EE DOF states
 
         # RMI Connection object
         self.rmi_port = config["hardware"]["robot"]["rmi_port"]
@@ -362,13 +365,20 @@ class FanucRobot():
         playback_speed = full_message.get("playback_speed", "")
         if playback_speed == "" or playback_speed is None:
             self.robot_speed = self.default_recording_speed
+            self.playback_speed_ratio = 1.0
             self.logger_ri.info(
                 "play_recording: Empty or null playback_speed, using default: %s",
                 self.default_recording_speed
             )
         else:
             self.robot_speed = playback_speed * self.default_recording_speed
+            self.playback_speed_ratio = playback_speed
             self.logger_ri.info("play_recording, playback_speed: %s", self.robot_speed)
+
+        # teachbot positions have to be adjusted according to playback_speed_ratio
+        self.teachbot_positions = self._adjust_teachbot_positions_for_playback_speed(
+            self.teachbot_positions, self.playback_speed_ratio
+        )
 
         # Create thread that generates target positions
         self.update_target_info_thread = threading.Thread(
@@ -509,9 +519,13 @@ class FanucRobot():
                     pass
                 time.sleep(self.control_dt / self.check_queue_period_divisor)
 
-        if message == "play_recording":
+        elif message == "play_recording":
             # Data already loaded in play_recording method, just log that we're ready
             self.logger_ri.info("_update_target_info: Recording data already loaded, ready for playback")
+        
+        else:
+            self.logger_ri.error("_update_target_info: Unknown message type '%s'", message)
+            return
 
     def _control_robot(self, full_message):
         """
@@ -551,8 +565,9 @@ class FanucRobot():
         # set robot speed at 100% 
         self.set_speed_overwrite(100)
 
-        position = copy.deepcopy(self.start_position)
-        if not self.push_joint_motion(position, speed=10, term_type="FINE", term_val=0):
+        # Extract only robot joints from start position for motion command
+        robot_start_position = copy.deepcopy(self.start_position[:self.dof])
+        if not self.push_joint_motion(robot_start_position, speed=10, term_type="FINE", term_val=0):
             self.logger_ri.error("_move_to_start_position, could not move to start position.")
             return False
         self.udp.joint_state_received = self.start_position
@@ -596,7 +611,9 @@ class FanucRobot():
         # Determine robot limits
         current_speed = 200
         joint_limits = [self.udp.get_limit_values(i + 1, current_speed) for i in range(self.dof)]
-        self.joint_limits = self.udp.get_joint_limits(joint_limits, self.start_position)
+        # Use only robot joints for limit calculation
+        robot_start_position = self.start_position[:self.dof]
+        self.joint_limits = self.udp.get_joint_limits(joint_limits, robot_start_position)
 
 
         started_streaming = False
@@ -653,11 +670,19 @@ class FanucRobot():
 
             self.logger_ri.info("control_loop, streaming started, filling buffer")
             for i in range(self.action_buffer_length):
-                # Extract gripper state from start_position (last element)
-                gripper_state = 1 if (len(self.start_position) > self.dof and self.start_position[-1] > 0.5) else 0
+                # Extract robot joints from start_position (first self.dof elements)
+                robot_joints = self.start_position[:self.dof]
+                # Extract EE states from start_position (remaining elements)
+                if len(self.start_position) > self.dof:
+                    ee_states = self.start_position[self.dof:self.dof + self.dof_ee]
+                    # Use first EE DOF for gripper state
+                    gripper_state = 1 if (len(ee_states) > 0 and ee_states[0] > 0.5) else 0
+                else:
+                    gripper_state = 1  # Default for buffer fill
+                
                 if i == 0:
                     gripper_state = 1
-                self.udp.send_joint_pos(self.start_position[:-1], gripper_state, False)
+                self.udp.send_joint_pos(robot_joints, gripper_state, False)
 
             self.logger_ri.info("control_loop, starting control loop")
             previous_action_master = self.start_position
@@ -688,13 +713,22 @@ class FanucRobot():
                     else:
                         break
 
-                # Ruckig trajectory calculation
+                # Extract EE DOF values from action_master
+                self.ee_dof_states = self.extract_ee_dof_values(action_master)
+                
+                # Ruckig trajectory calculation (only for robot joints)
                 self.update_ruckig_input(action_master, inp, previous_action_master)
                 previous_action_master = action_master
 
                 success_calc = self.trajectory_calculation(otg, inp, out)
                 
-                self.determine_gripper_state(action_master[-1])
+                # Use first EE DOF for gripper state determination
+                if self.dof_ee > 0:
+                    self.determine_gripper_state(self.ee_dof_states[0])
+                else:
+                    # Fallback for backward compatibility
+                    if len(action_master) > self.dof:
+                        self.determine_gripper_state(action_master[-1])
                 
                 if not success_calc:
                     self.logger_ri.error("control_loop, trajectory calculation failed")
@@ -722,16 +756,15 @@ class FanucRobot():
                         if self.shm_joint_data1.full():
                             self.shm_joint_data1.get_nowait()
                         
-                        # Convert gripper state to float (0.0 or 1.0) and append to position arrays
-                        gripper_state_float = 1.0 if self.gripper_state else 0.0
-                        teachbot_pos_with_gripper = teachbot_position + [gripper_state_float]
-                        sent_pos_with_gripper = sent_robot_position + [gripper_state_float]
-                        # last_received_js already contains gripper state as last element from UDP interface
+                        # Append all EE DOF states to position arrays
+                        teachbot_pos_with_ee = teachbot_position + self.ee_dof_states
+                        sent_pos_with_ee = sent_robot_position + self.ee_dof_states
+                        # last_received_js already contains EE states as last elements from UDP interface
                         
                         joint_data = {
-                            "teachbot_position": teachbot_pos_with_gripper,
-                            "sent_robot_position": sent_pos_with_gripper,
-                            "robot_position": last_received_js,  # Already includes gripper state
+                            "teachbot_position": teachbot_pos_with_ee,
+                            "sent_robot_position": sent_pos_with_ee,
+                            "robot_position": last_received_js,  # Already includes EE states
                             "robot_position_timestamp": last_received_time,
                             "seq_id": self.udp.seq_id_sent,
                         }
@@ -744,16 +777,15 @@ class FanucRobot():
                         if self.shm_joint_data2.full():
                             self.shm_joint_data2.get_nowait()
                         
-                        # Convert gripper state to float (0.0 or 1.0) and append to position arrays
-                        gripper_state_float = 1.0 if self.gripper_state else 0.0
-                        teachbot_pos_with_gripper = teachbot_position + [gripper_state_float]
-                        sent_pos_with_gripper = sent_robot_position + [gripper_state_float]
-                        # last_received_js already contains gripper state as last element from UDP interface
+                        # Append all EE DOF states to position arrays
+                        teachbot_pos_with_ee = teachbot_position + self.ee_dof_states
+                        sent_pos_with_ee = sent_robot_position + self.ee_dof_states
+                        # last_received_js already contains EE states as last elements from UDP interface
                         
                         joint_data = {
-                            "teachbot_position": teachbot_pos_with_gripper,
-                            "sent_robot_position": sent_pos_with_gripper,
-                            "robot_position": last_received_js,  # Already includes gripper state
+                            "teachbot_position": teachbot_pos_with_ee,
+                            "sent_robot_position": sent_pos_with_ee,
+                            "robot_position": last_received_js,  # Already includes EE states
                             "robot_position_timestamp": last_received_time,
                             "seq_id": self.udp.seq_id_sent,
                         }
@@ -1322,6 +1354,20 @@ class FanucRobot():
         else:
             return False
 
+    def extract_ee_dof_values(self, action_master):
+        """
+        Extract end effector DOF values from the action.
+        Expects action_master to have self.total_dof elements (robot joints + EE DOFs).
+        Returns the EE DOF values as a list.
+        """
+        if len(action_master) >= self.total_dof:
+            ee_dof_values = action_master[self.dof:self.dof + self.dof_ee]
+            return ee_dof_values
+        else:
+            # Fallback: use zeros if not enough elements
+            self.logger_ri.warning(f"Action has {len(action_master)} elements, expected {self.total_dof}. Using zero EE DOF values.")
+            return [0.0] * self.dof_ee
+
     def determine_gripper_state(self, gripper_state):
         """
         Decide when to activate / deactivate the gripper based on threshold and
@@ -1350,6 +1396,68 @@ class FanucRobot():
             self.gripper_off = True
             self.gripper_state = 0
             self.gripper_state_change_time = now
+
+    def _adjust_teachbot_positions_for_playback_speed(self, original_positions, speed_ratio):
+        """
+        Adjust teachbot positions based on playback speed ratio:
+        - ratio > 1: Skip waypoints (e.g., 2.0 = use every other point)  
+        - ratio = 1: Use all waypoints (no change)
+        - ratio < 1: Interpolate additional waypoints (e.g., 0.5 = double the points)
+        """
+        if not original_positions:
+            return original_positions
+            
+        positions_list = list(original_positions)
+        original_count = len(positions_list)
+        
+        if speed_ratio == 1.0:
+            # No change needed
+            self.logger_ri.info(f"Playback speed ratio = 1.0, using all {original_count} waypoints")
+            return original_positions
+            
+        elif speed_ratio > 1.0:
+            # Skip waypoints - take every nth point where n = speed_ratio
+            step = int(round(speed_ratio))
+            adjusted_positions = deque(positions_list[::step])
+            self.logger_ri.info(
+                f"Playback speed ratio = {speed_ratio:.2f}, skipping waypoints: "
+                f"{original_count} -> {len(adjusted_positions)} waypoints (step={step})"
+            )
+            return adjusted_positions
+            
+        else:  # speed_ratio < 1.0
+            # Interpolate additional waypoints
+            interpolation_factor = int(round(1.0 / speed_ratio))
+            adjusted_positions = deque()
+            
+            for i in range(len(positions_list) - 1):
+                current_pos = positions_list[i]
+                next_pos = positions_list[i + 1]
+                
+                # Add current position
+                adjusted_positions.append(current_pos)
+                
+                # Interpolate between current and next position
+                for j in range(1, interpolation_factor):
+                    alpha = j / interpolation_factor
+                    interpolated_pos = []
+                    
+                    # Interpolate each joint/DOF
+                    for k in range(len(current_pos)):
+                        interpolated_value = current_pos[k] + alpha * (next_pos[k] - current_pos[k])
+                        interpolated_pos.append(interpolated_value)
+                    
+                    adjusted_positions.append(interpolated_pos)
+            
+            # Add the final position
+            if positions_list:
+                adjusted_positions.append(positions_list[-1])
+            
+            self.logger_ri.info(
+                f"Playback speed ratio = {speed_ratio:.2f}, interpolating waypoints: "
+                f"{original_count} -> {len(adjusted_positions)} waypoints (factor={interpolation_factor})"
+            )
+            return adjusted_positions
 
     ############################################################################
     # 5) PROCESS PRIORITY ADJUSTMENT AND CPP CALLBACK

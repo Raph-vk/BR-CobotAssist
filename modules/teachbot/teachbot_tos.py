@@ -137,9 +137,11 @@ class TosTeachbot(TeachbotInterface):
 
         # Button state tracking
         self.button_states = {}  # Current button states (pressed/not pressed)
+        self.button_toggle_states = {}  # Toggle states for buttons with toggle behavior
         self.button_last_action_time = {}  # Last time action was triggered for each button
         for button_name in self.active_buttons:
             self.button_states[button_name] = False
+            self.button_toggle_states[button_name] = False  # Initialize toggle states
             self.button_last_action_time[button_name] = 0.0
 
 
@@ -176,48 +178,51 @@ class TosTeachbot(TeachbotInterface):
         self.connected = False
         self.logger_ti.info("TOS Teachbot stopped successfully")
 
-    def button_push(self, label):
+    def button_push(self, label, button_name=None):
         """
         Placeholder method for button press actions.
         This method is called when a button is pressed and the debounce threshold has passed.
         
         Args:
             label (str): The label of the button that was pressed (e.g., "Red button", "Green button")
+            button_name (str): The name of the button in config (e.g., "btn1", "btn2")
         """
         self.logger_ti.info(f"Button pressed: {label}")
 
-        if label.startswith("EE_dof"):
-            # Handle end effector specific actions
-            if label == "EE_dof_1":
-                self.logger_ti.info("Triggering action for EE_dof_1")
-                if self.dof_1_status == 0:
-                    self.dof_1_status = 1
-                else:
-                    self.dof_1_status = 0
-            elif label == "EE_dof_2":
-                self.logger_ti.info("Triggering action for EE_dof_2")
-                if self.dof_2_status == 0:
-                    self.dof_2_status = 1
-                else:
-                    self.dof_2_status = 0
+        # Find the button config that matches this label
+        button_action = None
+        actual_button_name = button_name
+        for btn_name, button_config in self.button_configs.items():
+            if button_config.get("label") == label:
+                button_action = button_config.get("action", "None")
+                actual_button_name = btn_name
+                break
 
+        if button_action and button_action.startswith("EE_dof_"):
+            # Handle end effector specific actions with toggle behavior
+            if actual_button_name:
+                # Toggle the button's toggle state
+                self.button_toggle_states[actual_button_name] = not self.button_toggle_states[actual_button_name]
+                toggle_state = self.button_toggle_states[actual_button_name]
+                self.logger_ti.info(f"Toggled {actual_button_name} ({label}) to: {toggle_state}")
+                
+                # Update the corresponding dof status based on action
+                if button_action == "EE_dof_1":
+                    self.dof_1_status = 1 if toggle_state else 0
+                    self.logger_ti.info(f"Set dof_1_status to: {self.dof_1_status}")
+                elif button_action == "EE_dof_2":
+                    self.dof_2_status = 1 if toggle_state else 0
+                    self.logger_ti.info(f"Set dof_2_status to: {self.dof_2_status}")
+
+        elif button_action and button_action != "None":
+            self.logger_ti.info(f"Executing button action: {button_action}")
+            send_tc_command(self.teachbot_interface_commup, {
+                "type": "CMD", 
+                "message": button_action, 
+                "interface": self.component_tag
+            })
         else:
-            # Find the button config that matches this label
-            button_action = None
-            for button_name, button_config in self.button_configs.items():
-                if button_config.get("label") == label:
-                    button_action = button_config.get("action", "None")
-                    break
-            
-            if button_action and button_action != "None":
-                self.logger_ti.info(f"Executing button action: {button_action}")
-                send_tc_command(self.teachbot_interface_commup, {
-                    "type": "CMD", 
-                    "message": button_action, 
-                    "interface": self.component_tag
-                })
-            else:
-                self.logger_ti.info(f"No action configured for button: {label}")
+            self.logger_ti.info(f"No action configured for button: {label}")
 
 
     ###########################################################
@@ -325,9 +330,10 @@ class TosTeachbot(TeachbotInterface):
                         for gripper_name in self.active_grippers:
                             if gripper_name in rs485_data:
                                 gripper_value = rs485_data[gripper_name]
-                                # Normalize gripper value to 0-1 range based on gripper min/max of gripper_name from active_grippers
-                                gripper_min = self.active_grippers[gripper_name].get("min", 208)
-                                gripper_max = self.active_grippers[gripper_name].get("max", 970)
+                                # Normalize gripper value to 0-1 range based on gripper min/max from gripper_configs
+                                gripper_config = self.gripper_configs.get(gripper_name, {})
+                                gripper_min = gripper_config.get("min", 208)
+                                gripper_max = gripper_config.get("max", 970)
                                 if gripper_value > gripper_max:
                                     gripper_value = gripper_max
                                 elif gripper_value < gripper_min:
@@ -352,7 +358,7 @@ class TosTeachbot(TeachbotInterface):
                                         # Trigger button action
                                         button_config = self.button_configs.get(button_name, {})
                                         button_label = button_config.get("label", button_name)
-                                        self.button_push(button_label)
+                                        self.button_push(button_label, button_name)
                                         self.button_last_action_time[button_name] = current_time
                                 
                                 # Update button state
@@ -368,7 +374,11 @@ class TosTeachbot(TeachbotInterface):
                         # Process all components with EE_dof_n actions
                         components = [
                             (self.gripper_configs, lambda name, _: self.gripper_states.get(name, 0.0)),
-                            (self.button_configs, lambda name, _: float(self.button_states.get(name, False)))
+                            (self.button_configs, lambda name, config: float(
+                                self.button_toggle_states.get(name, False) 
+                                if config.get("action", "").startswith("EE_dof_") 
+                                else self.button_states.get(name, False)
+                            ))
                         ]
                         
                         for config_dict, status_func in components:

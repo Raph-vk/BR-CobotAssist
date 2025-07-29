@@ -98,59 +98,6 @@ def round_position(position):
     return [round(pos, 6) for pos in position]
 
 
-def apply_joint_speed_limits(current_position, previous_position, previous_timestamp, speed_limits, dt, logger):
-    """
-    Apply speed limits to joint positions to ensure safe operation.
-    
-    Args:
-        current_position: Target joint position (degrees)
-        previous_position: Previous joint position (degrees) 
-        previous_timestamp: Timestamp of previous position
-        speed_limits: List of speed limits for each joint (degrees/second)
-        dt: Control timestep (seconds)
-        logger: Logger instance
-        
-    Returns:
-        Tuple of (limited_position, new_timestamp)
-    """
-    current_time = time.time()
-    
-    # If no previous position, return current position unchanged
-    if previous_position is None or previous_timestamp is None:
-        return current_position, current_time
-    
-    # Calculate actual time delta
-    actual_dt = current_time - previous_timestamp
-    if actual_dt <= 0:
-        actual_dt = dt  # Fallback to control timestep
-    
-    limited_position = []
-    
-    for i in range(len(current_position)):
-        if i < len(previous_position) and i < len(speed_limits):
-            # Calculate required velocity
-            position_diff = current_position[i] - previous_position[i]
-            required_velocity = abs(position_diff) / actual_dt
-            
-            # Check if velocity exceeds limit
-            if required_velocity > speed_limits[i]:
-                # Limit the position change
-                max_change = speed_limits[i] * actual_dt
-                if position_diff > 0:
-                    limited_pos = previous_position[i] + max_change
-                else:
-                    limited_pos = previous_position[i] - max_change
-                
-                limited_position.append(limited_pos)
-            else:
-                limited_position.append(current_position[i])
-        else:
-            # No limit for this joint or invalid index
-            limited_position.append(current_position[i])
-    
-    return limited_position, current_time
-
-
 def send_response(logger_ti, robot_interface_commup, payload, error="None", **kwargs):
     """
     Helper to construct and send a consistent response dict:
@@ -181,13 +128,14 @@ def send_response(logger_ti, robot_interface_commup, payload, error="None", **kw
 ##################################################################
 # CLASS DEFINITION: TechmanRobot
 ##################################################################
-class TechmanRobot(RobotInterface):
+class TechmanRobot():
     """
     Handles:
       - TMSCT connection (TCP) to a Techman robot,
       - UDP listening for status/feedback from robot,
       - Methods for motion commands (teleoperation, recording, playback),
       - Safety checks and limit monitoring,
+      - Joint speed limiting based on config velocity_limits and safety factor,
       - Consistent structure matching FanucRobot implementation.
     """
 
@@ -225,9 +173,13 @@ class TechmanRobot(RobotInterface):
         self.start_position = config["general"]["start_position"]
         self.start_joint_tolerance = config["general"]["start_joint_tolerance"]
         self.dof = config["hardware"]["robot"]["dof"]
+        self.dof_ee = config["hardware"]["robot"]["dof_ee"]
+        self.total_dof = self.dof + self.dof_ee
         self.default_recording_speed = config["general"]["default_recording_speed"]
         self.gripper_treshold = config["general"]["gripper_treshold"]
         self.gripper_delay = config["general"]["gripper_delay"]
+        self.action_buffer_length = config["general"]["action_buffer_length"]
+        self.run_policy_active = False  # Initialize policy state
         
         # Techman-specific config
         self.robot_address = tuple(config["hardware"]["robot"]["robot_adress"])
@@ -236,6 +188,16 @@ class TechmanRobot(RobotInterface):
         # Use default limits if not specified in config
         self.upper_limits = config["hardware"]["robot"].get("upper_limits", [180, 180, 180, 180, 180, 180])
         self.lower_limits = config["hardware"]["robot"].get("lower_limits", [-180, -180, -180, -180, -180, -180])
+        
+        # Joint velocity limits and safety factor
+        self.velocity_limits = config["hardware"]["robot"].get("velocity_limits", [120, 120, 180, 180, 180, 180])
+        self.limit_safety_factor = config["hardware"]["robot"].get("limit_safety_factor", 0.9)
+        
+        # Apply safety factor to velocity limits
+        self.safe_velocity_limits = [limit * self.limit_safety_factor for limit in self.velocity_limits]
+        self.logger_ri.info(f"Joint velocity limits with safety factor {self.limit_safety_factor}: {self.safe_velocity_limits}")
+        self.logger_ri.info(f"Original velocity limits: {self.velocity_limits}")
+        self.logger_ri.info(f"Control timestep: {self.control_dt}s (100Hz)")
         
         # Techman TMSCT Position command parameters
         move_params = config["hardware"]["robot"].get("move_to_start_params", {})
@@ -255,9 +217,12 @@ class TechmanRobot(RobotInterface):
         self.total_timesteps = 0
         self.counter = 0
         self.recording = False
-        self.gripper_state = False
-        self.gripper_state_change_time = 0
+        self.gripper_state = 0
+        self.gripper_state_change_time = time.time()  # Initialize to current time
+        self.gripper_on = False
+        self.gripper_off = False
         self.teachbot_positions = deque()
+        self.ee_dof_states = [0.0] * self.dof_ee  # Track all EE DOF states
 
         # Connection elements
         self.sock = None
@@ -279,17 +244,41 @@ class TechmanRobot(RobotInterface):
         self.target_pos_received = None
         self.joint_state_received = None
 
-        # Speed limiter configuration and state
-        self.joint_speed_limits = [120.0, 120.0, 180.0, 180.0, 180.0, 180.0]  # degrees per second
+        # Speed limiter state for trajectory planning
         self.previous_joint_position = None
         self.previous_timestamp = None
-        self.speed_limiter_enabled = True
+
+        # Playback speed ratio tracking (for waypoint adjustment)
+        self.playback_speed_ratio = 1.0
+        self.recording_speed = self.default_recording_speed  # Speed used when recording was made
 
         # Connect automatically if desired:
         if not self.connect():
             raise Exception(
                 "TechmanRobot: Could not connect to robot. Check IP address, connection, and robot state."
             )
+        
+        # Initialize EE states from start position
+        self._initialize_ee_states()
+
+    def _initialize_ee_states(self):
+        """
+        Initialize end-effector states from start position or defaults.
+        """
+        if len(self.start_position) >= self.total_dof:
+            # Extract EE states from start position
+            self.ee_dof_states = self.start_position[self.dof:self.dof + self.dof_ee]
+            self.logger_ri.info(f"Initialized EE states from start position: {self.ee_dof_states}")
+        else:
+            # Use default values (typically all zeros)
+            self.ee_dof_states = [0.0] * self.dof_ee
+            self.logger_ri.info(f"Initialized EE states to defaults: {self.ee_dof_states}")
+            
+        # Initialize gripper state from first EE DOF if available
+        if self.dof_ee > 0:
+            initial_gripper_state = 1 if self.ee_dof_states[0] > self.gripper_treshold else 0
+            self.gripper_state = initial_gripper_state
+            self.logger_ri.info(f"Initialized gripper state to: {self.gripper_state}")
 
     ################################################################
     # 1) COMMANDS
@@ -346,6 +335,51 @@ class TechmanRobot(RobotInterface):
     def record_episodes(self, full_message=None):
         self.recording = True
         return self.start_teleoperation(full_message)
+
+    def run_policy(self, full_message=None):
+        """
+        Run the policy execution.
+        """
+        if full_message is None:
+            full_message = {"message": "run_policy"}
+        self.robot_running = True
+        self.run_policy_active = True
+
+        # Ensure robot is connected
+        if not self.connected:
+            if not self.connect():
+                self.logger_ri.error(
+                    "run_policy, could not connect to robot. "
+                    "Check IP address, connection, or robot state."
+                )
+            self.logger_ri.error("run_policy, robot not connected.")
+            return False
+
+        # Set robot speed for policy execution from model config
+        model_name = full_message.get('model_name')
+        dataset_name = full_message.get('dataset_name')
+        if model_name and dataset_name:
+            dataset_dir = get_data_path(self.config, dataset_name)
+            model_config_path = os.path.join(dataset_dir, "Models", model_name, 'config.json')
+                    
+            if os.path.exists(model_config_path):
+                with open(model_config_path, 'r') as f:
+                    model_config = json.load(f)
+                self.robot_speed = model_config.get('robot_speed', self.default_recording_speed)
+                self.logger_ri.info(f"Using robot speed from model config: {self.robot_speed}")
+            else:
+                self.logger_ri.warning(f"Model config not found at {model_config_path}, using default robot speed")
+                self.robot_speed = self.default_recording_speed
+        else:
+            self.robot_speed = self.default_recording_speed
+
+        # create thread that controls the robot
+        self.robot_control_thread = threading.Thread(
+            target=self._control_robot, args=(full_message, ), daemon=True
+        )
+        self.robot_control_thread.start()
+        self.logger_ri.info("run_policy, robot control thread created for policy execution.")
+        return True
 
     def play_recording(self, full_message=None):
         """
@@ -416,6 +450,12 @@ class TechmanRobot(RobotInterface):
         # Disconnect
         self.logger_ri.info("stop, disconnecting.")
         success = self.disconnect()
+        
+        # Reset state flags
+        self.recording = False
+        self.play_recording_active = False
+        self.run_policy_active = False
+        
         self.logger_ri.info("stop, disconnected.")
         return success
 
@@ -479,8 +519,41 @@ class TechmanRobot(RobotInterface):
                 self.stop_robot_running()
                 return False
 
+            # Get recording speed from metadata or use default
+            self.recording_speed = data.get("recording_speed", self.default_recording_speed)
+            
+            # Get playback speed from message or use default
+            playback_speed = full_message.get("playback_speed", "")
+            
+            if playback_speed == "":
+                self.playback_speed_ratio = 1.0
+                self.logger_ri.info("_load_recording_data, no playback speed specified, using ratio 1.0")
+            else:
+                try:
+                    playback_speed_val = float(playback_speed)
+                    # Calculate effective speed and ratio
+                    effective_speed = playback_speed_val * self.recording_speed
+                    
+                    if effective_speed > 1.0:
+                        effective_speed = 1.0  # Cap at maximum robot speed
+                        self.logger_ri.info(f"_load_recording_data, effective speed capped at 1.0 (was {playback_speed_val * self.recording_speed:.2f})")
+                    
+                    # Calculate speed ratio for waypoint adjustment
+                    self.playback_speed_ratio = effective_speed / self.recording_speed
+                    
+                    self.logger_ri.info(f"_load_recording_data, recording speed: {self.recording_speed}, "
+                                      f"playback speed: {playback_speed_val}, effective speed: {effective_speed}, "
+                                      f"speed ratio: {self.playback_speed_ratio:.2f}")
+                except ValueError:
+                    self.logger_ri.error(f"_load_recording_data, invalid playback speed: {playback_speed}")
+                    self.playback_speed_ratio = 1.0
+
             # Load positions
             self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
+            
+            # Adjust waypoints based on speed ratio
+            self._adjust_teachbot_positions_for_playback_speed()
+            
             try:
                 self.first_joint_position = data["samples"][0]["robot_position"]
             except IndexError:
@@ -503,6 +576,57 @@ class TechmanRobot(RobotInterface):
             return False
             
         return True
+
+    def _adjust_teachbot_positions_for_playback_speed(self):
+        """
+        Adjust teachbot positions based on playback speed ratio.
+        
+        - Ratio > 1: Skip waypoints (use every Nth waypoint)
+        - Ratio = 1: No adjustment needed 
+        - Ratio < 1: Interpolate additional waypoints
+        """
+        if abs(self.playback_speed_ratio - 1.0) < 0.01:
+            # No adjustment needed for ratio ~1.0
+            self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} ≈ 1.0, no adjustment needed. Waypoint count: {len(self.teachbot_positions)}")
+            return
+            
+        original_count = len(self.teachbot_positions)
+        original_positions = list(self.teachbot_positions)
+        
+        if self.playback_speed_ratio > 1.0:
+            # Skip waypoints - use every Nth waypoint where N = ratio
+            skip_factor = int(round(self.playback_speed_ratio))
+            adjusted_positions = original_positions[::skip_factor]
+            
+            self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} > 1.0, skipping waypoints with factor {skip_factor}")
+            self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (reduction: {((original_count - len(adjusted_positions)) / original_count * 100):.1f}%)")
+            
+        else:  # self.playback_speed_ratio < 1.0
+            # Interpolate additional waypoints
+            interpolation_factor = int(round(1.0 / self.playback_speed_ratio))
+            adjusted_positions = []
+            
+            self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} < 1.0, interpolating waypoints with factor {interpolation_factor}")
+            
+            for i in range(len(original_positions)):
+                adjusted_positions.append(original_positions[i])
+                
+                # Interpolate between current and next position (if next exists)
+                if i < len(original_positions) - 1:
+                    current_pos = np.array(original_positions[i])
+                    next_pos = np.array(original_positions[i + 1])
+                    
+                    # Create intermediate positions
+                    for j in range(1, interpolation_factor):
+                        alpha = j / interpolation_factor
+                        interpolated_pos = current_pos + alpha * (next_pos - current_pos)
+                        adjusted_positions.append(interpolated_pos.tolist())
+            
+            self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (increase: {((len(adjusted_positions) - original_count) / original_count * 100):.1f}%)")
+        
+        # Replace the original positions with adjusted ones
+        self.teachbot_positions = deque(adjusted_positions)
+        self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, waypoint adjustment completed")
 
     def _receive_target_pos_loop(self):
         """
@@ -609,12 +733,170 @@ class TechmanRobot(RobotInterface):
 
     def _control_loop(self, started_streaming):
         """
-        Core loop for either teleoperation or playing back a recorded trajectory.
+        Core loop for either teleoperation or playing back a recorded trajectory:
+        - Setup motion planner with speed limiting
+        - Fill action buffer with start position
+        - While running, compute next motion and send to robot
+        - Optionally store motion data if recording
         """
-        if self.play_recording_active:
-            self._execute_play_recording()
-        else:
-            self._execute_teleoperation()
+        # Set up motion planner with speed limiting and initial conditions
+        self.logger_ri.info("control_loop, Setup motion planner with speed limiting")
+        otg, inp, out = self.setup_placeholder_planner()
+        self.logger_ri.info("control_loop, Motion planner setup done.")
+
+        # Garbage collection optimization for real-time performance
+        import gc
+        # Store original GC settings to restore later
+        original_gc_thresholds = gc.get_threshold()
+        
+        # Set optimized GC thresholds for real-time performance
+        # Higher thresholds = less frequent GC = more predictable timing
+        optimized_gen0 = 2000   # Less frequent gen0 (default: 700)
+        optimized_gen1 = 25     # Less frequent gen1 (default: 10)
+        optimized_gen2 = 25     # Less frequent gen2 (default: 10)
+        gc.set_threshold(optimized_gen0, optimized_gen1, optimized_gen2)
+        
+        time.sleep(0.01)
+
+        self.logger_ri.info("control_loop, streaming started, filling buffer")
+        for i in range(self.action_buffer_length):
+            # Extract robot joints from start_position (first self.dof elements)
+            robot_joints = self.start_position[:self.dof]
+            # Extract EE states from start_position (remaining elements)
+            if len(self.start_position) > self.dof:
+                ee_states = self.start_position[self.dof:self.dof + self.dof_ee]
+                # Use first EE DOF for gripper state
+                gripper_state = 1 if (len(ee_states) > 0 and ee_states[0] > 0.5) else 0
+            else:
+                gripper_state = 1  # Default for buffer fill
+            
+            if i == 0:
+                gripper_state = 1
+            # For Techman, we just log the buffer fill instead of sending UDP
+            self.logger_ri.debug(f"Buffer fill {i}: joints={robot_joints}, gripper={gripper_state}")
+
+        self.logger_ri.info("control_loop, starting control loop")
+        previous_action_master = self.start_position
+
+        while self.robot_running:
+            start_time = time.time()
+            
+            # Get robot feedback - Techman uses start position as current state
+            last_received_time = time.time()
+            last_received_js = self.start_position
+
+            # Get next action
+            if self.play_recording_active:
+                if self.teachbot_positions:
+                    action_master = self.teachbot_positions.popleft()
+                else:
+                    self.logger_ri.info("control_loop, recording playback completed")
+                    break
+            elif self.run_policy_active:
+                action_master = self._get_next_policy_action()
+                if action_master is None:
+                    action_master = previous_action_master
+            else:
+                if self.target_pos_received is not None:
+                    action_master = self.target_pos_received
+                else:
+                    # No action received, use previous action
+                    action_master = previous_action_master
+
+            # Extract EE DOF values from action_master
+            self.ee_dof_states = self.extract_ee_dof_values(action_master)
+            
+            # Trajectory calculation with joint speed limiting (robot joints only)
+            self.update_placeholder_input(action_master, inp, previous_action_master)
+            previous_action_master = action_master
+
+            success_calc = self.trajectory_calculation_placeholder(otg, inp, out)
+            
+            # Use first EE DOF for gripper state determination
+            if self.dof_ee > 0:
+                self.determine_gripper_state(self.ee_dof_states[0])
+            else:
+                # Fallback for backward compatibility
+                if len(action_master) > self.dof:
+                    self.determine_gripper_state(action_master[-1])
+            
+            if not success_calc:
+                self.logger_ri.error("control_loop, trajectory calculation failed")
+                break
+
+            sent_robot_position = out["new_position"]
+            teachbot_position = inp["target_position"]
+
+            # Store flags before sending
+            gripper_on_to_send = self.gripper_on
+            gripper_off_to_send = self.gripper_off
+            
+            # Send to robot via TMSCT
+            success_send = self._send_robot_position(sent_robot_position, gripper_on_to_send, gripper_off_to_send)
+            
+            # Reset gripper flags after sending
+            self.gripper_on = False
+            self.gripper_off = False
+            
+            if not success_send:
+                self.logger_ri.error("control_loop, could not send joint position to robot")
+                break
+
+            # Upload data to shm_joint_data1 if recording
+            if self.recording:
+                try:
+                    if self.shm_joint_data1.full():
+                        self.shm_joint_data1.get_nowait()
+                    
+                    # Append all EE DOF states to position arrays
+                    teachbot_pos_with_ee = teachbot_position + self.ee_dof_states
+                    sent_pos_with_ee = sent_robot_position + self.ee_dof_states
+                    # last_received_js already contains EE states as last elements
+                    
+                    joint_data = {
+                        "teachbot_position": teachbot_pos_with_ee,
+                        "sent_robot_position": sent_pos_with_ee,
+                        "robot_position": last_received_js,  # Already includes EE states
+                        "robot_position_timestamp": last_received_time,
+                        "seq_id": getattr(self, 'seq_id', 0),
+                    }
+                    self.shm_joint_data1.put(joint_data)
+                except Exception as e:
+                    self.logger_ri.error("control_loop, error uploading joint data: %s", e)
+
+            if self.run_policy_active:
+                try:
+                    if self.shm_joint_data2.full():
+                        self.shm_joint_data2.get_nowait()
+                    
+                    # Append all EE DOF states to position arrays
+                    teachbot_pos_with_ee = teachbot_position + self.ee_dof_states
+                    sent_pos_with_ee = sent_robot_position + self.ee_dof_states
+                    
+                    joint_data = {
+                        "teachbot_position": teachbot_pos_with_ee,
+                        "sent_robot_position": sent_pos_with_ee,
+                        "robot_position": last_received_js,
+                        "robot_position_timestamp": last_received_time,
+                        "seq_id": getattr(self, 'seq_id', 0),
+                    }
+                    self.shm_joint_data2.put(joint_data)
+                except Exception as e:
+                    self.logger_ri.error("control_loop, error uploading joint data: %s", e)
+
+            # Rate control - maintain 100Hz control loop
+            elapsed = time.time() - start_time
+            sleep_time = self.control_dt - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+        # Restore original GC settings when exiting
+        gc.set_threshold(*original_gc_thresholds)
+
+        if started_streaming:
+            self.logger_ri.info("control_loop, stopping robot")
+            self.stop_robot_placeholder(otg, inp, out)
+            self.logger_ri.info("control_loop, robot stopped")
 
     def _close_robot(self, started_streaming):
         """
@@ -636,48 +918,207 @@ class TechmanRobot(RobotInterface):
             send_tc_command(self.robot_interface_commup, {"type": "CMD", "message": "stop", "interface": self.component_tag})
             self.logger_ri.info("_send_stop_response, sent stop command to queue.")
 
-    def _execute_teleoperation(self):
+    ################################################################
+    # PLACEHOLDER MOTION PLANNING FUNCTIONS (for Ruckig replacement)
+    ################################################################
+
+    def setup_placeholder_planner(self):
         """
-        Execute teleoperation control loop.
-        Main teleoperation loop - no opening ceremony here as it's handled in _check_start_position.
+        Set up placeholder motion planner with initial conditions.
+        Replaces Ruckig setup for Techman robot.
         """
-        # Main teleoperation loop
-        self.logger_ri.info("Starting teleoperation control loop.")
-        while self.robot_running:
-            start_time = time.time()
+        # Reset speed limiter state
+        self.previous_joint_position = None
+        self.previous_timestamp = None
+        
+        # Create simple dictionary-based objects to mimic Ruckig interface
+        otg = {
+            "type": "placeholder_planner",
+            "velocity_limits": self.safe_velocity_limits.copy()
+        }
+        inp = {
+            "current_position": self.start_position[:self.dof],
+            "current_velocity": [0.0] * self.dof,
+            "current_acceleration": [0.0] * self.dof,
+            "target_position": self.start_position[:self.dof],
+            "target_velocity": [0.0] * self.dof,
+            "target_acceleration": [0.0] * self.dof,
+        }
+        out = {
+            "new_position": self.start_position[:self.dof],
+            "new_velocity": [0.0] * self.dof,
+            "new_acceleration": [0.0] * self.dof,
+        }
+        
+        self.logger_ri.info(f"Placeholder planner setup with velocity limits: {self.safe_velocity_limits}")
+        return otg, inp, out
 
-            if self.target_pos_received is not None:
-                action_deg = self.target_pos_received
+    def update_placeholder_input(self, action_master, inp, previous_action_master):
+        """
+        Process the new action (master) against position limits and
+        set the placeholder input accordingly.
+        """
+        current_position = [round(pos, 6) for pos in inp["current_position"]]
+        inp["current_position"] = current_position
 
-                # Safety check
-                if not action_master_safety_check(action_deg, self.upper_limits, self.lower_limits):
-                    self.logger_ri.warning("Safety check failed for master position.")
-                    break
+        target_position = action_master[:self.dof].copy()
+        
+        # Apply position limits
+        for i in range(self.dof):
+            if target_position[i] > self.upper_limits[i]:
+                target_position[i] = self.upper_limits[i]
+            elif target_position[i] < self.lower_limits[i]:
+                target_position[i] = self.lower_limits[i]
 
-                # Send TMSCT command
-                position = action_master_TM_translation(copy.deepcopy(action_deg))
-                script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
-                
-                if not send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri):
-                    self.logger_ri.error("Error sending command to Techman.")
-                    break
-                self.logger_ri.info(f"Sent position command: {script_cmd}")
+        inp["target_position"] = target_position
+        return
 
-                # Store joint data if recording
-                if self.recording:
-                    robot_position = self.start_position  # Use actual position if available
-                    self._store_joint_data(robot_position, action_deg)
-
+    def trajectory_calculation_placeholder(self, otg, inp, out):
+        """
+        Trajectory calculation with joint speed limiting.
+        Implements velocity constraints based on config velocity_limits and safety factor.
+        """
+        try:
+            current_position = inp["current_position"]
+            target_position = inp["target_position"]
+            current_time = time.time()
+            
+            # Initialize previous state if not set
+            if self.previous_joint_position is None or self.previous_timestamp is None:
+                self.previous_joint_position = current_position.copy()
+                self.previous_timestamp = current_time
+                # For first iteration, just set target as output
+                out["new_position"] = target_position.copy()
+                out["new_velocity"] = [0.0] * self.dof
+                out["new_acceleration"] = [0.0] * self.dof
             else:
-                self.logger_ri.info("No target position received, skipping control step.")
+                # Calculate time step
+                dt = current_time - self.previous_timestamp
+                if dt <= 0:
+                    dt = self.control_dt  # Fallback to control timestep
+                
+                # Apply speed limits to each joint
+                limited_position = []
+                actual_velocities = []
+                
+                for i in range(self.dof):
+                    # Calculate required position change
+                    position_diff = target_position[i] - current_position[i]
+                    
+                    # Calculate maximum allowed position change based on velocity limit
+                    max_velocity = self.safe_velocity_limits[i]  # degrees/second with safety factor
+                    max_position_change = max_velocity * dt
+                    
+                    # Limit the position change if necessary
+                    if abs(position_diff) > max_position_change:
+                        # Scale down the position change to respect velocity limit
+                        if position_diff > 0:
+                            limited_change = max_position_change
+                        else:
+                            limited_change = -max_position_change
+                        
+                        new_position = current_position[i] + limited_change
+                        actual_velocity = limited_change / dt
+                        
+                        self.logger_ri.debug(f"Joint {i+1}: Limited velocity to {actual_velocity:.1f}°/s (max: {max_velocity:.1f}°/s)")
+                    else:
+                        # No limiting needed
+                        new_position = target_position[i]
+                        actual_velocity = position_diff / dt
+                    
+                    limited_position.append(new_position)
+                    actual_velocities.append(actual_velocity)
+                
+                # Set output
+                out["new_position"] = limited_position
+                out["new_velocity"] = actual_velocities
+                out["new_acceleration"] = [0.0] * self.dof  # Placeholder
+            
+            # Update state for next iteration
+            self.previous_joint_position = out["new_position"].copy()
+            self.previous_timestamp = current_time
+            
+            # Update input for next iteration
+            inp["current_position"] = out["new_position"].copy()
+            inp["current_velocity"] = out["new_velocity"].copy()
+            inp["current_acceleration"] = out["new_acceleration"].copy()
+            
+            return True
+            
+        except Exception as e:
+            self.logger_ri.error(f"Trajectory calculation error: {e}")
+            return False
 
-            # Rate control
-            elapsed = time.time() - start_time
-            sleep_time = self.control_dt - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+    def stop_robot_placeholder(self, otg, inp, out):
+        """
+        Placeholder robot stop function.
+        Sends a few more position commands to ensure robot stops.
+        """
+        self.logger_ri.info("stop_robot_placeholder, stopping robot")
+        nr_stop_actions = 50
+        stop_step_counter = 0
 
-        self.stop_robot_running(script_cmd)
+        while stop_step_counter < nr_stop_actions:
+            # Send current position as stop command
+            position = action_master_TM_translation(copy.deepcopy(out["new_position"]))
+            script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
+            send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
+            
+            stop_step_counter += 1
+            time.sleep(self.control_dt)
+            
+        self.logger_ri.info("stop_robot_placeholder, done stopping robot")
+        return True
+
+    def _send_robot_position(self, robot_position, gripper_on, gripper_off):
+        """
+        Send robot position to Techman via TMSCT protocol.
+        Includes gripper state logging and velocity information.
+        """
+        try:
+            # Transform robot position for Techman
+            position = action_master_TM_translation(copy.deepcopy(robot_position))
+            script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
+            
+            # Log velocity information if available
+            if hasattr(self, 'previous_joint_position') and self.previous_joint_position is not None:
+                current_time = time.time()
+                dt = current_time - getattr(self, 'previous_timestamp', current_time)
+                if dt > 0:
+                    velocities = [(new - old) / dt for new, old in zip(robot_position, self.previous_joint_position)]
+                    max_velocity = max(abs(v) for v in velocities)
+                    max_limit = max(self.safe_velocity_limits)
+                    velocity_percentage = (max_velocity / max_limit) * 100 if max_limit > 0 else 0
+                    
+                    self.logger_ri.debug(f"Joint velocities: {[f'{v:.1f}' for v in velocities]}°/s "
+                                       f"(max: {max_velocity:.1f}°/s, {velocity_percentage:.1f}% of limit)")
+            
+            # Send command
+            success = send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
+            
+            # Log gripper state changes
+            if gripper_on:
+                self.logger_ri.info(f"GRIPPER COMMAND: Turn ON - EE states: {self.ee_dof_states}")
+            if gripper_off:
+                self.logger_ri.info(f"GRIPPER COMMAND: Turn OFF - EE states: {self.ee_dof_states}")
+                
+            return success
+            
+        except Exception as e:
+            self.logger_ri.error(f"Error sending robot position: {e}")
+            return False
+
+    def _get_next_policy_action(self):
+        """
+        Placeholder for policy action retrieval.
+        Returns None since policy execution not yet implemented for Techman.
+        """
+        self.logger_ri.warning("Policy execution not yet implemented for Techman robot")
+        return None
+
+    ################################################################
+    # LEGACY CONTROL METHODS (kept for compatibility)
+    ################################################################
 
     def opening_ceremony(self):
         """
@@ -691,10 +1132,17 @@ class TechmanRobot(RobotInterface):
         
         while self.robot_running:
             if self.target_pos_received is not None:
-                diff = np.abs(np.array(self.target_pos_received[:self.dof]) - np.array(self.start_position))
+                # Compare only robot joints for tolerance check
+                target_robot_joints = self.target_pos_received[:self.dof]
+                start_robot_joints = self.start_position[:self.dof]
+                diff = np.abs(np.array(target_robot_joints) - np.array(start_robot_joints))
 
                 if np.all(diff < self.start_joint_tolerance):
                     self.logger_ri.info("Opening ceremony completed - target position within tolerance")
+                    # Initialize EE states from target position if available
+                    if len(self.target_pos_received) >= self.total_dof:
+                        self.ee_dof_states = self.target_pos_received[self.dof:self.dof + self.dof_ee]
+                        self.logger_ri.info(f"Initialized EE states from target: {self.ee_dof_states}")
                     return True
             
             # Check timeout
@@ -711,11 +1159,14 @@ class TechmanRobot(RobotInterface):
         Execute playback of recorded positions.
         """
         self.logger_ri.info("Starting play recording control loop.")
+        previous_action_master = self.start_position
+        
         while self.robot_running:
             start_time = time.time()
             
             if self.teachbot_positions:
                 action_deg = self.teachbot_positions.popleft()
+                action_master = action_deg
             else:
                 self.logger_ri.info("control_loop, recording playbook completed")
                 break
@@ -725,15 +1176,36 @@ class TechmanRobot(RobotInterface):
                 self.logger_ri.warning("Safety check failed for recorded position.")
                 break
 
-            # Send TMSCT command
-            position = action_master_TM_translation(copy.deepcopy(action_deg))
+            # Extract EE DOF values from action_master
+            self.ee_dof_states = self.extract_ee_dof_values(action_master)
+            
+            # Use first EE DOF for gripper state determination
+            if self.dof_ee > 0:
+                self.determine_gripper_state(self.ee_dof_states[0])
+            else:
+                # Fallback for backward compatibility
+                if len(action_master) > self.dof:
+                    self.determine_gripper_state(action_master[-1])
+
+            # Send TMSCT command (only robot joints)
+            position = action_master_TM_translation(copy.deepcopy(action_deg[:self.dof]))
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
             
             if not send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri):
                 self.logger_ri.error("Error sending command to Techman.")
                 break
 
-            self.logger_ri.info(f"Sent recorded position command: {script_cmd}")
+            # Log gripper state changes instead of sending to robot
+            if self.gripper_on:
+                self.logger_ri.info(f"GRIPPER COMMAND: Turn ON - EE states: {self.ee_dof_states}")
+                self.gripper_on = False  
+            if self.gripper_off:
+                self.logger_ri.info(f"GRIPPER COMMAND: Turn OFF - EE states: {self.ee_dof_states}")
+                self.gripper_off = False  
+
+            self.logger_ri.info(f"Sent recorded position command: {script_cmd}, EE states: {self.ee_dof_states}")
+
+            previous_action_master = action_master
 
             # Rate control
             elapsed = time.time() - start_time
@@ -762,6 +1234,12 @@ class TechmanRobot(RobotInterface):
         self.receive_target_pos = False
         self.robot_running = False
         self.play_recording_active = False
+        self.run_policy_active = False
+        
+        # Reset gripper states
+        self.gripper_on = False
+        self.gripper_off = False
+        self.gripper_delay = 0
 
         # Join threads
         if self.update_target_info_thread and threading.current_thread() != self.update_target_info_thread:
@@ -818,8 +1296,18 @@ class TechmanRobot(RobotInterface):
         enable_cmd = f'Position(true, "J", {self.move_accel_time}, {self.move_motion_gain}, {self.move_protection_time})'
         send_tmsct_cmd(self.sock, "1", enable_cmd, self.logger_ri)
 
-        # Send movement command
-        position = action_master_TM_translation(self.start_position)
+        # Extract only robot joints from start position for movement command
+        robot_start_position = copy.deepcopy(self.start_position[:self.dof])
+        position = action_master_TM_translation(robot_start_position)
+        
+        # Initialize EE states from start position if available
+        if len(self.start_position) >= self.total_dof:
+            self.ee_dof_states = self.start_position[self.dof:self.dof + self.dof_ee]
+        else:
+            self.ee_dof_states = [0.0] * self.dof_ee
+            
+        self.logger_ri.info(f"Moving to start position with EE states: {self.ee_dof_states}")
+        
         move_time = 5
         time_now = 0
         
@@ -959,6 +1447,89 @@ class TechmanRobot(RobotInterface):
         except Exception as e:
             self.logger_ri.error(f"Could not store joint data: {e}")
 
+    def _store_joint_data_with_ee(self, robot_position, teachbot_position):
+        """
+        Store joint data in shared memory for recording, including end-effector states.
+        """
+        robot_pos = robot_position.tolist() if isinstance(robot_position, np.ndarray) else robot_position
+        teachbot_pos = teachbot_position.tolist() if isinstance(teachbot_position, np.ndarray) else teachbot_position
+        
+        # Ensure we have the full position including EE states
+        if len(robot_pos) < self.total_dof:
+            # Extend robot position with current EE states
+            robot_pos_with_ee = robot_pos[:self.dof] + self.ee_dof_states
+        else:
+            robot_pos_with_ee = robot_pos
+            
+        if len(teachbot_pos) < self.total_dof:
+            # Extend teachbot position with current EE states  
+            teachbot_pos_with_ee = teachbot_pos[:self.dof] + self.ee_dof_states
+        else:
+            teachbot_pos_with_ee = teachbot_pos
+            
+        # Create joint data structure with end-effector information
+        joint_data = {
+            "robot_position": robot_pos_with_ee,
+            "teachbot_position": teachbot_pos_with_ee,
+            "sent_robot_position": robot_pos_with_ee,
+            "robot_position_timestamp": time.time(),
+            "seq_id": getattr(self, 'seq_id', 0),
+            "gripper_state": self.gripper_state,
+            "ee_dof_states": self.ee_dof_states.copy(),
+        }
+        try:
+            if self.shm_joint_data1.full():
+                self.shm_joint_data1.get_nowait()
+            self.shm_joint_data1.put(joint_data)
+        except Exception as e:
+            self.logger_ri.error(f"Could not store joint data with EE: {e}")
+
+    def extract_ee_dof_values(self, action_master):
+        """
+        Extract end effector DOF values from the action.
+        Expects action_master to have self.total_dof elements (robot joints + EE DOFs).
+        Returns the EE DOF values as a list.
+        """
+        if len(action_master) >= self.total_dof:
+            ee_dof_values = action_master[self.dof:self.dof + self.dof_ee]
+            return ee_dof_values
+        else:
+            # Fallback: use zeros if not enough elements
+            self.logger_ri.warning(f"Action has {len(action_master)} elements, expected {self.total_dof}. Using zero EE DOF values.")
+            return [0.0] * self.dof_ee
+
+    def determine_gripper_state(self, gripper_state):
+        """
+        Decide when to activate / deactivate the gripper based on threshold and
+        internal 'gripper_delay' logic. Sets gripper_on/gripper_off flags for logging.
+        """
+        now = time.time()
+        self.gripper_on = False
+        self.gripper_off = False
+        
+        # Turn ON
+        if gripper_state >= self.gripper_treshold and not self.gripper_state:
+            if self.gripper_delay > 0.0:
+                self.gripper_state_change_time_threshold = self.gripper_delay / getattr(self, 'robot_speed', 1.0)
+                # Check if enough time has passed since last state change
+                if (now - self.gripper_state_change_time) >= self.gripper_state_change_time_threshold:
+                    self.gripper_on = True
+                    self.gripper_state = 1
+                    self.gripper_state_change_time = now
+                    self.logger_ri.info(f"Gripper turned ON: state={gripper_state:.3f}, threshold={self.gripper_treshold}")
+            else:
+                self.gripper_on = True
+                self.gripper_state = 1
+                self.gripper_state_change_time = now
+                self.logger_ri.info(f"Gripper turned ON (no delay): state={gripper_state:.3f}, threshold={self.gripper_treshold}")
+
+        # Turn OFF
+        elif gripper_state < self.gripper_treshold and self.gripper_state:
+            self.gripper_off = True
+            self.gripper_state = 0
+            self.gripper_state_change_time = now
+            self.logger_ri.info(f"Gripper turned OFF: state={gripper_state:.3f}, threshold={self.gripper_treshold}")
+
     ################################################################
     # 7) ADDITIONAL ROBOT METHODS (for compatibility)
     ################################################################
@@ -981,26 +1552,51 @@ class TechmanRobot(RobotInterface):
 
     def get_joint_position(self):
         """
-        Get current joint position (placeholder - implement if robot provides feedback).
+        Get current joint position. Returns start position as Techman doesn't provide real-time feedback.
         """
         # Return last known position or start position
         return self.start_position
 
     def get_joint_velocity(self):
         """
-        Get current joint velocity (placeholder).
+        Get current joint velocity. Returns zeros as Techman doesn't provide real-time velocity feedback.
         """
         return [0.0] * self.dof
 
     def set_gripper_state(self, state):
         """
-        Set gripper state (placeholder - implement if gripper control is needed).
+        Set gripper state with logging and EE DOF state synchronization.
         """
-        self.gripper_state = state
-        self.logger_ri.info(f"Gripper state set to: {state}")
+        if state != self.gripper_state:
+            old_state = self.gripper_state
+            self.gripper_state = state
+            self.gripper_state_change_time = time.time()
+            self.logger_ri.info(f"Gripper state changed from {old_state} to {state}")
+            
+            # Update the first EE DOF state to match gripper state
+            if self.dof_ee > 0:
+                self.ee_dof_states[0] = float(state)
+                self.logger_ri.info(f"Updated EE DOF states: {self.ee_dof_states}")
         return True
 
+    def get_ee_dof_states(self):
+        """
+        Get current end-effector DOF states.
+        """
+        return self.ee_dof_states.copy()
 
+    def set_ee_dof_state(self, dof_index, value):
+        """
+        Set a specific end-effector DOF state.
+        """
+        if 0 <= dof_index < self.dof_ee:
+            old_value = self.ee_dof_states[dof_index]
+            self.ee_dof_states[dof_index] = value
+            self.logger_ri.info(f"EE DOF {dof_index} changed from {old_value:.3f} to {value:.3f}")
+            return True
+        else:
+            self.logger_ri.error(f"Invalid EE DOF index: {dof_index}. Valid range: 0-{self.dof_ee-1}")
+            return False
 
 
 ##################################################################
@@ -1175,6 +1771,23 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                             logger_ri.error("play_recording unsuccessful, Could not play recording")
                             send_response(logger_ri, robot_interface_commup, full_message,
                                           error="Could not play recording")
+
+                elif message == "run_policy":
+                    if robot.robot_running:
+                        logger_ri.warning(
+                            "[CMD] run_policy unsuccessful, Robot already running"
+                        )
+                        send_response(logger_ri, robot_interface_commup, full_message,
+                                      error="Robot already running")
+                    else:
+                        if robot.run_policy(full_message):
+                            logger_ri.info("run_policy successful")
+                            send_response(logger_ri, robot_interface_commup, full_message, error="None")
+                        else:
+                            logger_ri.error("run_policy unsuccessful, Could not run policy")
+                            send_response(logger_ri, robot_interface_commup, full_message,
+                                          error="Could not run policy")
+                            
                 else:
                     logger_ri.error("Unknown dict CMD message: %s", full_message)
                     send_response(logger_ri, robot_interface_commup, full_message,

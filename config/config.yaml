@@ -88,6 +88,7 @@ hardware:
     #   brand: "Techman"
     #   control_dt : 0.01
     #   dof: 6
+    #   dof_ee: 2
     #   server_adress:
     #     - "192.168.10.3"
     #     - 8001
@@ -107,6 +108,9 @@ hardware:
     #     accel_time: 600        # Time interval to accelerate to top speed (ms), range: 150-2000  
     #     motion_gain: 80          # Motion Control Gain value, range: 1-100
     #     protection_time: 100     # Control value protection time interval (ms), min: 20
+
+    #   velocity_limits: [120, 120, 180, 180, 180, 180]  # Max velocity for each joint in degrees/sec
+    #   limit_safety_factor: 0.9  # Safety factor for limits (0.0 to 1.0)
 
     # robot:
     #   # Dummy robot settings (same as FANUC but without actual communication)
@@ -176,11 +180,11 @@ hardware:
       # When action is EE_dof_n, this is parsed as dof_ee to the robot controller
       grippers:
         active_grippers: ['pot']
-          pot:
-            min: 208
-            max: 970
-            label: "Trigger"
-            action: "EE_dof_1"
+        pot:
+          min: 208
+          max: 970
+          label: "Trigger"
+          action: "EE_dof_1"
 
       buttons:
         active_buttons: ['btn1', 'btn2']  # List of active buttons (matches RS485 data keys)
@@ -394,7 +398,9 @@ application:
   # Path to the controller script
   controller_path: "applications/robot_controller/main.py"
   # Whether to open the controller script in a new terminal by default
-  open_terminal_default: true
+  open_terminal_default: false
+  # Whether to automatically open browser window for TOS UI
+  open_browser_default: true
 
 
 

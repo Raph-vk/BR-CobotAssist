@@ -153,21 +153,27 @@
     }
     .slider-row {
       margin: 1rem auto;
-      text-align: left;
-      max-width: 300px;
+      text-align: center;
+      max-width: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
     .slider-row label {
       display: inline-block;
-      min-width: 120px;
+      min-width: 140px;
+      text-align: right;
     }
     .slider-row input[type="range"] {
       vertical-align: middle;
-      margin-left: 0.5rem;
+      width: 120px;
     }
     .slider-value {
       font-weight: bold;
       color: var(--color-blue);
-      margin-left: 1rem;
+      min-width: 50px;
+      text-align: left;
     }
   </style>
 </head>
@@ -198,14 +204,9 @@
       </div>
       {% endif %}
 
-
-
       <div class="button-row">
         <button class="btn" onclick="sendCommand('start_teleoperation')">
           Start Teleop
-        </button>
-        <button class="btn" onclick="sendCommand('start_teleoperation_record')">
-          Start Teleop &amp; Record
         </button>
       </div>
 
@@ -222,14 +223,22 @@
         </button>
       </div>
       <div class="button-row">
+        <button class="btn" onclick="sendCommand('start_teleoperation_record')">
+          Start Teleop &amp; Record
+        </button>
         <button class="btn" onclick="deleteSelectedRecording()">
           Delete Recording
         </button>
+      </div>
+
+      <div class="button-row">
         <button class="btn" onclick="sendCommand('stop')">
           Stop
         </button>
       </div>
     </div>
+
+
 
     <!-- Bottom Box -->
     <div class="box-bottom">
