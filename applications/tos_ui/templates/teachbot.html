@@ -175,6 +175,80 @@
       min-width: 50px;
       text-align: left;
     }
+
+    /* Dropdown with action icons */
+    .dropdown-with-icons {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-option-icons {
+      position: absolute;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      gap: 4px;
+      z-index: 1000;
+    }
+
+    .dropdown-option-icons .icon {
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 3px;
+      font-size: 14px;
+      opacity: 0.7;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .dropdown-option-icons .icon:hover {
+      opacity: 1;
+      background-color: rgba(244, 67, 54, 0.1);
+      color: #f44336 !important;
+      transform: scale(1.1);
+    }
+
+    .icon-rename {
+      color: #2196F3;
+    }
+
+    .icon-delete {
+      color: #f44336;
+    }
+
+    /* Tooltip styling */
+    .dropdown-option-icons .icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 1001;
+    }
+
+    .dropdown-option-icons .icon:hover::after {
+      opacity: 1;
+    }
+
+    /* Only show icons on hover when there's a valid selection */
+    .dropdown-with-icons.has-valid-selection:hover .dropdown-option-icons {
+      display: flex;
+    }
+
+    /* Hide icons when dropdown is open */
+    .dropdown-with-icons select:focus + .dropdown-option-icons {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -212,27 +286,26 @@
 
 
       <div class="button-row">
-        <select id="recordingsDropdown"
-                onmouseover="fetchRecordingsInBackground()" 
-                onfocus="fetchRecordingsInBackground()"
-                onchange="onRecordingSelected()">
-          <option hidden value="">Select name...</option>
-        </select>
-        <button class="btn" onclick="playSelectedRecording()">
-          Play Recording
-        </button>
+        <div class="dropdown-with-icons">
+          <select id="recordingsDropdown"
+                  onmouseover="fetchRecordingsInBackground()" 
+                  onfocus="fetchRecordingsInBackground()"
+                  onchange="onRecordingSelected()">
+            <option hidden value="">Select name...</option>
+          </select>
+          <div class="dropdown-option-icons">
+            <span class="icon icon-rename" onclick="renameSelectedRecording()" data-tooltip="Rename recording">✏️</span>
+            <span class="icon icon-delete" onclick="deleteSelectedRecording()" data-tooltip="Delete recording">🗑️</span>
+          </div>
+        </div>
+
       </div>
       <div class="button-row">
         <button class="btn" onclick="sendCommand('start_teleoperation_record')">
           Start Teleop &amp; Record
         </button>
-        <button class="btn" onclick="deleteSelectedRecording()">
-          Delete Recording
-        </button>
-      </div>
-      <div class="button-row">
-        <button class="btn" onclick="renameSelectedRecording()">
-          Rename Recording
+          <button class="btn" onclick="playSelectedRecording()">
+          Play Recording
         </button>
       </div>
 
@@ -326,6 +399,10 @@
     function onRecordingSelected() {
       const dropdown = document.getElementById('recordingsDropdown');
       const selectedFile = dropdown.value;
+      
+      // Update icon visibility based on valid selection
+      updateIconVisibility('recordingsDropdown', selectedFile);
+      
       if (!selectedFile) return;
 
       // Handle "New..." option
@@ -441,20 +518,69 @@
     }
 
     /**
-     * Called when "Delete Recording" button is clicked.
+     * Called when delete icon is clicked.
      */
     function deleteSelectedRecording() {
       const dropdown = document.getElementById('recordingsDropdown');
       const selected = dropdown.value;
-      if (!selected) {
-        alert("No recording selected to delete!");
+      
+      if (!selected || selected === "" || selected === "NEW_RECORDING") {
+        alert("Please select a recording to delete first.");
         return;
       }
-      sendCommand('delete_recording', selected);
+      
+      // Confirm deletion
+      if (!confirm(`Are you sure you want to delete the recording "${selected}"? This action cannot be undone.`)) {
+        return;
+      }
+      
+      sendDeleteRecordingCommand(selected);
     }
 
     /**
-     * Called when "Rename Recording" button is clicked.
+     * Send delete recording command
+     */
+    function sendDeleteRecordingCommand(recordingName) {
+      const params = new URLSearchParams({ 'message': 'delete_recording' });
+      params.append('recording_name', recordingName);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      // Send command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Delete response:', data);
+        // Check if deletion was successful - be more lenient with response format
+        if (data.success === true || data.success === 'true' || (!data.hasOwnProperty('success') && !data.error)) {
+          // Clear the dropdown selection
+          const dropdown = document.getElementById('recordingsDropdown');
+          dropdown.value = '';
+          
+          // Refresh recordings from server after a short delay
+          setTimeout(() => {
+            fetchRecordingsInBackground();
+          }, 500);
+        } else {
+          alert(`Error deleting recording: ${data.message || data.error || 'Unknown error'}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error deleting recording:', error);
+        alert('Network error while deleting recording. Please try again.');
+      });
+    }
+
+    /**
+     * Called when rename icon is clicked.
      */
     function renameSelectedRecording() {
       const dropdown = document.getElementById('recordingsDropdown');
@@ -472,19 +598,94 @@
           window.recordings = recordingObjects;
           
           // Now perform the checks with the updated data
-          checkAndRename(selected);
+          checkAndRenameRecording(selected);
         })
         .catch(err => {
           console.error('Error fetching recordings for rename check:', err);
           // If we can't fetch recordings, fall back to the old behavior
-          checkAndRename(selected);
+          checkAndRenameRecording(selected);
         });
     }
 
     /**
      * Helper function to check if recording can be renamed and perform the rename
      */
-    function checkAndRename(selected) {
+    function checkAndRenameRecording(selected) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      
+      // Check if this is a custom recording that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selected}"]`);
+      if (selectedOption && selectedOption.getAttribute('data-custom') === 'true') {
+        // Check if it now exists in the server recordings (after refresh)
+        const existingRecording = window.recordings.find(r => r.file_name === selected);
+        if (!existingRecording) {
+          // This is still a custom recording that was created but never used for actual recording
+          alert(`Cannot rename "${selected}" because it hasn't been used for recording yet. Please record episodes with this name first, or just create a new name.`);
+          return;
+        }
+      }
+      
+      // Check if this recording exists in the server's recording list (after refresh)
+      const existingRecording = window.recordings.find(r => r.file_name === selected);
+      if (!existingRecording) {
+        alert(`Cannot rename "${selected}" because no recording exists yet. Please record episodes with this name first.`);
+        return;
+      }
+      
+      // Prompt for new name
+      const newName = prompt('Enter new recording name:', selected);
+      if (newName && newName.trim() && newName.trim() !== selected) {
+        sendRenameRecordingCommand(selected, newName.trim());
+      }
+    }
+
+    /**
+     * Send rename command with old and new recording names.
+     */
+    function sendRenameRecordingCommand(oldName, newName) {
+      const params = new URLSearchParams({ 'message': 'rename_dataset' });
+      params.append('dataset_name', oldName);
+      params.append('new_name', newName);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      // Send command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Rename response:', data);
+        if (data.success) {
+          alert(`Recording renamed successfully from "${oldName}" to "${newName}"`);
+          
+          // Update the dropdown option to reflect the new name
+          updateRecordingDropdownAfterRename(oldName, newName);
+          
+          // Refresh recordings from server after a short delay
+          setTimeout(() => {
+            fetchRecordingsInBackground();
+          }, 500);
+        } else {
+          alert(`Error renaming recording: ${data.message || 'Unknown error'}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error renaming recording:', error);
+        alert('Network error while renaming recording. Please try again.');
+      });
+    }
+
+    /**
+     * Helper function to check if recording can be renamed and perform the rename
+     */
+    function checkAndRenameRecording(selected) {
       const dropdown = document.getElementById('recordingsDropdown');
       
       // Check if this is a custom recording that hasn't been used yet
@@ -643,7 +844,28 @@
         body: params
       })
       .then(r => r.json())
-      .then(data => console.log(`Command response for setup ${setupId}:`, data))
+      .then(data => {
+        console.log(`Command response for setup ${setupId}:`, data);
+        
+        // After successful recording operations, update icon visibility
+        if (data.success && cmd === 'start_teleoperation_record') {
+          // Immediately remove data-custom attribute for current selection
+          const recordingsDropdown = document.getElementById('recordingsDropdown');
+          const currentValue = recordingsDropdown.value;
+          if (currentValue) {
+            const currentOption = recordingsDropdown.querySelector(`option[value="${currentValue}"]`);
+            if (currentOption && currentOption.getAttribute('data-custom') === 'true') {
+              currentOption.removeAttribute('data-custom');
+              // Update icon visibility immediately
+              updateIconVisibility('recordingsDropdown', currentValue);
+            }
+          }
+          // Also refresh recordings data for consistency
+          setTimeout(() => {
+            refreshRecordingsAndUpdateIcons();
+          }, 200);
+        }
+      })
       .catch(err => console.error(`Error sending command to setup ${setupId}:`, err));
     }
 
@@ -771,6 +993,106 @@
         sliderValueSpan.textContent = newValue;
       }
     }
+
+    /**
+     * Updates the dropdown after a successful rename operation
+     */
+    function updateRecordingDropdownAfterRename(oldName, newName) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const oldOption = dropdown.querySelector(`option[value="${oldName}"]`);
+      
+      if (oldOption) {
+        // Update the option's value and text
+        oldOption.value = newName;
+        // Display without .json extension for cleaner UI
+        const displayName = newName.endsWith('.json') ? newName.slice(0, -5) : newName;
+        oldOption.textContent = displayName;
+        
+        // Remove custom attribute if it exists (since it's now a real recording)
+        oldOption.removeAttribute('data-custom');
+        
+        // Keep this option selected
+        dropdown.value = newName;
+        
+        console.log(`Updated dropdown: ${oldName} -> ${newName}`);
+      }
+    }
+
+    /**
+     * Update icon visibility based on whether the selection is valid for rename/delete
+     */
+    function updateIconVisibility(dropdownId, selectedValue) {
+      const dropdown = document.getElementById(dropdownId);
+      const container = dropdown.parentElement;
+      
+      // Always remove the class first
+      container.classList.remove('has-valid-selection');
+      
+      // Early return for invalid selections - icons should be hidden
+      if (!selectedValue || 
+          selectedValue === "" || 
+          selectedValue === "NEW_RECORDING") {
+        return; // Icons will remain hidden
+      }
+      
+      // Check if this is a custom item that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selectedValue}"]`);
+      const isCustom = selectedOption && selectedOption.getAttribute('data-custom') === 'true';
+      
+      if (dropdownId === 'recordingsDropdown') {
+        // For recordings: check if it exists in the server's recording list
+        const existingRecording = window.recordings && window.recordings.find(r => r.file_name === selectedValue);
+        if (existingRecording || !isCustom) {
+          container.classList.add('has-valid-selection');
+        }
+      }
+    }
+
+    /**
+     * Refresh recordings data and update icon visibility
+     */
+    function refreshRecordingsAndUpdateIcons() {
+      fetch('/request_recordings', { method: 'POST' })
+        .then(response => response.json())
+        .then(recordingObjects => {
+          // Update the global recordings list
+          window.recordings = recordingObjects;
+          
+          // Update icon visibility for current selection
+          const recordingsDropdown = document.getElementById('recordingsDropdown');
+          const currentValue = recordingsDropdown.value;
+          
+          // Remove data-custom attribute if the recording now exists on server
+          if (currentValue) {
+            const currentOption = recordingsDropdown.querySelector(`option[value="${currentValue}"]`);
+            const existingRecording = recordingObjects.find(r => r.file_name === currentValue);
+            if (currentOption && existingRecording) {
+              currentOption.removeAttribute('data-custom');
+            }
+          }
+          
+          updateIconVisibility('recordingsDropdown', currentValue);
+        })
+        .catch(err => {
+          console.error('Error refreshing recordings:', err);
+          // Fallback to just updating with current data
+          const recordingsDropdown = document.getElementById('recordingsDropdown');
+          updateIconVisibility('recordingsDropdown', recordingsDropdown.value);
+        });
+    }
+
+    // Initialize icon visibility on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set initial icon visibility based on current selection
+      updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
+      
+      // Add hover listener to update icon visibility in real-time
+      const recordingsContainer = document.getElementById('recordingsDropdown').parentElement;
+      
+      recordingsContainer.addEventListener('mouseenter', function() {
+        updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
+      });
+    });
   </script>
 </body>
 </html>

@@ -5,7 +5,7 @@
 general:
   # Application
   application: 'AI_robot_controller'
-  # application: 'Teachbot_controller' 
+  # application: 'Teachbot_controller'
 
 
   # Robot controller settings
@@ -20,7 +20,7 @@ general:
   j4_locked: True
 
   # End Effector settings
-  EE_type: "integrated" # or "external"
+  EE_type: "integrated" # or "external" 
 
   # Directories
   app_directory: "."
@@ -49,8 +49,8 @@ general:
 # --------------------------------------HARDWARE CONFIGURATION--------------------------------
 
 hardware:
-  # active_setups: ['setup_1']  # List of active setups to load
-  active_setups: ['setup_1', 'setup_2']  # Uncomment to enable multiple setups
+  active_setups: ['setup_1']  # List of active setups to load
+  # active_setups: ['setup_1', 'setup_2']  # Uncomment to enable multiple setups
 
   setup_1:
     setup_id: 1
