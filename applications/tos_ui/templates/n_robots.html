@@ -300,6 +300,15 @@
       </div>
 
       <div class="button-row">
+        <button class="btn single-setup-only" id="delete_dataset_btn" onclick="deleteSelectedDataset()" title="Requires exactly one setup selected">
+          Delete Dataset
+        </button>
+        <button class="btn single-setup-only" id="delete_model_btn" onclick="deleteSelectedModel()" title="Requires exactly one setup selected">
+          Delete Model
+        </button>
+      </div>
+
+      <div class="button-row">
         <button class="btn single-setup-only" id="train_policy_btn" onclick="sendCommand('train_policy')" title="Requires exactly one setup selected">
           Train Policy
         </button>
@@ -510,7 +519,7 @@
      */
     function updateButtonStates() {
       const selectedRobots = getSelectedRobots();
-      const singleSetupButtons = ['record_episodes_btn', 'record_mistake_btn', 'train_policy_btn', 'rename_dataset_btn', 'rename_model_btn'];
+      const singleSetupButtons = ['record_episodes_btn', 'record_mistake_btn', 'train_policy_btn', 'rename_dataset_btn', 'rename_model_btn', 'delete_dataset_btn', 'delete_model_btn'];
       
       singleSetupButtons.forEach(buttonId => {
         const button = document.getElementById(buttonId);
@@ -1058,6 +1067,146 @@
           alert('An error occurred while renaming the model.');
         });
       }
+    }
+
+    /**
+     * Delete the selected dataset for the currently selected setup
+     */
+    function deleteSelectedDataset() {
+      // Check that exactly one setup is selected
+      const selectedRobots = getSelectedRobots();
+      if (selectedRobots.length === 0) {
+        alert("Please select exactly one robot setup!");
+        return;
+      }
+      if (selectedRobots.length > 1) {
+        alert("Dataset deletion can only be performed with exactly one setup selected. Please uncheck additional setups.");
+        return;
+      }
+      
+      const setupId = selectedRobots[0];
+      const dropdown = document.getElementById(`datasetsDropdown_${setupId}`);
+      const selectedDataset = dropdown.value;
+      
+      if (!selectedDataset || selectedDataset === "" || selectedDataset === "NEW_DATASET") {
+        alert("Please select a dataset to delete first.");
+        return;
+      }
+      
+      // Confirm deletion
+      if (!confirm(`Are you sure you want to delete the dataset "${selectedDataset}"? This action cannot be undone and will delete all associated episodes and models.`)) {
+        return;
+      }
+      
+      // Send delete request using the standard sendCommand approach
+      const params = new URLSearchParams();
+      params.append('message', 'delete_dataset');
+      params.append('dataset_name', selectedDataset);
+      params.append('robot_setups', setupId);
+      
+      // Add required speed parameters
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Delete dataset response:", data);
+        // Remove the dataset from the dropdown
+        const optionToRemove = dropdown.querySelector(`option[value="${selectedDataset}"]`);
+        if (optionToRemove) {
+          optionToRemove.remove();
+        }
+        // Reset dropdown to empty
+        dropdown.value = "";
+        // Also clear models dropdown since dataset was deleted
+        const modelsDropdown = document.getElementById(`modelsDropdown_${setupId}`);
+        if (modelsDropdown) {
+          modelsDropdown.innerHTML = '<option hidden value="">Select model...</option>';
+          modelsDropdown.value = "";
+        }
+      })
+      .catch(error => {
+        console.error('Error deleting dataset:', error);
+        alert('An error occurred while deleting the dataset.');
+      });
+    }
+
+    /**
+     * Delete the selected model for the currently selected setup
+     */
+    function deleteSelectedModel() {
+      // Check that exactly one setup is selected
+      const selectedRobots = getSelectedRobots();
+      if (selectedRobots.length === 0) {
+        alert("Please select exactly one robot setup!");
+        return;
+      }
+      if (selectedRobots.length > 1) {
+        alert("Model deletion can only be performed with exactly one setup selected. Please uncheck additional setups.");
+        return;
+      }
+      
+      const setupId = selectedRobots[0];
+      const modelsDropdown = document.getElementById(`modelsDropdown_${setupId}`);
+      const datasetsDropdown = document.getElementById(`datasetsDropdown_${setupId}`);
+      const selectedModel = modelsDropdown.value;
+      const selectedDataset = datasetsDropdown.value;
+      
+      if (!selectedModel || selectedModel === "" || selectedModel === "NEW_MODEL") {
+        alert("Please select a model to delete first.");
+        return;
+      }
+      
+      if (!selectedDataset || selectedDataset === "" || selectedDataset === "NEW_DATASET") {
+        alert("Please select a dataset first. Models are organized by dataset.");
+        return;
+      }
+      
+      // Confirm deletion
+      if (!confirm(`Are you sure you want to delete the model "${selectedModel}" from dataset "${selectedDataset}"? This action cannot be undone.`)) {
+        return;
+      }
+      
+      // Send delete request using the standard sendCommand approach
+      const params = new URLSearchParams();
+      params.append('message', 'delete_model');
+      params.append('model_name', selectedModel);
+      params.append('dataset_name', selectedDataset);
+      params.append('robot_setups', setupId);
+      
+      // Add required speed parameters
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Delete model response:", data);
+        // Remove the model from the dropdown
+        const optionToRemove = modelsDropdown.querySelector(`option[value="${selectedModel}"]`);
+        if (optionToRemove) {
+          optionToRemove.remove();
+        }
+        // Reset dropdown to empty
+        modelsDropdown.value = "";
+      })
+      .catch(error => {
+        console.error('Error deleting model:', error);
+        alert('An error occurred while deleting the model.');
+      });
     }
 
     // Initialize button states when page loads

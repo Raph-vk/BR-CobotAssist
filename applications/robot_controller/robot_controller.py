@@ -372,6 +372,78 @@ class RobotController:
             error=error_msg,
         )
 
+    def delete_dataset(self, payload):
+        """
+        Delete a specific dataset directory and all its contents.
+        """
+        error_msg = "None"
+        dataset_name = payload.get("dataset_name", "")
+
+        try:
+            if not dataset_name:
+                raise ValueError("No dataset name provided for deletion.")
+
+            # Get the data directory path
+            data_path = get_data_path(self.config, create_dirs=False)
+            dataset_path = os.path.join(data_path, dataset_name)
+            
+            # Check if dataset directory exists
+            if not os.path.exists(dataset_path) or not os.path.isdir(dataset_path):
+                raise ValueError(f"Dataset '{dataset_name}' does not exist.")
+            
+            # Delete the entire directory and its contents
+            import shutil
+            shutil.rmtree(dataset_path)
+            self.logger_tc.info(f"Deleted dataset: {dataset_name}")
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"Failed to delete dataset: {error_msg}")
+
+        # Send response
+        self.send_response(
+            payload=payload,
+            error=error_msg,
+        )
+
+    def delete_model(self, payload):
+        """
+        Delete a specific model directory within a dataset.
+        Models are located at: data/{dataset_name}/Models/{model_name}
+        """
+        error_msg = "None"
+        model_name = payload.get("model_name", "")
+        dataset_name = payload.get("dataset_name", "")
+
+        try:
+            if not model_name:
+                raise ValueError("No model name provided for deletion.")
+            if not dataset_name:
+                raise ValueError("No dataset name provided for model deletion.")
+
+            # Get the Models directory path within the dataset
+            models_path = get_data_path(self.config, os.path.join(dataset_name, "Models"), create_dirs=False)
+            model_path = os.path.join(models_path, model_name)
+            
+            # Check if model directory exists
+            if not os.path.exists(model_path) or not os.path.isdir(model_path):
+                raise ValueError(f"Model '{model_name}' does not exist in dataset '{dataset_name}'.")
+            
+            # Delete the entire directory and its contents
+            import shutil
+            shutil.rmtree(model_path)
+            self.logger_tc.info(f"Deleted model: {model_name} (dataset: {dataset_name})")
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"Failed to delete model: {error_msg}")
+
+        # Send response
+        self.send_response(
+            payload=payload,
+            error=error_msg,
+        )
+
     def record_episodes(self, payload):
         error_msg = "None"
 

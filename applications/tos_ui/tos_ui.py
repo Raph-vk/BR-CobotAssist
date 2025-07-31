@@ -231,6 +231,11 @@ class TOSUIApplication:
                 msg["old_model_name"] = old_model_name
                 msg["new_model_name"] = new_model_name
                 msg["dataset_name"] = dataset_name
+            elif message == "delete_dataset":
+                msg["dataset_name"] = dataset_name
+            elif message == "delete_model":
+                msg["model_name"] = model_name
+                msg["dataset_name"] = dataset_name
 
             elif message == "start_teleoperation_record":
                 # Use the recording name from the frontend if provided, otherwise generate one
