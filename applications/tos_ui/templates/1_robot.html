@@ -463,6 +463,16 @@
       }
       
       const oldSelected = dropdown.value;
+      
+      // Store the current custom dataset if it exists
+      let customDataset = null;
+      const customOption = dropdown.querySelector('option[data-custom="true"]');
+      if (customOption) {
+        customDataset = {
+          value: customOption.value,
+          displayName: customOption.textContent
+        };
+      }
 
       fetch('/request_datasets', { method: 'POST' })
         .then(response => response.json())
@@ -493,16 +503,15 @@
             }
           });
 
-          // Add locally created datasets that aren't already in the server list
-          window.localDatasets.forEach(localDataset => {
-            if (!allDatasetNames.has(localDataset)) {
-              const opt = document.createElement('option');
-              opt.value = localDataset;
-              opt.textContent = localDataset;
-              dropdown.appendChild(opt);
-              allDatasetNames.add(localDataset);
-            }
-          });
+          // Re-add the single custom dataset if it exists and wasn't found in server datasets
+          if (customDataset && !datasetObjects.some(obj => obj.dataset_name === customDataset.value)) {
+            const opt = document.createElement('option');
+            opt.value = customDataset.value;
+            opt.textContent = customDataset.displayName;
+            opt.setAttribute('data-custom', 'true');
+            dropdown.appendChild(opt);
+            allDatasetNames.add(customDataset.value);
+          }
 
           // Add "New..." option
           const newOpt = document.createElement('option');
@@ -541,6 +550,12 @@
         
         const newName = prompt('Enter new dataset name:', defaultName);
         if (newName && newName.trim()) {
+          // Remove any existing custom dataset first
+          const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
+          if (existingCustomOption) {
+            existingCustomOption.remove();
+          }
+          
           // Track this locally created dataset
           window.localDatasets.add(newName.trim());
           
@@ -548,6 +563,8 @@
           const newOpt = document.createElement('option');
           newOpt.value = newName.trim();
           newOpt.textContent = newName.trim();
+          // Mark as custom dataset
+          newOpt.setAttribute('data-custom', 'true');
           // Insert before the "New..." option
           dropdown.insertBefore(newOpt, dropdown.lastElementChild);
           dropdown.value = newName.trim();
@@ -668,6 +685,16 @@
         .then(modelObjects => {
           // Store entire array so we can look up additional info later
           window.models = modelObjects;
+          
+          // Store the current custom model if it exists
+          let customModel = null;
+          const customOption = dropdown.querySelector('option[data-custom="true"]');
+          if (customOption) {
+            customModel = {
+              value: customOption.value,
+              displayName: customOption.textContent
+            };
+          }
 
           // Clear dropdown completely and rebuild
           dropdown.innerHTML = "";
@@ -692,16 +719,15 @@
             }
           });
 
-          // Add locally created models that aren't already in the server list
-          window.localModels.forEach(localModel => {
-            if (!allModelNames.has(localModel)) {
-              const opt = document.createElement('option');
-              opt.value = localModel;
-              opt.textContent = localModel;
-              dropdown.appendChild(opt);
-              allModelNames.add(localModel);
-            }
-          });
+          // Re-add the single custom model if it exists and wasn't found in server models
+          if (customModel && !modelObjects.some(obj => obj.model_name === customModel.value)) {
+            const opt = document.createElement('option');
+            opt.value = customModel.value;
+            opt.textContent = customModel.displayName;
+            opt.setAttribute('data-custom', 'true');
+            dropdown.appendChild(opt);
+            allModelNames.add(customModel.value);
+          }
 
           // Add "New..." option
           const newOpt = document.createElement('option');
@@ -740,6 +766,12 @@
         
         const newName = prompt('Enter new model name:', defaultName);
         if (newName && newName.trim()) {
+          // Remove any existing custom model first
+          const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
+          if (existingCustomOption) {
+            existingCustomOption.remove();
+          }
+          
           // Track this locally created model
           window.localModels.add(newName.trim());
           
@@ -747,6 +779,8 @@
           const newOpt = document.createElement('option');
           newOpt.value = newName.trim();
           newOpt.textContent = newName.trim();
+          // Mark as custom model
+          newOpt.setAttribute('data-custom', 'true');
           // Insert before the "New..." option
           dropdown.insertBefore(newOpt, dropdown.lastElementChild);
           dropdown.value = newName.trim();

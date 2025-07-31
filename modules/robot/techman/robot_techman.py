@@ -862,15 +862,19 @@ class TechmanRobot():
                     if self.shm_joint_data1.full():
                         self.shm_joint_data1.get_nowait()
                     
-                    # Append all EE DOF states to position arrays
-                    teachbot_pos_with_ee = teachbot_position + self.ee_dof_states
-                    sent_pos_with_ee = sent_robot_position + self.ee_dof_states
+                    # Ensure positions are lists and append all EE DOF states
+                    teachbot_pos_list = list(teachbot_position) if not isinstance(teachbot_position, list) else teachbot_position
+                    sent_pos_list = list(sent_robot_position) if not isinstance(sent_robot_position, list) else sent_robot_position
+                    last_received_list = list(last_received_js) if not isinstance(last_received_js, list) else last_received_js
+                    
+                    teachbot_pos_with_ee = teachbot_pos_list + self.ee_dof_states
+                    sent_pos_with_ee = sent_pos_list + self.ee_dof_states
                     # last_received_js already contains EE states as last elements
                     
                     joint_data = {
                         "teachbot_position": teachbot_pos_with_ee,
                         "sent_robot_position": sent_pos_with_ee,
-                        "robot_position": last_received_js,  # Already includes EE states
+                        "robot_position": last_received_list,  # Already includes EE states
                         "robot_position_timestamp": last_received_time,
                         "seq_id": getattr(self, 'seq_id', 0),
                     }
@@ -933,12 +937,12 @@ class TechmanRobot():
             self.logger_ri.info("_send_stop_response, sent stop command to queue.")
 
     ################################################################
-    # PLACEHOLDER MOTION PLANNING FUNCTIONS (for Ruckig replacement)
+    # MOTION PLANNING FUNCTIONS
     ################################################################
 
     def setup_planner(self):
         """
-        Set up placeholder motion planner with initial conditions.
+        Set up motion planner with initial conditions.
         Keep everything in teachbot coordinates - translation happens only at robot command level.
         """
         self.logger_ri.info("setup_planner: Starting method")
@@ -954,7 +958,7 @@ class TechmanRobot():
         
         # Create simple dictionary-based objects to mimic Ruckig interface
         otg = {
-            "type": "placeholder_planner",
+            "type": "motion_planner",
             "velocity_limits": self.safe_velocity_limits.copy()
         }
         self.logger_ri.info("setup_planner: Created otg object")
@@ -976,7 +980,7 @@ class TechmanRobot():
         }
         self.logger_ri.info("setup_planner: Created out object")
         
-        self.logger_ri.info(f"Placeholder planner setup with velocity limits: {self.safe_velocity_limits}")
+        self.logger_ri.info(f"Motion planner setup with velocity limits: {self.safe_velocity_limits}")
         self.logger_ri.info(f"Start position in teachbot coordinates: {start_position_teachbot}")
         self.logger_ri.info("setup_planner: Returning objects")
         return otg, inp, out
@@ -984,7 +988,7 @@ class TechmanRobot():
     def update_input(self, action_master, inp, previous_action_master):
         """
         Process the new action (master) against position limits and
-        set the placeholder input accordingly.
+        set the input accordingly.
         """
         current_position = [round(pos, 6) for pos in inp["current_position"]]
         inp["current_position"] = current_position
@@ -1084,7 +1088,7 @@ class TechmanRobot():
 
     def stop_robot(self, otg, inp, out):
         """
-        Placeholder robot stop function.
+        Robot stop function.
         Sends a few more position commands to ensure robot stops.
         """
         self.logger_ri.info("stop_robot, stopping robot")

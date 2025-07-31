@@ -4,8 +4,8 @@
 
 general:
   # Application
-  # application: 'AI_robot_controller'
-  application: 'Teachbot_controller' 
+  application: 'AI_robot_controller'
+  # application: 'Teachbot_controller' 
 
 
   # Robot controller settings
@@ -141,60 +141,60 @@ hardware:
 
     # --------------------------------------Teachbot Configuration--------------------------------
 
-    # teachbot:
-      # # Teachbot settings
-      # brand: "dummy"
-      # model: "_"
-      # joint_target_period: 0.004
-      # j6_min_angle: -140
-      # j6_max_angle: 220
-      # j6_multiplier: 1
-      # gripper_treshold: 1085
-      # gripper_min: 91.14
-      # gripper_max: 102.65
-
     teachbot:
-      # TOS encoder settings for teachbot
-      brand: "tos"
-      model: "Teachbot"
+      # Teachbot settings
+      brand: "dummy"
+      model: "_"
       joint_target_period: 0.004
       j6_min_angle: -140
       j6_max_angle: 220
       j6_multiplier: 1
-      local_ip: "192.168.1.201"
-      start_port: 5006
-      dof: 6
-      dof_ee: 2
-      packet_size: 3  # 3 bytes for 17-bit singleturn encoder
-      position_offsets: [71100, 10200, 63100, 103200, 2900, 99800]  # Calibration offsets for each joint (from teachbot_viewer mapping)
-      joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
-      port_joint_mapping:
-        0: 1  # Joint 0 (Encoder 1) -> port 5007 (start_port + 1)
-        1: 5  # Joint 1 (Encoder 2) -> port 5011 (start_port + 5) 
-        2: 3  # Joint 2 (Encoder 3) -> port 5009 (start_port + 3)
-        3: 2  # Joint 3 (Encoder 4) -> port 5008 (start_port + 2)
-        4: 4  # Joint 4 (Encoder 5) -> port 5010 (start_port + 4)
-        5: 0  # Joint 5 (Encoder 6) -> port 5006 (start_port + 0)
+      gripper_treshold: 1085
+      gripper_min: 91.14
+      gripper_max: 102.65
+
+    # teachbot:
+    #   # TOS encoder settings for teachbot
+    #   brand: "tos"
+    #   model: "Teachbot"
+    #   joint_target_period: 0.004
+    #   j6_min_angle: -140
+    #   j6_max_angle: 220
+    #   j6_multiplier: 1
+    #   local_ip: "192.168.1.201"
+    #   start_port: 5006
+    #   dof: 6
+    #   dof_ee: 2
+    #   packet_size: 3  # 3 bytes for 17-bit singleturn encoder
+    #   position_offsets: [71100, 10200, 63100, 103200, 2900, 99800]  # Calibration offsets for each joint (from teachbot_viewer mapping)
+    #   joint_scale_factors: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  # Scaling factors for each joint
+    #   port_joint_mapping:
+    #     0: 1  # Joint 0 (Encoder 1) -> port 5007 (start_port + 1)
+    #     1: 5  # Joint 1 (Encoder 2) -> port 5011 (start_port + 5) 
+    #     2: 3  # Joint 2 (Encoder 3) -> port 5009 (start_port + 3)
+    #     3: 2  # Joint 3 (Encoder 4) -> port 5008 (start_port + 2)
+    #     4: 4  # Joint 4 (Encoder 5) -> port 5010 (start_port + 4)
+    #     5: 0  # Joint 5 (Encoder 6) -> port 5006 (start_port + 0)
 
 
-      # When action is EE_dof_n, this is parsed as dof_ee to the robot controller
-      grippers:
-        active_grippers: ['pot']
-        pot:
-          min: 208
-          max: 970
-          label: "Trigger"
-          action: "EE_dof_1"
+    #   # When action is EE_dof_n, this is parsed as dof_ee to the robot controller
+    #   grippers:
+    #     active_grippers: ['pot']
+    #     pot:
+    #       min: 208
+    #       max: 970
+    #       label: "Trigger"
+    #       action: "EE_dof_1"
 
-      buttons:
-        active_buttons: ['btn1', 'btn2']  # List of active buttons (matches RS485 data keys)
-        treshold: 0.2 # Seconds after which button can be pressed again
-        btn1:
-          label: "Red button"
-          action: "stop"  # Action to perform when button 1 is pressed
-        btn2:
-          label: "Green button"
-          action: "EE_dof_2"  # Action to perform when button 2 is pressed
+    #   buttons:
+    #     active_buttons: ['btn1', 'btn2']  # List of active buttons (matches RS485 data keys)
+    #     treshold: 0.2 # Seconds after which button can be pressed again
+    #     btn1:
+    #       label: "Red button"
+    #       action: "stop"  # Action to perform when button 1 is pressed
+    #     btn2:
+    #       label: "Green button"
+    #       action: "EE_dof_2"  # Action to perform when button 2 is pressed
 
 
     # teachbot:

@@ -303,6 +303,16 @@
      * Global: We'll store the latest array of {file_name, recording_speed} objects here.
      */
     window.recordings = [];
+    
+    /**
+     * Track custom recordings that are pending (created but not yet used for recording)
+     */
+    window.pendingCustomRecordings = new Set();
+    
+    /**
+     * Track the last recording that was actually used for recording
+     */
+    window.lastUsedRecording = null;
 
     /**
      * Called whenever the user selects a new recording in the dropdown.
@@ -325,6 +335,12 @@
         
         const newName = prompt('Enter new recording name:', defaultName);
         if (newName && newName.trim()) {
+          // Remove any existing custom recording first
+          const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
+          if (existingCustomOption) {
+            existingCustomOption.remove();
+          }
+          
           // Create a new option with the entered name
           const newOpt = document.createElement('option');
           // Store the name with .json extension as the value (for backend)
@@ -332,6 +348,8 @@
           newOpt.value = nameWithExtension;
           // Display without .json extension for cleaner UI
           newOpt.textContent = newName.trim();
+          // Mark as custom recording
+          newOpt.setAttribute('data-custom', 'true');
           // Insert before the "New..." option
           dropdown.insertBefore(newOpt, dropdown.lastElementChild);
           dropdown.value = nameWithExtension;
@@ -528,18 +546,14 @@
       const dropdown = document.getElementById('recordingsDropdown');
       const oldSelected = dropdown.value;
       
-      // Store any custom recording names that were added locally
-      const customRecordings = [];
-      for (let option of dropdown.options) {
-        if (option.value && 
-            option.value !== "" && 
-            option.value !== "NEW_RECORDING" && 
-            !window.recordings?.some(r => r.file_name === option.value)) {
-          customRecordings.push({
-            value: option.value, // This should already have .json extension
-            displayName: option.textContent // This is the clean display name
-          });
-        }
+      // Store the current custom recording if it exists
+      let customRecording = null;
+      const customOption = dropdown.querySelector('option[data-custom="true"]');
+      if (customOption) {
+        customRecording = {
+          value: customOption.value,
+          displayName: customOption.textContent
+        };
       }
 
       fetch('/request_recordings', { method: 'POST' })
@@ -569,13 +583,14 @@
             dropdown.appendChild(opt);
           });
 
-          // Re-add any custom recording names that were added locally
-          customRecordings.forEach(custom => {
+          // Re-add the single custom recording if it exists and wasn't found in server recordings
+          if (customRecording && !recordingObjects.some(r => r.file_name === customRecording.value)) {
             const opt = document.createElement('option');
-            opt.value = custom.value; // Full name with .json extension
-            opt.textContent = custom.displayName; // Clean display name
+            opt.value = customRecording.value;
+            opt.textContent = customRecording.displayName;
+            opt.setAttribute('data-custom', 'true');
             dropdown.appendChild(opt);
-          });
+          }
 
           // Add "New..." option
           const newOpt = document.createElement('option');
@@ -583,9 +598,11 @@
           newOpt.textContent = "New...";
           dropdown.appendChild(newOpt);
 
-          // restore old selection if valid (now including custom names)
-          const validNames = recordingObjects.map(r => r.file_name).concat(customRecordings.map(c => c.value));
-          if (validNames.includes(oldSelected)) {
+          // restore old selection if valid
+          const allValidNames = recordingObjects.map(r => r.file_name);
+          if (customRecording) allValidNames.push(customRecording.value);
+          
+          if (allValidNames.includes(oldSelected)) {
             dropdown.value = oldSelected;
           } else {
             dropdown.value = "";
