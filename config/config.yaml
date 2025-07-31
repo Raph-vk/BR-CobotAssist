@@ -49,8 +49,8 @@ general:
 # --------------------------------------HARDWARE CONFIGURATION--------------------------------
 
 hardware:
-  active_setups: ['setup_1']  # List of active setups to load
-  # active_setups: ['setup_1']
+  # active_setups: ['setup_1']  # List of active setups to load
+  active_setups: ['setup_1', 'setup_2']  # Uncomment to enable multiple setups
 
   setup_1:
     setup_id: 1
@@ -69,7 +69,7 @@ hardware:
       j3_limit: 59
       j3_interaction: True
       dof: 6
-      dof_ee: 2
+      dof_ee: 1
       server_address: 
         - "192.168.1.201"
         - 8001  # IP and port of the cpp connects to  port + 1
@@ -152,6 +152,8 @@ hardware:
       gripper_treshold: 1085
       gripper_min: 91.14
       gripper_max: 102.65
+      dof: 6
+      dof_ee: 2
 
     # teachbot:
     #   # TOS encoder settings for teachbot
@@ -398,7 +400,7 @@ application:
   # Path to the controller script
   controller_path: "applications/robot_controller/main.py"
   # Whether to open the controller script in a new terminal by default
-  open_terminal_default: false
+  open_terminal_default: true
   # Whether to automatically open browser window for TOS UI
   open_browser_default: true
 

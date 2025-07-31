@@ -253,6 +253,12 @@
         </button>
       </div>
 
+      <div class="button-row">
+        <button class="btn" onclick="renameSelectedDataset()">
+          Rename Dataset
+        </button>
+      </div>
+
       <!-- <div class="button-row">
         <button class="btn" onclick="sendCommand('record_episode')">
           Record Episode
@@ -271,6 +277,12 @@
 
         <button class="btn" onclick="sendCommand('run_policy')">
           Run Policy
+        </button>
+      </div>
+
+      <div class="button-row">
+        <button class="btn" onclick="renameSelectedModel()">
+          Rename Model
         </button>
       </div>
 
@@ -809,6 +821,261 @@
       console.log('Loading model:', selectedModel);
       // Use the sendCommand function but pass the model name as the second parameter
       sendCommand('load_model', selectedModel);
+    }
+
+    /**
+     * Called when "Rename Dataset" button is clicked.
+     */
+    function renameSelectedDataset() {
+      const dropdown = document.getElementById('datasetsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No dataset selected to rename!");
+        return;
+      }
+      
+      // First refresh the datasets to ensure we have the latest list from the server
+      fetch('/request_datasets', { method: 'POST' })
+        .then(response => response.json())
+        .then(datasetObjects => {
+          // Update the global datasets list
+          window.datasets = datasetObjects;
+          
+          // Now perform the checks with the updated data
+          checkAndRenameDataset(selected);
+        })
+        .catch(err => {
+          console.error('Error fetching datasets for rename check:', err);
+          // If we can't fetch datasets, fall back to the old behavior
+          checkAndRenameDataset(selected);
+        });
+    }
+
+    /**
+     * Helper function to check if dataset can be renamed and perform the rename
+     */
+    function checkAndRenameDataset(selected) {
+      const dropdown = document.getElementById('datasetsDropdown');
+      
+      // Check if this is a custom dataset that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selected}"]`);
+      if (selectedOption && selectedOption.getAttribute('data-custom') === 'true') {
+        // Check if it now exists in the server datasets (after refresh)
+        const existingDataset = window.datasets.find(d => d.dataset_name === selected);
+        if (!existingDataset) {
+          // This is still a custom dataset that was created but never used for actual recording
+          alert(`Cannot rename "${selected}" because it hasn't been used for recording yet. Please record episodes with this name first, or just create a new name.`);
+          return;
+        }
+      }
+      
+      // Check if this dataset exists in the server's dataset list (after refresh)
+      const existingDataset = window.datasets.find(d => d.dataset_name === selected);
+      if (!existingDataset) {
+        alert(`Cannot rename "${selected}" because no dataset exists yet. Please record episodes with this name first.`);
+        return;
+      }
+      
+      // Prompt for new name
+      const newName = prompt('Enter new dataset name:', selected);
+      if (newName && newName.trim() && newName.trim() !== selected) {
+        sendRenameDatasetCommand(selected, newName.trim());
+      }
+    }
+
+    /**
+     * Send rename command with old and new dataset names.
+     */
+    function sendRenameDatasetCommand(oldName, newName) {
+      const params = new URLSearchParams({ 'message': 'rename_dataset' });
+      params.append('old_dataset_name', oldName);
+      params.append('new_dataset_name', newName);
+
+      // Add the setup_id for single robot mode
+      params.append('setup_id', setupId);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      // Send command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(r => r.json())
+      .then(data => {
+        console.log(`Rename dataset response:`, data);
+        // Handle successful rename
+        if (data.status === 'ok') {
+          // Update the dropdown immediately to reflect the rename
+          updateDatasetDropdownAfterRename(oldName, newName);
+          // Also refresh the datasets list from server to ensure consistency
+          fetchDatasetsInBackground();
+        }
+      })
+      .catch(err => console.error(`Error sending rename dataset command:`, err));
+    }
+
+    /**
+     * Update the dataset dropdown immediately after a successful rename operation.
+     */
+    function updateDatasetDropdownAfterRename(oldName, newName) {
+      const dropdown = document.getElementById('datasetsDropdown');
+      
+      // Find the option with the old name
+      const oldOption = dropdown.querySelector(`option[value="${oldName}"]`);
+      if (oldOption) {
+        // Update the option's value and text
+        oldOption.value = newName;
+        oldOption.textContent = newName;
+        
+        // Remove custom attribute if it exists (since it's now a real dataset)
+        oldOption.removeAttribute('data-custom');
+        
+        // Keep this option selected
+        dropdown.value = newName;
+        
+        console.log(`Updated dataset dropdown: ${oldName} -> ${newName}`);
+      }
+    }
+
+    /**
+     * Called when "Rename Model" button is clicked.
+     */
+    function renameSelectedModel() {
+      const dropdown = document.getElementById('modelsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No model selected to rename!");
+        return;
+      }
+      
+      // First refresh the models to ensure we have the latest list from the server
+      fetch('/request_models', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ 'dataset_name': getCurrentDatasetName() })
+      })
+        .then(response => response.json())
+        .then(modelObjects => {
+          // Update the global models list
+          window.models = modelObjects;
+          
+          // Now perform the checks with the updated data
+          checkAndRenameModel(selected);
+        })
+        .catch(err => {
+          console.error('Error fetching models for rename check:', err);
+          // If we can't fetch models, fall back to the old behavior
+          checkAndRenameModel(selected);
+        });
+    }
+
+    /**
+     * Helper function to check if model can be renamed and perform the rename
+     */
+    function checkAndRenameModel(selected) {
+      const dropdown = document.getElementById('modelsDropdown');
+      
+      // Check if this is a custom model that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selected}"]`);
+      if (selectedOption && selectedOption.getAttribute('data-custom') === 'true') {
+        // Check if it now exists in the server models (after refresh)
+        const existingModel = window.models.find(m => m.model_name === selected);
+        if (!existingModel) {
+          // This is still a custom model that was created but never used for actual training
+          alert(`Cannot rename "${selected}" because it hasn't been used for training yet. Please train a model with this name first, or just create a new name.`);
+          return;
+        }
+      }
+      
+      // Check if this model exists in the server's model list (after refresh)
+      const existingModel = window.models.find(m => m.model_name === selected);
+      if (!existingModel) {
+        alert(`Cannot rename "${selected}" because no model exists yet. Please train a model with this name first.`);
+        return;
+      }
+      
+      // Prompt for new name
+      const newName = prompt('Enter new model name:', selected);
+      if (newName && newName.trim() && newName.trim() !== selected) {
+        sendRenameModelCommand(selected, newName.trim());
+      }
+    }
+
+    /**
+     * Send rename command with old and new model names.
+     */
+    function sendRenameModelCommand(oldName, newName) {
+      const params = new URLSearchParams({ 'message': 'rename_model' });
+      params.append('old_model_name', oldName);
+      params.append('new_model_name', newName);
+
+      // Add the setup_id for single robot mode
+      params.append('setup_id', setupId);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+
+      // Include the current dataset name for context
+      params.append('dataset_name', getCurrentDatasetName());
+      
+      // Send command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(r => r.json())
+      .then(data => {
+        console.log(`Rename model response:`, data);
+        // Handle successful rename
+        if (data.status === 'ok') {
+          // Update the dropdown immediately to reflect the rename
+          updateModelDropdownAfterRename(oldName, newName);
+          // Also refresh the models list from server to ensure consistency
+          fetchModelsInBackground();
+        }
+      })
+      .catch(err => console.error(`Error sending rename model command:`, err));
+    }
+
+    /**
+     * Update the model dropdown immediately after a successful rename operation.
+     */
+    function updateModelDropdownAfterRename(oldName, newName) {
+      const dropdown = document.getElementById('modelsDropdown');
+      
+      // Find the option with the old name
+      const oldOption = dropdown.querySelector(`option[value="${oldName}"]`);
+      if (oldOption) {
+        // Update the option's value and text
+        oldOption.value = newName;
+        oldOption.textContent = newName;
+        
+        // Remove custom attribute if it exists (since it's now a real model)
+        oldOption.removeAttribute('data-custom');
+        
+        // Keep this option selected
+        dropdown.value = newName;
+        
+        console.log(`Updated model dropdown: ${oldName} -> ${newName}`);
+      }
+    }
+
+    /**
+     * Helper function to get the current dataset name for model operations
+     */
+    function getCurrentDatasetName() {
+      const datasetsDropdown = document.getElementById('datasetsDropdown');
+      return datasetsDropdown ? datasetsDropdown.value : '';
     }
 
 

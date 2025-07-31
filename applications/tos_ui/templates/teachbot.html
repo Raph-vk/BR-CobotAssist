@@ -230,6 +230,11 @@
           Delete Recording
         </button>
       </div>
+      <div class="button-row">
+        <button class="btn" onclick="renameSelectedRecording()">
+          Rename Recording
+        </button>
+      </div>
 
       <div class="button-row">
         <button class="btn" onclick="sendCommand('stop')">
@@ -446,6 +451,136 @@
         return;
       }
       sendCommand('delete_recording', selected);
+    }
+
+    /**
+     * Called when "Rename Recording" button is clicked.
+     */
+    function renameSelectedRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No recording selected to rename!");
+        return;
+      }
+      
+      // First refresh the recordings to ensure we have the latest list from the server
+      fetch('/request_recordings', { method: 'POST' })
+        .then(response => response.json())
+        .then(recordingObjects => {
+          // Update the global recordings list
+          window.recordings = recordingObjects;
+          
+          // Now perform the checks with the updated data
+          checkAndRename(selected);
+        })
+        .catch(err => {
+          console.error('Error fetching recordings for rename check:', err);
+          // If we can't fetch recordings, fall back to the old behavior
+          checkAndRename(selected);
+        });
+    }
+
+    /**
+     * Helper function to check if recording can be renamed and perform the rename
+     */
+    function checkAndRename(selected) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      
+      // Check if this is a custom recording that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selected}"]`);
+      if (selectedOption && selectedOption.getAttribute('data-custom') === 'true') {
+        // Check if it now exists in the server recordings (after refresh)
+        const existingRecording = window.recordings.find(r => r.file_name === selected);
+        if (!existingRecording) {
+          // This is still a custom recording that was created but never used for actual recording
+          const displayName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
+          alert(`Cannot rename "${displayName}" because it hasn't been used for recording yet. Please record something with this name first, or just create a new name.`);
+          return;
+        }
+      }
+      
+      // Check if this recording exists in the server's recording list (after refresh)
+      const existingRecording = window.recordings.find(r => r.file_name === selected);
+      if (!existingRecording) {
+        const displayName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
+        alert(`Cannot rename "${displayName}" because no recording file exists yet. Please record something with this name first.`);
+        return;
+      }
+      
+      // Get current name without .json extension for display
+      const currentName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
+      
+      // Prompt for new name
+      const newName = prompt('Enter new recording name:', currentName);
+      if (newName && newName.trim() && newName.trim() !== currentName) {
+        // Ensure new name has .json extension for backend
+        const newNameWithExtension = newName.trim().endsWith('.json') ? newName.trim() : newName.trim() + '.json';
+        sendRenameCommand(selected, newNameWithExtension);
+      }
+    }
+
+    /**
+     * Send rename command with old and new recording names.
+     */
+    function sendRenameCommand(oldName, newName) {
+      const params = new URLSearchParams({ 'message': 'rename_recording' });
+      params.append('old_recording_name', oldName);
+      params.append('new_recording_name', newName);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+
+      // Teachbot mode: automatically use the single active setup
+      const setupId = '{{ setups[0].setup_id }}';
+      params.append('setup_id', setupId);
+      
+      // Send command to the single setup
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(r => r.json())
+      .then(data => {
+        console.log(`Rename response for setup ${setupId}:`, data);
+        // Handle successful rename
+        if (data.status === 'ok') {
+          // Update the dropdown immediately to reflect the rename
+          updateDropdownAfterRename(oldName, newName);
+          // Also refresh the recordings list from server to ensure consistency
+          fetchRecordingsInBackground();
+        }
+      })
+      .catch(err => console.error(`Error sending rename command to setup ${setupId}:`, err));
+    }
+
+    /**
+     * Update the dropdown immediately after a successful rename operation.
+     */
+    function updateDropdownAfterRename(oldName, newName) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      
+      // Find the option with the old name
+      const oldOption = dropdown.querySelector(`option[value="${oldName}"]`);
+      if (oldOption) {
+        // Update the option's value and text
+        oldOption.value = newName;
+        // Display without .json extension for cleaner UI
+        const displayName = newName.endsWith('.json') ? newName.slice(0, -5) : newName;
+        oldOption.textContent = displayName;
+        
+        // Remove custom attribute if it exists (since it's now a real recording)
+        oldOption.removeAttribute('data-custom');
+        
+        // Keep this option selected
+        dropdown.value = newName;
+        
+        console.log(`Updated dropdown: ${oldName} -> ${newName}`);
+      }
     }
 
     function sendCommand(cmd, itemName = null) {

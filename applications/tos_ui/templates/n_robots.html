@@ -290,7 +290,14 @@
         </button>
       </div>
 
-
+      <div class="button-row">
+        <button class="btn single-setup-only" id="rename_dataset_btn" onclick="renameSelectedDataset()" title="Requires exactly one setup selected">
+          Rename Dataset
+        </button>
+        <button class="btn single-setup-only" id="rename_model_btn" onclick="renameSelectedModel()" title="Requires exactly one setup selected">
+          Rename Model
+        </button>
+      </div>
 
       <div class="button-row">
         <button class="btn single-setup-only" id="train_policy_btn" onclick="sendCommand('train_policy')" title="Requires exactly one setup selected">
@@ -503,7 +510,7 @@
      */
     function updateButtonStates() {
       const selectedRobots = getSelectedRobots();
-      const singleSetupButtons = ['record_episodes_btn', 'record_mistake_btn', 'train_policy_btn'];
+      const singleSetupButtons = ['record_episodes_btn', 'record_mistake_btn', 'train_policy_btn', 'rename_dataset_btn', 'rename_model_btn'];
       
       singleSetupButtons.forEach(buttonId => {
         const button = document.getElementById(buttonId);
@@ -914,6 +921,142 @@
       } else {
         // For the "recording_speed" slider, just show the numeric value [0..100].
         sliderValueSpan.textContent = newValue;
+      }
+    }
+
+    /**
+     * Rename the selected dataset for the currently selected setup
+     */
+    function renameSelectedDataset() {
+      // Check that exactly one setup is selected
+      const selectedRobots = getSelectedRobots();
+      if (selectedRobots.length === 0) {
+        alert("Please select exactly one robot setup!");
+        return;
+      }
+      if (selectedRobots.length > 1) {
+        alert("Dataset renaming can only be performed with exactly one setup selected. Please uncheck additional setups.");
+        return;
+      }
+      
+      const setupId = selectedRobots[0];
+      const dropdown = document.getElementById(`datasetsDropdown_${setupId}`);
+      const selectedDataset = dropdown.value;
+      
+      if (!selectedDataset || selectedDataset === "" || selectedDataset === "NEW_DATASET") {
+        alert("Please select a dataset to rename first.");
+        return;
+      }
+      
+      const newName = prompt("Enter new dataset name:", selectedDataset);
+      if (newName && newName.trim() && newName.trim() !== selectedDataset) {
+        const finalName = newName.trim();
+        
+        // Send rename request using the standard sendCommand approach
+        const params = new URLSearchParams();
+        params.append('message', 'rename_dataset');
+        params.append('old_dataset_name', selectedDataset);
+        params.append('new_dataset_name', finalName);
+        params.append('robot_setups', setupId);
+        
+        // Add required speed parameters
+        const rSpeed = getRecordingSpeed();
+        const pSpeed = getPlaybackSpeed();
+        params.append('recording_speed', rSpeed);
+        params.append('playback_speed', pSpeed);
+        
+        fetch('/send_command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Rename dataset response:", data);
+          // Update the dropdown immediately
+          const selectedOption = dropdown.querySelector(`option[value="${selectedDataset}"]`);
+          if (selectedOption) {
+            selectedOption.value = finalName;
+            selectedOption.textContent = finalName;
+            dropdown.value = finalName;
+          }
+        })
+        .catch(error => {
+          console.error('Error renaming dataset:', error);
+          alert('An error occurred while renaming the dataset.');
+        });
+      }
+    }
+
+    /**
+     * Rename the selected model for the currently selected setup
+     */
+    function renameSelectedModel() {
+      // Check that exactly one setup is selected
+      const selectedRobots = getSelectedRobots();
+      if (selectedRobots.length === 0) {
+        alert("Please select exactly one robot setup!");
+        return;
+      }
+      if (selectedRobots.length > 1) {
+        alert("Model renaming can only be performed with exactly one setup selected. Please uncheck additional setups.");
+        return;
+      }
+      
+      const setupId = selectedRobots[0];
+      const modelsDropdown = document.getElementById(`modelsDropdown_${setupId}`);
+      const datasetsDropdown = document.getElementById(`datasetsDropdown_${setupId}`);
+      const selectedModel = modelsDropdown.value;
+      const selectedDataset = datasetsDropdown.value;
+      
+      if (!selectedModel || selectedModel === "" || selectedModel === "NEW_MODEL") {
+        alert("Please select a model to rename first.");
+        return;
+      }
+      
+      if (!selectedDataset || selectedDataset === "" || selectedDataset === "NEW_DATASET") {
+        alert("Please select a dataset first. Models are organized by dataset.");
+        return;
+      }
+      
+      const newName = prompt("Enter new model name:", selectedModel);
+      if (newName && newName.trim() && newName.trim() !== selectedModel) {
+        const finalName = newName.trim();
+        
+        // Send rename request using the standard sendCommand approach
+        const params = new URLSearchParams();
+        params.append('message', 'rename_model');
+        params.append('old_model_name', selectedModel);
+        params.append('new_model_name', finalName);
+        params.append('dataset_name', selectedDataset);
+        params.append('robot_setups', setupId);
+        
+        // Add required speed parameters
+        const rSpeed = getRecordingSpeed();
+        const pSpeed = getPlaybackSpeed();
+        params.append('recording_speed', rSpeed);
+        params.append('playback_speed', pSpeed);
+        
+        fetch('/send_command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Rename model response:", data);
+          // Update the dropdown immediately
+          const selectedOption = modelsDropdown.querySelector(`option[value="${selectedModel}"]`);
+          if (selectedOption) {
+            selectedOption.value = finalName;
+            selectedOption.textContent = finalName;
+            modelsDropdown.value = finalName;
+          }
+        })
+        .catch(error => {
+          console.error('Error renaming model:', error);
+          alert('An error occurred while renaming the model.');
+        });
       }
     }
 

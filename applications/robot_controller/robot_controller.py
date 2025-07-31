@@ -236,6 +236,141 @@ class RobotController:
             error=error_msg,
         )
 
+    def rename_recording(self, payload):
+        """
+        Rename a specific recording file (.json).
+        """
+        error_msg = "None"
+        old_recording_name = payload.get("old_recording_name", "")
+        new_recording_name = payload.get("new_recording_name", "")
+
+        try:
+            if not old_recording_name:
+                raise ValueError("No old file name provided for renaming.")
+            if not new_recording_name:
+                raise ValueError("No new file name provided for renaming.")
+
+            # Ensure both names have .json extension
+            if not old_recording_name.endswith('.json'):
+                old_recording_name += '.json'
+            if not new_recording_name.endswith('.json'):
+                new_recording_name += '.json'
+
+            old_path = get_data_path(self.config, old_recording_name, create_dirs=False)
+            new_path = get_data_path(self.config, new_recording_name, create_dirs=False)
+            
+            # Ensure the parent directory exists for the new file
+            new_dir = os.path.dirname(new_path)
+            if not os.path.exists(new_dir):
+                os.makedirs(new_dir, exist_ok=True)
+            
+            # Check if old file exists
+            if not os.path.exists(old_path):
+                raise ValueError(f"Recording '{old_recording_name}' does not exist.")
+            
+            # Check if new file already exists
+            if os.path.exists(new_path):
+                raise ValueError(f"Recording '{new_recording_name}' already exists.")
+            
+            # Rename the file (os.rename automatically deletes the old file after successful rename)
+            os.rename(old_path, new_path)
+            self.logger_tc.info(f"Renamed recording: {old_recording_name} -> {new_recording_name}")
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"Failed to rename recording: {error_msg}")
+
+        # Send response
+        self.send_response(
+            payload=payload,
+            error=error_msg,
+        )
+
+    def rename_dataset(self, payload):
+        """
+        Rename a specific dataset directory.
+        """
+        error_msg = "None"
+        old_dataset_name = payload.get("old_dataset_name", "")
+        new_dataset_name = payload.get("new_dataset_name", "")
+
+        try:
+            if not old_dataset_name:
+                raise ValueError("No old dataset name provided for renaming.")
+            if not new_dataset_name:
+                raise ValueError("No new dataset name provided for renaming.")
+
+            # Get the data directory path
+            data_path = get_data_path(self.config, create_dirs=False)
+            old_path = os.path.join(data_path, old_dataset_name)
+            new_path = os.path.join(data_path, new_dataset_name)
+            
+            # Check if old dataset directory exists
+            if not os.path.exists(old_path) or not os.path.isdir(old_path):
+                raise ValueError(f"Dataset '{old_dataset_name}' does not exist.")
+            
+            # Check if new dataset directory already exists
+            if os.path.exists(new_path):
+                raise ValueError(f"Dataset '{new_dataset_name}' already exists.")
+            
+            # Rename the directory (os.rename automatically deletes the old directory after successful rename)
+            os.rename(old_path, new_path)
+            self.logger_tc.info(f"Renamed dataset: {old_dataset_name} -> {new_dataset_name}")
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"Failed to rename dataset: {error_msg}")
+
+        # Send response
+        self.send_response(
+            payload=payload,
+            error=error_msg,
+        )
+
+    def rename_model(self, payload):
+        """
+        Rename a specific model directory within a dataset.
+        Models are located at: data/{dataset_name}/Models/{model_name}
+        """
+        error_msg = "None"
+        old_model_name = payload.get("old_model_name", "")
+        new_model_name = payload.get("new_model_name", "")
+        dataset_name = payload.get("dataset_name", "")
+
+        try:
+            if not old_model_name:
+                raise ValueError("No old model name provided for renaming.")
+            if not new_model_name:
+                raise ValueError("No new model name provided for renaming.")
+            if not dataset_name:
+                raise ValueError("No dataset name provided for model renaming.")
+
+            # Get the Models directory path within the dataset
+            models_path = get_data_path(self.config, os.path.join(dataset_name, "Models"), create_dirs=False)
+            old_path = os.path.join(models_path, old_model_name)
+            new_path = os.path.join(models_path, new_model_name)
+            
+            # Check if old model directory exists
+            if not os.path.exists(old_path) or not os.path.isdir(old_path):
+                raise ValueError(f"Model '{old_model_name}' does not exist in dataset '{dataset_name}'.")
+            
+            # Check if new model directory already exists
+            if os.path.exists(new_path):
+                raise ValueError(f"Model '{new_model_name}' already exists in dataset '{dataset_name}'.")
+            
+            # Rename the directory (os.rename automatically deletes the old directory after successful rename)
+            os.rename(old_path, new_path)
+            self.logger_tc.info(f"Renamed model: {old_model_name} -> {new_model_name} (dataset: {dataset_name})")
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger_tc.error(f"Failed to rename model: {error_msg}")
+
+        # Send response
+        self.send_response(
+            payload=payload,
+            error=error_msg,
+        )
 
     def record_episodes(self, payload):
         error_msg = "None"
@@ -312,7 +447,6 @@ class RobotController:
             payload=payload,
             error=error_msg,
         )
-
 
     def record_mistake(self, payload):
         """

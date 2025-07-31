@@ -186,6 +186,12 @@ class TOSUIApplication:
             recording_name = request.form.get("recording_name", "")
             dataset_name = request.form.get("dataset_name", "")
             model_name = request.form.get("model_name", "")
+            old_recording_name = request.form.get("old_recording_name", "")
+            new_recording_name = request.form.get("new_recording_name", "")
+            old_dataset_name = request.form.get("old_dataset_name", "")
+            new_dataset_name = request.form.get("new_dataset_name", "")
+            old_model_name = request.form.get("old_model_name", "")
+            new_model_name = request.form.get("new_model_name", "")
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
             
@@ -200,7 +206,7 @@ class TOSUIApplication:
                 # Fall back to single setup_id for backward compatibility
                 target_setups = [setup_id]
 
-            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
+            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
@@ -215,6 +221,16 @@ class TOSUIApplication:
                 msg["playback_speed"] = playback_speed
             elif message == "delete_recording":
                 msg["recording_name"] = recording_name
+            elif message == "rename_recording":
+                msg["old_recording_name"] = old_recording_name
+                msg["new_recording_name"] = new_recording_name
+            elif message == "rename_dataset":
+                msg["old_dataset_name"] = old_dataset_name
+                msg["new_dataset_name"] = new_dataset_name
+            elif message == "rename_model":
+                msg["old_model_name"] = old_model_name
+                msg["new_model_name"] = new_model_name
+                msg["dataset_name"] = dataset_name
 
             elif message == "start_teleoperation_record":
                 # Use the recording name from the frontend if provided, otherwise generate one
