@@ -71,6 +71,7 @@ def action_master_TM_translation(master_pos_deg):
     This function applies the necessary transformations for the Techman robot.
     """
     action = np.array(master_pos_deg, dtype=float)
+    original = action.copy()
     action[2] = -action[2]
     action[4] = -action[4]
     action[2] = action[2] + 90
@@ -139,7 +140,11 @@ class TechmanRobot():
       - Consistent structure matching FanucRobot implementation.
     """
 
+
     def __init__(self, robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config):
+        # Logging must be set first
+        self.logger_ri = logger_ri
+
         # Shared memory queues
         self.robot_interface_commup = robot_interface_commup
         self.shm_target_pos1 = shm_target_pos1
@@ -160,8 +165,7 @@ class TechmanRobot():
                 self.logger_ri.error(f"Failed to attach to shm_target_pos2: {e}")
                 self.shm_target_pos2 = None
 
-        # Logging and config
-        self.logger_ri = logger_ri
+        # Config
         self.config = config
 
         # Config elements - using similar structure to FanucRobot
@@ -193,12 +197,10 @@ class TechmanRobot():
         self.velocity_limits = config["hardware"]["robot"].get("velocity_limits", [120, 120, 180, 180, 180, 180])
         self.limit_safety_factor = config["hardware"]["robot"].get("limit_safety_factor", 0.9)
         
-        # Apply safety factor to velocity limits
+        # Calculate safe velocity limits with safety factor applied
         self.safe_velocity_limits = [limit * self.limit_safety_factor for limit in self.velocity_limits]
-        self.logger_ri.info(f"Joint velocity limits with safety factor {self.limit_safety_factor}: {self.safe_velocity_limits}")
-        self.logger_ri.info(f"Original velocity limits: {self.velocity_limits}")
-        self.logger_ri.info(f"Control timestep: {self.control_dt}s (100Hz)")
         
+       
         # Techman TMSCT Position command parameters
         move_params = config["hardware"]["robot"].get("move_to_start_params", {})
         self.move_accel_time = move_params.get("accel_time", 2000)
@@ -500,7 +502,7 @@ class TechmanRobot():
         """
         try:
             filename = full_message["recording_name"]
-            filename = get_data_path(self.config, filename)
+            filename = get_data_path(self.config, filename, False)
             if not os.path.exists(filename):
                 self.logger_ri.error(f"play_recording, file {filename} not found.")
                 self.stop_robot_running()
@@ -642,7 +644,10 @@ class TechmanRobot():
         while self.receive_target_pos:
             try:
                 target_pos = self.shm_target_pos1.get(timeout=0.1)
+                # TODO: rove when joint 6 works again ==============================================================================================================
+                target_pos[5] = 0.0  # Reset the 6th element (index 5) to 0.0
                 self.target_pos_received = target_pos
+
             except Exception as e:
                 pass
             time.sleep(self.control_dt / self.check_queue_period_divisor)
@@ -741,10 +746,11 @@ class TechmanRobot():
         """
         # Set up motion planner with speed limiting and initial conditions
         self.logger_ri.info("control_loop, Setup motion planner with speed limiting")
-        otg, inp, out = self.setup_placeholder_planner()
+        otg, inp, out = self.setup_planner()
         self.logger_ri.info("control_loop, Motion planner setup done.")
 
         # Garbage collection optimization for real-time performance
+        self.logger_ri.info("control_loop, Starting GC optimization")
         import gc
         # Store original GC settings to restore later
         original_gc_thresholds = gc.get_threshold()
@@ -755,8 +761,10 @@ class TechmanRobot():
         optimized_gen1 = 25     # Less frequent gen1 (default: 10)
         optimized_gen2 = 25     # Less frequent gen2 (default: 10)
         gc.set_threshold(optimized_gen0, optimized_gen1, optimized_gen2)
+        self.logger_ri.info("control_loop, GC optimization done")
         
         time.sleep(0.01)
+        self.logger_ri.info("control_loop, After sleep, starting buffer fill")
 
         self.logger_ri.info("control_loop, streaming started, filling buffer")
         for i in range(self.action_buffer_length):
@@ -778,6 +786,7 @@ class TechmanRobot():
         self.logger_ri.info("control_loop, starting control loop")
         previous_action_master = self.start_position
 
+        self.logger_ri.info("control_loop, entering main while loop")
         while self.robot_running:
             start_time = time.time()
             
@@ -802,15 +811,18 @@ class TechmanRobot():
                 else:
                     # No action received, use previous action
                     action_master = previous_action_master
+                    
+            if start_time % 5 < 0.01:  # Log every 5 seconds in teleoperation
+                self.logger_ri.info(f"control_loop, teleoperation active, action_master: {action_master}")
 
             # Extract EE DOF values from action_master
             self.ee_dof_states = self.extract_ee_dof_values(action_master)
             
             # Trajectory calculation with joint speed limiting (robot joints only)
-            self.update_placeholder_input(action_master, inp, previous_action_master)
+            self.update_input(action_master, inp, previous_action_master)
             previous_action_master = action_master
 
-            success_calc = self.trajectory_calculation_placeholder(otg, inp, out)
+            success_calc = self.trajectory_calculation(otg, inp, out)
             
             # Use first EE DOF for gripper state determination
             if self.dof_ee > 0:
@@ -841,6 +853,8 @@ class TechmanRobot():
             if not success_send:
                 self.logger_ri.error("control_loop, could not send joint position to robot")
                 break
+            
+            self.logger_ri.info("sending joint data to save")
 
             # Upload data to shm_joint_data1 if recording
             if self.recording:
@@ -895,7 +909,7 @@ class TechmanRobot():
 
         if started_streaming:
             self.logger_ri.info("control_loop, stopping robot")
-            self.stop_robot_placeholder(otg, inp, out)
+            self.stop_robot(otg, inp, out)
             self.logger_ri.info("control_loop, robot stopped")
 
     def _close_robot(self, started_streaming):
@@ -922,38 +936,52 @@ class TechmanRobot():
     # PLACEHOLDER MOTION PLANNING FUNCTIONS (for Ruckig replacement)
     ################################################################
 
-    def setup_placeholder_planner(self):
+    def setup_planner(self):
         """
         Set up placeholder motion planner with initial conditions.
-        Replaces Ruckig setup for Techman robot.
+        Keep everything in teachbot coordinates - translation happens only at robot command level.
         """
+        self.logger_ri.info("setup_planner: Starting method")
+        
         # Reset speed limiter state
         self.previous_joint_position = None
         self.previous_timestamp = None
+        self.logger_ri.info("setup_planner: Reset speed limiter state")
+        
+        # Keep start position in teachbot coordinates for trajectory planner
+        start_position_teachbot = self.start_position[:self.dof]
+        self.logger_ri.info(f"setup_planner: Extracted start position: {start_position_teachbot}")
         
         # Create simple dictionary-based objects to mimic Ruckig interface
         otg = {
             "type": "placeholder_planner",
             "velocity_limits": self.safe_velocity_limits.copy()
         }
+        self.logger_ri.info("setup_planner: Created otg object")
+        
         inp = {
-            "current_position": self.start_position[:self.dof],
+            "current_position": start_position_teachbot,
             "current_velocity": [0.0] * self.dof,
             "current_acceleration": [0.0] * self.dof,
-            "target_position": self.start_position[:self.dof],
+            "target_position": start_position_teachbot,
             "target_velocity": [0.0] * self.dof,
             "target_acceleration": [0.0] * self.dof,
         }
+        self.logger_ri.info("setup_planner: Created inp object")
+        
         out = {
-            "new_position": self.start_position[:self.dof],
+            "new_position": start_position_teachbot,
             "new_velocity": [0.0] * self.dof,
             "new_acceleration": [0.0] * self.dof,
         }
+        self.logger_ri.info("setup_planner: Created out object")
         
         self.logger_ri.info(f"Placeholder planner setup with velocity limits: {self.safe_velocity_limits}")
+        self.logger_ri.info(f"Start position in teachbot coordinates: {start_position_teachbot}")
+        self.logger_ri.info("setup_planner: Returning objects")
         return otg, inp, out
 
-    def update_placeholder_input(self, action_master, inp, previous_action_master):
+    def update_input(self, action_master, inp, previous_action_master):
         """
         Process the new action (master) against position limits and
         set the placeholder input accordingly.
@@ -961,19 +989,27 @@ class TechmanRobot():
         current_position = [round(pos, 6) for pos in inp["current_position"]]
         inp["current_position"] = current_position
 
-        target_position = action_master[:self.dof].copy()
+        # CRITICAL FIX: Apply translation BEFORE position limits
+        # The raw action_master is in teachbot coordinates, but limits are for Techman
+        raw_target_position = action_master[:self.dof].copy()
+        translated_target_position = action_master_TM_translation(raw_target_position)
         
-        # Apply position limits
+        self.logger_ri.debug(f"Target translation: {raw_target_position} -> {translated_target_position}")
+        
+        # Apply position limits to translated positions
+        target_position = translated_target_position.copy()
         for i in range(self.dof):
             if target_position[i] > self.upper_limits[i]:
+                self.logger_ri.warning(f"Joint {i} target {target_position[i]:.1f} exceeds upper limit {self.upper_limits[i]}, clamping")
                 target_position[i] = self.upper_limits[i]
             elif target_position[i] < self.lower_limits[i]:
+                self.logger_ri.warning(f"Joint {i} target {target_position[i]:.1f} below lower limit {self.lower_limits[i]}, clamping")
                 target_position[i] = self.lower_limits[i]
 
         inp["target_position"] = target_position
         return
 
-    def trajectory_calculation_placeholder(self, otg, inp, out):
+    def trajectory_calculation(self, otg, inp, out):
         """
         Trajectory calculation with joint speed limiting.
         Implements velocity constraints based on config velocity_limits and safety factor.
@@ -987,52 +1023,49 @@ class TechmanRobot():
             if self.previous_joint_position is None or self.previous_timestamp is None:
                 self.previous_joint_position = current_position.copy()
                 self.previous_timestamp = current_time
-                # For first iteration, just set target as output
-                out["new_position"] = target_position.copy()
-                out["new_velocity"] = [0.0] * self.dof
-                out["new_acceleration"] = [0.0] * self.dof
+                dt = self.control_dt  # Use control timestep for first iteration
             else:
                 # Calculate time step
                 dt = current_time - self.previous_timestamp
                 if dt <= 0:
                     dt = self.control_dt  # Fallback to control timestep
+            
+            # Apply speed limits to each joint
+            limited_position = []
+            actual_velocities = []
+            
+            for i in range(self.dof):
+                # Calculate required position change
+                position_diff = target_position[i] - current_position[i]
                 
-                # Apply speed limits to each joint
-                limited_position = []
-                actual_velocities = []
+                # Calculate maximum allowed position change based on velocity limit
+                max_velocity = self.safe_velocity_limits[i]  # degrees/second with safety factor
+                max_position_change = max_velocity * dt
                 
-                for i in range(self.dof):
-                    # Calculate required position change
-                    position_diff = target_position[i] - current_position[i]
-                    
-                    # Calculate maximum allowed position change based on velocity limit
-                    max_velocity = self.safe_velocity_limits[i]  # degrees/second with safety factor
-                    max_position_change = max_velocity * dt
-                    
-                    # Limit the position change if necessary
-                    if abs(position_diff) > max_position_change:
-                        # Scale down the position change to respect velocity limit
-                        if position_diff > 0:
-                            limited_change = max_position_change
-                        else:
-                            limited_change = -max_position_change
-                        
-                        new_position = current_position[i] + limited_change
-                        actual_velocity = limited_change / dt
-                        
-                        self.logger_ri.debug(f"Joint {i+1}: Limited velocity to {actual_velocity:.1f}°/s (max: {max_velocity:.1f}°/s)")
+                # Limit the position change if necessary
+                if abs(position_diff) > max_position_change:
+                    # Scale down the position change to respect velocity limit
+                    if position_diff > 0:
+                        limited_change = max_position_change
                     else:
-                        # No limiting needed
-                        new_position = target_position[i]
-                        actual_velocity = position_diff / dt
+                        limited_change = -max_position_change
                     
-                    limited_position.append(new_position)
-                    actual_velocities.append(actual_velocity)
+                    new_position = current_position[i] + limited_change
+                    actual_velocity = limited_change / dt
+                    
+                    self.logger_ri.debug(f"Joint {i+1}: Limited velocity to {actual_velocity:.1f}°/s (max: {max_velocity:.1f}°/s)")
+                else:
+                    # No limiting needed
+                    new_position = target_position[i]
+                    actual_velocity = position_diff / dt
                 
-                # Set output
-                out["new_position"] = limited_position
-                out["new_velocity"] = actual_velocities
-                out["new_acceleration"] = [0.0] * self.dof  # Placeholder
+                limited_position.append(new_position)
+                actual_velocities.append(actual_velocity)
+            
+            # Set output
+            out["new_position"] = limited_position
+            out["new_velocity"] = actual_velocities
+            out["new_acceleration"] = [0.0] * self.dof  # Placeholder
             
             # Update state for next iteration
             self.previous_joint_position = out["new_position"].copy()
@@ -1049,25 +1082,25 @@ class TechmanRobot():
             self.logger_ri.error(f"Trajectory calculation error: {e}")
             return False
 
-    def stop_robot_placeholder(self, otg, inp, out):
+    def stop_robot(self, otg, inp, out):
         """
         Placeholder robot stop function.
         Sends a few more position commands to ensure robot stops.
         """
-        self.logger_ri.info("stop_robot_placeholder, stopping robot")
+        self.logger_ri.info("stop_robot, stopping robot")
         nr_stop_actions = 50
         stop_step_counter = 0
 
         while stop_step_counter < nr_stop_actions:
-            # Send current position as stop command
-            position = action_master_TM_translation(copy.deepcopy(out["new_position"]))
+            # Send current position as stop command (already in Techman coordinates)
+            position = out["new_position"].copy()
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
             send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
             
             stop_step_counter += 1
             time.sleep(self.control_dt)
             
-        self.logger_ri.info("stop_robot_placeholder, done stopping robot")
+        self.logger_ri.info("stop_robot, done stopping robot")
         return True
 
     def _send_robot_position(self, robot_position, gripper_on, gripper_off):
@@ -1076,23 +1109,10 @@ class TechmanRobot():
         Includes gripper state logging and velocity information.
         """
         try:
-            # Transform robot position for Techman
-            position = action_master_TM_translation(copy.deepcopy(robot_position))
+            # Robot position is already in Techman coordinates (translated in update_input)
+            position = robot_position.copy()
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
-            
-            # Log velocity information if available
-            if hasattr(self, 'previous_joint_position') and self.previous_joint_position is not None:
-                current_time = time.time()
-                dt = current_time - getattr(self, 'previous_timestamp', current_time)
-                if dt > 0:
-                    velocities = [(new - old) / dt for new, old in zip(robot_position, self.previous_joint_position)]
-                    max_velocity = max(abs(v) for v in velocities)
-                    max_limit = max(self.safe_velocity_limits)
-                    velocity_percentage = (max_velocity / max_limit) * 100 if max_limit > 0 else 0
-                    
-                    self.logger_ri.debug(f"Joint velocities: {[f'{v:.1f}' for v in velocities]}°/s "
-                                       f"(max: {max_velocity:.1f}°/s, {velocity_percentage:.1f}% of limit)")
-            
+                  
             # Send command
             success = send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
             
@@ -1122,37 +1142,27 @@ class TechmanRobot():
 
     def opening_ceremony(self):
         """
-        Wait for target position to be close to start position before beginning teleoperation.
-        This matches the Fanuc robot's opening ceremony logic.
+        Wait until the externally-provided target is within tolerance of the start position.
         """
-        self.logger_ri.info("Starting opening ceremony - waiting for target position near start position")
-        
-        timeout_time = 30  # 30 second timeout
-        start_time = time.time()
-        
+        ready_for_teleoperation = False
+        self.target_pos_received = None
+        time.sleep(0.01)
         while self.robot_running:
-            if self.target_pos_received is not None:
-                # Compare only robot joints for tolerance check
-                target_robot_joints = self.target_pos_received[:self.dof]
-                start_robot_joints = self.start_position[:self.dof]
-                diff = np.abs(np.array(target_robot_joints) - np.array(start_robot_joints))
-
-                if np.all(diff < self.start_joint_tolerance):
-                    self.logger_ri.info("Opening ceremony completed - target position within tolerance")
-                    # Initialize EE states from target position if available
-                    if len(self.target_pos_received) >= self.total_dof:
-                        self.ee_dof_states = self.target_pos_received[self.dof:self.dof + self.dof_ee]
-                        self.logger_ri.info(f"Initialized EE states from target: {self.ee_dof_states}")
-                    return True
-            
-            # Check timeout
-            if time.time() - start_time > timeout_time:
-                self.logger_ri.error("Opening ceremony timeout - target position not reached")
-                return False
-                
-            time.sleep(self.control_dt)
-        
+            if not ready_for_teleoperation:
+                if self.target_pos_received is not None:
+                    target_pos_received = self.target_pos_received[:self.dof]
+                    start_position = self.start_position[:self.dof]
+                    diffs = [abs(c - s) for c, s in zip(target_pos_received, start_position)]
+                    
+                    if all(d < self.start_joint_tolerance for d in diffs):
+                        ready_for_teleoperation = True
+                        self.logger_ri.info(
+                            "teleoperation loop, position within tolerance, starting teleoperation"
+                        )
+                        return True
+                time.sleep(self.control_dt)
         return False
+
 
     def _execute_play_recording(self):
         """
@@ -1171,9 +1181,18 @@ class TechmanRobot():
                 self.logger_ri.info("control_loop, recording playbook completed")
                 break
 
-            # Safety check
-            if not action_master_safety_check(action_deg, self.upper_limits, self.lower_limits):
-                self.logger_ri.warning("Safety check failed for recorded position.")
+            # CRITICAL FIX: Apply translation BEFORE safety check
+            # Raw action_deg is in teachbot coordinates, need to translate to Techman coordinates for safety check
+            translated_robot_joints = action_master_TM_translation(copy.deepcopy(action_deg[:self.dof]))
+            
+            self.logger_ri.debug(f"Playback translation: {action_deg[:self.dof]} -> {translated_robot_joints}")
+            
+            # Safety check on translated positions (in Techman coordinate system)
+            if not action_master_safety_check(translated_robot_joints, self.upper_limits, self.lower_limits):
+                self.logger_ri.error(f"Safety check failed for translated position: {translated_robot_joints}")
+                self.logger_ri.error(f"Original teachbot position was: {action_deg[:self.dof]}")
+                self.logger_ri.error(f"Upper limits: {self.upper_limits}")
+                self.logger_ri.error(f"Lower limits: {self.lower_limits}")
                 break
 
             # Extract EE DOF values from action_master
@@ -1187,8 +1206,8 @@ class TechmanRobot():
                 if len(action_master) > self.dof:
                     self.determine_gripper_state(action_master[-1])
 
-            # Send TMSCT command (only robot joints)
-            position = action_master_TM_translation(copy.deepcopy(action_deg[:self.dof]))
+            # Send TMSCT command using already translated positions
+            position = translated_robot_joints
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
             
             if not send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri):
@@ -1655,7 +1674,12 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
     # Dynamically instantiate the correct robot class
     try:
         robot_class_name = f"{robot_brand}Robot"
-        robotClass = globals()[robot_class_name]
+        # Use direct class reference instead of globals() lookup
+        if robot_class_name == "TechmanRobot":
+            robotClass = TechmanRobot
+        else:
+            # Fallback to globals() for other robot types
+            robotClass = globals()[robot_class_name]
         robot = robotClass(robot_interface_commup, shm_target_pos1, shm_target_pos2_info, shm_joint_data1, shm_joint_data2, logger_ri, config)
         logger_ri.info("Initialized %s Robot Interface", robot_brand)
         # Send a success response for "initialization"

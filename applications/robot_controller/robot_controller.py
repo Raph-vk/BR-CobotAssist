@@ -241,16 +241,18 @@ class RobotController:
         error_msg = "None"
 
         try:
-            self.connect_camera_interface()
+            if self.has_camera:
+                self.connect_camera_interface()
             self.connect_save_interface()
             self.connect_teachbot_interface()
             self.connect_robot_interface()
 
-            # Camera interface copy
-            camera_cmd = dict(payload)
-            camera_cmd["type"] = "CMD"
-            camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
-            self.send_command(camera_cmd)
+            # Camera interface copy (only if camera is configured)
+            if self.has_camera:
+                camera_cmd = dict(payload)
+                camera_cmd["type"] = "CMD"
+                camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
+                self.send_command(camera_cmd)
 
             # Save interface copy
             save_cmd = dict(payload)
@@ -277,16 +279,18 @@ class RobotController:
         error_msg = "None"
 
         try:
-            self.connect_camera_interface()
+            if self.has_camera:
+                self.connect_camera_interface()
             self.connect_save_interface()
             self.connect_teachbot_interface()
             self.connect_robot_interface()
 
-            # Camera interface copy
-            camera_cmd = dict(payload)
-            camera_cmd["type"] = "CMD"
-            camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
-            self.send_command(camera_cmd)
+            # Camera interface copy (only if camera is configured)
+            if self.has_camera:
+                camera_cmd = dict(payload)
+                camera_cmd["type"] = "CMD"
+                camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
+                self.send_command(camera_cmd)
 
             # Save interface copy
             save_cmd = dict(payload)
@@ -430,21 +434,25 @@ class RobotController:
         error_msg = "None"
 
         try:
-            self.connect_camera_interface()
-            self.connect_policy_interface()
+            if self.has_camera:
+                self.connect_camera_interface()
+            if self.has_policy:
+                self.connect_policy_interface()
             self.connect_robot_interface()
 
-            # Camera interface copy
-            camera_cmd = dict(payload)
-            camera_cmd["type"] = "CMD"
-            camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
-            self.send_command(camera_cmd)
+            # Camera interface copy (only if camera is configured)
+            if self.has_camera:
+                camera_cmd = dict(payload)
+                camera_cmd["type"] = "CMD"
+                camera_cmd["interface"] = self.get_interface_name("CAMERA_INTERFACE")
+                self.send_command(camera_cmd)
 
-            # Policy interface copy
-            policy_cmd = dict(payload)
-            policy_cmd["type"] = "CMD"
-            policy_cmd["interface"] = self.get_interface_name("POLICY_INTERFACE")
-            self.send_command(policy_cmd)
+            # Policy interface copy (only if policy is configured)
+            if self.has_policy:
+                policy_cmd = dict(payload)
+                policy_cmd["type"] = "CMD"
+                policy_cmd["interface"] = self.get_interface_name("POLICY_INTERFACE")
+                self.send_command(policy_cmd)
 
             # Robot interface copy
             robot_cmd = dict(payload)
@@ -551,9 +559,23 @@ class RobotController:
             
             self.robot_brand = hw["robot"]["brand"].lower()
             self.teachbot_brand = hw["teachbot"]["brand"].lower()
-            self.camera_brand = hw["camera"]["brand"].lower()
+            # Camera is optional - set to None if not configured
+            if "camera" in hw and "brand" in hw["camera"]:
+                self.camera_brand = hw["camera"]["brand"].lower()
+                self.has_camera = True
+            else:
+                self.camera_brand = None
+                self.has_camera = False
+                self.logger_tc.info("No camera configuration found, camera functionality disabled")
             self.control_dt = hw["robot"]["control_dt"]
-            self.policy_name = self.config["policy"]["name"].lower()
+            # Policy is optional - set to None if not configured  
+            if "policy" in self.config and "name" in self.config["policy"]:
+                self.policy_name = self.config["policy"]["name"].lower()
+                self.has_policy = True
+            else:
+                self.policy_name = None
+                self.has_policy = False
+                self.logger_tc.info("No policy configuration found, policy functionality disabled")
             
             # Store the hardware config for use throughout the class
             self.hw_config = hw
@@ -624,13 +646,17 @@ class RobotController:
         self.record_duration = gen.get("record_duration", 1)
         self.policy_img_buffer_size = gen.get("policy_img_buffer_size", 1)
 
-        # Policy configuration
-        try:
-            policy_config = self.config["policy"]
-            self.shm_target_pos2_config = policy_config["shared_memory"]
-        except KeyError as e:
-            self.logger_tc.error(f"Missing policy config: {e}")
-            sys.exit(1)
+        # Policy configuration (optional)
+        if self.has_policy:
+            try:
+                policy_config = self.config["policy"]
+                self.shm_target_pos2_config = policy_config["shared_memory"]
+            except KeyError as e:
+                self.logger_tc.error(f"Missing policy config: {e}")
+                sys.exit(1)
+        else:
+            self.shm_target_pos2_config = None
+            self.logger_tc.info("Policy configuration disabled, skipping policy shared memory setup")
 
         # General run states
         self.processes_running = True
@@ -667,26 +693,34 @@ class RobotController:
         from modules.save.save_interface import run_save_interface
         self.run_save_interface = run_save_interface
 
-        # Camera interface module
-        try:
-            camera_module_name = f"modules.camera.camera_{self.camera_brand.lower()}"
-            camera_module = importlib.import_module(camera_module_name)
-            self.run_camera_interface = camera_module.run_camera_interface
-            self.logger_tc.info(f"Imported {camera_module_name} for camera_brand={self.camera_brand}")
-        except ImportError as e:
-            self.logger_tc.error(f"Unsupported camera brand: {self.camera_brand} => {e}")
-            sys.exit(1)
+        # Camera interface module (only if camera is configured)
+        if self.has_camera:
+            try:
+                camera_module_name = f"modules.camera.camera_{self.camera_brand.lower()}"
+                camera_module = importlib.import_module(camera_module_name)
+                self.run_camera_interface = camera_module.run_camera_interface
+                self.logger_tc.info(f"Imported {camera_module_name} for camera_brand={self.camera_brand}")
+            except ImportError as e:
+                self.logger_tc.error(f"Unsupported camera brand: {self.camera_brand} => {e}")
+                sys.exit(1)
+        else:
+            self.run_camera_interface = None
+            self.logger_tc.info("Camera interface disabled - no camera configured")
 
-        # Policy interface module
-        try:
-            policy_module_name = f"modules.policy.{self.policy_name}.policy_{self.policy_name}"
-            self.logger_tc.info(f"Importing policy module: {policy_module_name}")
-            policy_module = importlib.import_module(policy_module_name)
-            self.run_policy_interface = policy_module.run_policy_interface
-            self.logger_tc.info(f"Imported {policy_module_name} for policy_type={self.policy_name}")
-        except ImportError as e:
-            self.logger_tc.error(f"Unsupported policy type: {self.policy_name} => {e}")
-            sys.exit(1)
+        # Policy interface module (only if policy is configured)
+        if self.has_policy:
+            try:
+                policy_module_name = f"modules.policy.{self.policy_name}.policy_{self.policy_name}"
+                self.logger_tc.info(f"Importing policy module: {policy_module_name}")
+                policy_module = importlib.import_module(policy_module_name)
+                self.run_policy_interface = policy_module.run_policy_interface
+                self.logger_tc.info(f"Imported {policy_module_name} for policy_type={self.policy_name}")
+            except ImportError as e:
+                self.logger_tc.error(f"Unsupported policy type: {self.policy_name} => {e}")
+                sys.exit(1)
+        else:
+            self.run_policy_interface = None
+            self.logger_tc.info("Policy interface disabled - no policy configured")
 
     def _init_interface_states(self):
         """
@@ -788,13 +822,18 @@ class RobotController:
         
         # Initialize both shared memory segments
         self._initialize_single_shared_memory("shm_joint_data1", capacity, DOF)
-        # Use deterministic calculation for policy interface too (smaller buffer for real-time data)
-        policy_capacity = self.config["cpp"]["shared_memory"]["shm_joint_data2"]["capacity"]
-        self._initialize_single_shared_memory("shm_joint_data2", policy_capacity, DOF)
+        # Policy interface shared memory only if policy is configured
+        if self.has_policy:
+            # Use deterministic calculation for policy interface too (smaller buffer for real-time data)
+            policy_capacity = self.config["cpp"]["shared_memory"]["shm_joint_data2"]["capacity"]
+            self._initialize_single_shared_memory("shm_joint_data2", policy_capacity, DOF)
         
         # Initialize the readers with effective config (setup-specific hardware + global other sections)
         self.shm_reader1 = RingBufferReader(self.effective_config, "shm_joint_data1", setup_id=str(self.setup_id))
-        self.shm_reader2 = RingBufferReader(self.effective_config, "shm_joint_data2", setup_id=str(self.setup_id))
+        if self.has_policy:
+            self.shm_reader2 = RingBufferReader(self.effective_config, "shm_joint_data2", setup_id=str(self.setup_id))
+        else:
+            self.shm_reader2 = None
         return self.shm_reader1, self.shm_reader2
         
     def _initialize_single_shared_memory(self, shm_key, capacity, dof):
@@ -852,8 +891,12 @@ class RobotController:
         if self.control_loop_language != "cpp":
             return
             
-        # Clean up both shared memory segments
-        for shm_key, reader_attr in [("shm_joint_data1", "shm_reader1"), ("shm_joint_data2", "shm_reader2")]:
+        # Clean up shared memory segments
+        shm_pairs = [("shm_joint_data1", "shm_reader1")]
+        if self.has_policy:
+            shm_pairs.append(("shm_joint_data2", "shm_reader2"))
+            
+        for shm_key, reader_attr in shm_pairs:
             if hasattr(self, reader_attr):
                 try:
                     # First close the reader to release memory views
@@ -879,7 +922,7 @@ class RobotController:
         Get shm_cpp_joint_data2 shared memory information for policy interface when using C++ control loop.
         Returns a dict with all necessary parameters to access the shared memory.
         """
-        if self.control_loop_language != "cpp":
+        if self.control_loop_language != "cpp" or not self.has_policy:
             return None
             
         DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
@@ -902,6 +945,16 @@ class RobotController:
         }
 
     def initialize_camera_shared_memory(self):
+        if not self.has_camera:
+            self.logger_tc.info("Camera functionality disabled, skipping camera shared memory initialization.")
+            self.camera_cfgs = []
+            # Initialize camera buffer attributes as None when cameras are disabled
+            self.color_buffers1 = None
+            self.depth_buffers1 = None
+            self.color_buffers2 = None
+            self.depth_buffers2 = None
+            return
+            
         try:
             self.camera_cfgs = self.hw_config["camera"]["info"]
             # self.camera_fps  = self.camera_cfgs["fps"][0]
@@ -1008,6 +1061,10 @@ class RobotController:
         Initialize shared memory for policy interface using config values.
         Structure: sequence_id (uint32) + joint_positions (DOF doubles)
         """
+        if not self.has_policy:
+            self.logger_tc.info("Policy functionality disabled, skipping policy shared memory initialization.")
+            return
+            
         # Read configuration
         DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
         DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)
@@ -1057,6 +1114,9 @@ class RobotController:
         Get shm_target_pos2 shared memory information for interfaces.
         Returns a dict with all necessary parameters to access the shared memory.
         """
+        if not self.has_policy:
+            return None
+            
         DOF_ROBOT = self.hw_config["robot"]["dof"]  # Robot joints only
         DOF_EE = self.hw_config["robot"]["dof_ee"]   # End effector DOF (gripper)
         DOF = DOF_ROBOT + DOF_EE  # Total DOF including gripper
@@ -1075,6 +1135,10 @@ class RobotController:
         """
         Clean up shared memory for policy interface.
         """
+        if not self.has_policy:
+            self.logger_tc.info("Policy functionality disabled, skipping policy shared memory cleanup.")
+            return
+            
         try:
             # Use setup-specific name for cleanup
             SHM_NAME = f"{int(self.setup_id):02d}_{self.shm_target_pos2_config['shm_name']}"
@@ -1575,6 +1639,9 @@ class RobotController:
         """
         Start the policy interface process.
         """
+        if not self.has_policy:
+            self.logger_tc.info("Policy functionality disabled, skipping policy interface connection.")
+            return
 
         self.logger_tc.info("Connecting to POLICY_INTERFACE...")
 
