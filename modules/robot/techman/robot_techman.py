@@ -16,6 +16,14 @@ import copy
 import multiprocessing.shared_memory as shared_memory
 import struct
 
+# MQTT imports for external EE communication
+try:
+    import paho.mqtt.client as mqtt
+    MQTT_AVAILABLE = True
+except ImportError:
+    MQTT_AVAILABLE = False
+    print("Warning: paho-mqtt not available. External EE communication will be disabled.")
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 from utils.utils import setup_logging, load_config, get_data_path
 
@@ -65,13 +73,14 @@ def send_tmsct_cmd(sock, script_id, script_str, logger):
         return False
 
 
-def action_master_TM_translation(master_pos_deg):
+def action_master_TM_translation(master_pos_deg, logger=None):
     """
     Transform master position to Techman robot coordinates.
     This function applies the necessary transformations for the Techman robot.
     """
     action = np.array(master_pos_deg, dtype=float)
     original = action.copy()
+    
     action[2] = -action[2]
     action[4] = -action[4]
     action[2] = action[2] + 90
@@ -145,6 +154,9 @@ class TechmanRobot():
         # Logging must be set first
         self.logger_ri = logger_ri
 
+        # Component tag for interface identification
+        self.component_tag = "ROBOT_INTERFACE"
+
         # Shared memory queues
         self.robot_interface_commup = robot_interface_commup
         self.shm_target_pos1 = shm_target_pos1
@@ -184,6 +196,10 @@ class TechmanRobot():
         self.gripper_delay = config["general"]["gripper_delay"]
         self.action_buffer_length = config["general"]["action_buffer_length"]
         self.run_policy_active = False  # Initialize policy state
+        
+        # End Effector configuration
+        self.ee_type = config["hardware"]["robot"].get("EE_type", "integrated")
+        self.trigger_function = config["hardware"]["robot"].get("trigger_function", "position")
         
         # Techman-specific config
         self.robot_address = tuple(config["hardware"]["robot"]["robot_adress"])
@@ -260,8 +276,19 @@ class TechmanRobot():
                 "TechmanRobot: Could not connect to robot. Check IP address, connection, and robot state."
             )
         
+        # Initialize end effector communication based on type
+        if self.ee_type == "external":
+            self.logger_ri.info(f"Initializing external EE communication with PLC, trigger function: {self.trigger_function}")
+            self._initialize_plc_communication()
+        else:
+            self.logger_ri.info("Using integrated EE - no additional communication setup needed")
+        
         # Initialize EE states from start position
         self._initialize_ee_states()
+        
+        # Counter for reducing PLC communication frequency
+        self.plc_send_counter = 0
+        self.plc_send_frequency_divisor = 10  # Send PLC data every 10th cycle
 
     def _initialize_ee_states(self):
         """
@@ -283,6 +310,167 @@ class TechmanRobot():
             self.logger_ri.info(f"Initialized gripper state to: {self.gripper_state}")
 
     ################################################################
+    # EXTERNAL EE PLC COMMUNICATION METHODS
+    ################################################################
+
+    def _initialize_plc_communication(self):
+        """
+        Initialize MQTT communication with PLC for external end effector control.
+        """
+        if not MQTT_AVAILABLE:
+            self.logger_ri.error("paho-mqtt not available. Cannot initialize external EE communication.")
+            self.plc_connected = False
+            return
+
+        self.logger_ri.info("Initializing MQTT communication for external end effector...")
+        
+        # Get MQTT configuration from config file
+        mqtt_config = self.config["hardware"]["robot"].get("mqtt", {})
+        self.mqtt_broker_host = mqtt_config.get("broker_host", "localhost")
+        self.mqtt_broker_port = mqtt_config.get("broker_port", 1883)
+        self.mqtt_topic = mqtt_config.get("topic", "TOS/ee")
+        self.mqtt_client_id = mqtt_config.get("client_id", f"TechmanRobot_{int(time.time())}")
+        
+        # Get select value from config
+        ee_config = self.config["hardware"]["robot"].get("ee_config", {})
+        self.select_value = ee_config.get("select", True)
+        
+        # Initialize MQTT client variables
+        self.plc_connected = False
+        self.mqtt_client = None
+        
+        try:
+            # Create MQTT client
+            self.mqtt_client = mqtt.Client(
+                mqtt.CallbackAPIVersion.VERSION1, 
+                client_id=self.mqtt_client_id, 
+                protocol=mqtt.MQTTv311
+            )
+            
+            # Set callbacks
+            self.mqtt_client.on_connect = self._on_mqtt_connect
+            self.mqtt_client.on_publish = self._on_mqtt_publish
+            self.mqtt_client.on_disconnect = self._on_mqtt_disconnect
+            
+            # Connect to MQTT broker
+            self.logger_ri.info(f"Connecting to MQTT broker {self.mqtt_broker_host}:{self.mqtt_broker_port}")
+            self.mqtt_client.connect(self.mqtt_broker_host, self.mqtt_broker_port, 60)
+            self.mqtt_client.loop_start()
+            
+            # Wait for connection
+            time.sleep(1)
+            
+            if self.plc_connected:
+                self.logger_ri.info("MQTT communication initialized successfully")
+                self.logger_ri.info(f"MQTT Config - Broker: {self.mqtt_broker_host}:{self.mqtt_broker_port}")
+                self.logger_ri.info(f"MQTT Config - Topic: {self.mqtt_topic}, Client ID: {self.mqtt_client_id}")
+                self.logger_ri.info(f"Select value from config: {self.select_value}")
+            else:
+                self.logger_ri.error("Failed to connect to MQTT broker")
+            
+        except Exception as e:
+            self.logger_ri.error(f"Failed to initialize MQTT communication: {e}")
+            self.plc_connected = False
+
+    def _on_mqtt_connect(self, client, userdata, flags, rc):
+        """MQTT connection callback"""
+        if rc == 0:
+            self.plc_connected = True
+            self.logger_ri.info(f"✓ Connected to MQTT broker {self.mqtt_broker_host}:{self.mqtt_broker_port}")
+            self.logger_ri.info(f"✓ Client ID: {self.mqtt_client_id}")
+            self.logger_ri.info(f"✓ Publishing to topic: {self.mqtt_topic}")
+        else:
+            self.plc_connected = False
+            self.logger_ri.error(f"✗ Failed to connect to MQTT broker. Return code: {rc}")
+
+    def _on_mqtt_publish(self, client, userdata, mid):
+        """MQTT publish callback"""
+        # Uncomment for debugging publish confirmations
+        # self.logger_ri.debug(f"MQTT message {mid} published")
+        pass
+
+    def _on_mqtt_disconnect(self, client, userdata, rc):
+        """MQTT disconnect callback"""
+        self.plc_connected = False
+        if rc != 0:
+            self.logger_ri.warning(f"⚠ Unexpected disconnection from MQTT broker. Return code: {rc}")
+        else:
+            self.logger_ri.info("✓ Disconnected from MQTT broker")
+
+    def _send_ee_data_to_plc(self, ee_data):
+        """
+        Send end effector data to the PLC via MQTT.
+        Data is sent at reduced frequency (1/10th of control loop) to prevent PLC communication delays.
+        
+        Args:
+            ee_data: List of end effector DOF values
+            
+        Returns:
+            bool: True if data was sent successfully or skipped due to frequency control, False on error
+        """
+        if not self.plc_connected or not self.mqtt_client:
+            self.logger_ri.warning("MQTT not connected - cannot send EE data")
+            return False
+        
+        # Increment counter for frequency control
+        self.plc_send_counter += 1
+        
+        # Send EE data to PLC only every Nth cycle to reduce frequency
+        if self.plc_send_counter < self.plc_send_frequency_divisor:
+            # Skip sending this cycle - return True to indicate successful handling
+            return True
+        
+        # Reset counter - time to send data
+        self.plc_send_counter = 0
+            
+        try:
+            # Extract and scale the values
+            # eedof1 (setpoint): potentiometer value 0-1, scale to 0-4095 (12-bit word)
+            setpoint_raw = ee_data[0] if len(ee_data) > 0 else 0.0
+            setpoint_scaled = int(setpoint_raw * 4095)  # Scale 0-1 to 0-4095
+            
+            # eedof2 (grind): 0/1 value, convert to boolean
+            grind_raw = ee_data[1] if len(ee_data) > 1 else 0.0
+            grind_value = bool(int(grind_raw))  # Convert to boolean
+            
+            # Create MQTT payload
+            payload = {
+                "Grind": grind_value,           # M101: Boolean (True/False) from eedof2
+                "Select": self.select_value,    # M103: Boolean from config
+                "Setpoint": setpoint_scaled     # MW 0100: Word (0-4095) from eedof1 scaled
+            }
+            
+            # Convert to JSON
+            payload_json = json.dumps(payload)
+            
+            # Publish to MQTT
+            result = self.mqtt_client.publish(self.mqtt_topic, payload_json, qos=0)
+            
+            if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                return True
+            else:
+                self.logger_ri.error(f"Failed to publish MQTT message. Return code: {result.rc}")
+                return False
+            
+        except Exception as e:
+            self.logger_ri.error(f"Error sending EE data via MQTT: {e}")
+            return False
+
+    def update_select_value_from_command(self, full_message):
+        """
+        Update the select value based on the extra_function1 parameter from the command.
+        extra_function1 = True -> Pressure mode -> select = True
+        extra_function1 = False -> Position mode -> select = False
+        """
+        if full_message and "extra_function1" in full_message:
+            extra_function1 = full_message["extra_function1"]
+            # Map extra_function1 to select value (for BR customer: Pressure=True, Position=False)
+            self.select_value = bool(extra_function1)
+            self.logger_ri.info(f"Updated select_value to {self.select_value} based on extra_function1: {extra_function1} ({'Pressure' if extra_function1 else 'Position'} mode)")
+        else:
+            self.logger_ri.debug("No extra_function1 parameter found in command, keeping current select_value")
+
+    ################################################################
     # 1) COMMANDS
     ################################################################
 
@@ -292,6 +480,9 @@ class TechmanRobot():
         Create a thread to listen for target positions, then
         start the teleoperation control loop in another thread.
         """
+        # Update select value based on extra_function1 parameter
+        self.update_select_value_from_command(full_message)
+        
         self.robot_running = True
         self.receive_target_pos = True
 
@@ -389,6 +580,10 @@ class TechmanRobot():
         """
         if full_message is None:
             full_message = {"message": "play_recording"}
+            
+        # Update select value based on extra_function1 parameter
+        self.update_select_value_from_command(full_message)
+            
         self.robot_running = True
         self.play_recording_active = True
 
@@ -463,13 +658,25 @@ class TechmanRobot():
 
     def disconnect(self):
         """
-        Disconnect from the Techman robot.
+        Disconnect from the Techman robot and clean up MQTT connection.
         """
         if not self.connected:
             self.logger_ri.warning("Already disconnected.")
             return True
 
-        # Close sockets
+        # Close MQTT connection if external EE is used
+        if self.ee_type == "external" and hasattr(self, 'plc_connected') and self.plc_connected:
+            try:
+                if hasattr(self, 'mqtt_client') and self.mqtt_client:
+                    self.mqtt_client.loop_stop()
+                    self.mqtt_client.disconnect()
+                    self.mqtt_client = None
+                self.plc_connected = False
+                self.logger_ri.info("Disconnected from MQTT broker")
+            except Exception as e:
+                self.logger_ri.error(f"Error disconnecting from MQTT broker: {e}")
+
+        # Close robot sockets
         try:
             if self.sock:
                 self.sock.close()
@@ -645,7 +852,7 @@ class TechmanRobot():
             try:
                 target_pos = self.shm_target_pos1.get(timeout=0.1)
                 # TODO: rove when joint 6 works again ==============================================================================================================
-                target_pos[5] = 0.0  # Reset the 6th element (index 5) to 0.0
+                target_pos[5] = 90.0  # Reset the 6th element (index 5) to 0.0
                 self.target_pos_received = target_pos
 
             except Exception as e:
@@ -766,23 +973,6 @@ class TechmanRobot():
         time.sleep(0.01)
         self.logger_ri.info("control_loop, After sleep, starting buffer fill")
 
-        self.logger_ri.info("control_loop, streaming started, filling buffer")
-        for i in range(self.action_buffer_length):
-            # Extract robot joints from start_position (first self.dof elements)
-            robot_joints = self.start_position[:self.dof]
-            # Extract EE states from start_position (remaining elements)
-            if len(self.start_position) > self.dof:
-                ee_states = self.start_position[self.dof:self.dof + self.dof_ee]
-                # Use first EE DOF for gripper state
-                gripper_state = 1 if (len(ee_states) > 0 and ee_states[0] > 0.5) else 0
-            else:
-                gripper_state = 1  # Default for buffer fill
-            
-            if i == 0:
-                gripper_state = 1
-            # For Techman, we just log the buffer fill instead of sending UDP
-            self.logger_ri.debug(f"Buffer fill {i}: joints={robot_joints}, gripper={gripper_state}")
-
         self.logger_ri.info("control_loop, starting control loop")
         previous_action_master = self.start_position
 
@@ -811,9 +1001,6 @@ class TechmanRobot():
                 else:
                     # No action received, use previous action
                     action_master = previous_action_master
-                    
-            if start_time % 5 < 0.01:  # Log every 5 seconds in teleoperation
-                self.logger_ri.info(f"control_loop, teleoperation active, action_master: {action_master}")
 
             # Extract EE DOF values from action_master
             self.ee_dof_states = self.extract_ee_dof_values(action_master)
@@ -854,8 +1041,6 @@ class TechmanRobot():
                 self.logger_ri.error("control_loop, could not send joint position to robot")
                 break
             
-            self.logger_ri.info("sending joint data to save")
-
             # Upload data to shm_joint_data1 if recording
             if self.recording:
                 try:
@@ -945,23 +1130,19 @@ class TechmanRobot():
         Set up motion planner with initial conditions.
         Keep everything in teachbot coordinates - translation happens only at robot command level.
         """
-        self.logger_ri.info("setup_planner: Starting method")
         
         # Reset speed limiter state
         self.previous_joint_position = None
         self.previous_timestamp = None
-        self.logger_ri.info("setup_planner: Reset speed limiter state")
         
         # Keep start position in teachbot coordinates for trajectory planner
         start_position_teachbot = self.start_position[:self.dof]
-        self.logger_ri.info(f"setup_planner: Extracted start position: {start_position_teachbot}")
         
         # Create simple dictionary-based objects to mimic Ruckig interface
         otg = {
             "type": "motion_planner",
             "velocity_limits": self.safe_velocity_limits.copy()
         }
-        self.logger_ri.info("setup_planner: Created otg object")
         
         inp = {
             "current_position": start_position_teachbot,
@@ -971,44 +1152,44 @@ class TechmanRobot():
             "target_velocity": [0.0] * self.dof,
             "target_acceleration": [0.0] * self.dof,
         }
-        self.logger_ri.info("setup_planner: Created inp object")
         
         out = {
             "new_position": start_position_teachbot,
             "new_velocity": [0.0] * self.dof,
             "new_acceleration": [0.0] * self.dof,
         }
-        self.logger_ri.info("setup_planner: Created out object")
         
         self.logger_ri.info(f"Motion planner setup with velocity limits: {self.safe_velocity_limits}")
-        self.logger_ri.info(f"Start position in teachbot coordinates: {start_position_teachbot}")
-        self.logger_ri.info("setup_planner: Returning objects")
         return otg, inp, out
 
     def update_input(self, action_master, inp, previous_action_master):
         """
         Process the new action (master) against position limits and
         set the input accordingly.
+        Keep everything in teachbot coordinates - translation happens only when sending to robot.
         """
         current_position = [round(pos, 6) for pos in inp["current_position"]]
         inp["current_position"] = current_position
 
-        # CRITICAL FIX: Apply translation BEFORE position limits
-        # The raw action_master is in teachbot coordinates, but limits are for Techman
+        # Keep everything in teachbot coordinates for path planning
         raw_target_position = action_master[:self.dof].copy()
-        translated_target_position = action_master_TM_translation(raw_target_position)
         
-        self.logger_ri.debug(f"Target translation: {raw_target_position} -> {translated_target_position}")
+        # Apply position limits in teachbot coordinates
+        # Note: We need to translate limits to teachbot coordinate system for proper checking
+        target_position = raw_target_position.copy()
         
-        # Apply position limits to translated positions
-        target_position = translated_target_position.copy()
+        # For now, use basic range checking - you might want to implement proper limit translation
         for i in range(self.dof):
-            if target_position[i] > self.upper_limits[i]:
-                self.logger_ri.warning(f"Joint {i} target {target_position[i]:.1f} exceeds upper limit {self.upper_limits[i]}, clamping")
-                target_position[i] = self.upper_limits[i]
-            elif target_position[i] < self.lower_limits[i]:
-                self.logger_ri.warning(f"Joint {i} target {target_position[i]:.1f} below lower limit {self.lower_limits[i]}, clamping")
-                target_position[i] = self.lower_limits[i]
+            # These are rough teachbot coordinate limits - adjust as needed
+            teachbot_upper_limits = [180, 180, 180, 180, 180, 180]
+            teachbot_lower_limits = [-180, -180, -180, -180, -180, -180]
+            
+            if target_position[i] > teachbot_upper_limits[i]:
+                self.logger_ri.warning(f"Joint {i} target {target_position[i]:.1f} exceeds upper limit {teachbot_upper_limits[i]}, clamping")
+                target_position[i] = teachbot_upper_limits[i]
+            elif target_position[i] < teachbot_lower_limits[i]:
+                self.logger_ri.warning(f"Joint {i} target {target_position[i]:.1f} below lower limit {teachbot_lower_limits[i]}, clamping")
+                target_position[i] = teachbot_lower_limits[i]
 
         inp["target_position"] = target_position
         return
@@ -1039,8 +1220,17 @@ class TechmanRobot():
             actual_velocities = []
             
             for i in range(self.dof):
-                # Calculate required position change
-                position_diff = target_position[i] - current_position[i]
+                # Calculate required position change with angular wraparound handling
+                raw_position_diff = target_position[i] - current_position[i]
+                
+                # Handle angular wraparound to ensure shortest path
+                if abs(raw_position_diff) > 180:
+                    if raw_position_diff > 0:
+                        position_diff = raw_position_diff - 360
+                    else:
+                        position_diff = raw_position_diff + 360
+                else:
+                    position_diff = raw_position_diff
                 
                 # Calculate maximum allowed position change based on velocity limit
                 max_velocity = self.safe_velocity_limits[i]  # degrees/second with safety factor
@@ -1057,10 +1247,9 @@ class TechmanRobot():
                     new_position = current_position[i] + limited_change
                     actual_velocity = limited_change / dt
                     
-                    self.logger_ri.debug(f"Joint {i+1}: Limited velocity to {actual_velocity:.1f}°/s (max: {max_velocity:.1f}°/s)")
                 else:
                     # No limiting needed
-                    new_position = target_position[i]
+                    new_position = current_position[i] + position_diff
                     actual_velocity = position_diff / dt
                 
                 limited_position.append(new_position)
@@ -1090,15 +1279,18 @@ class TechmanRobot():
         """
         Robot stop function.
         Sends a few more position commands to ensure robot stops.
+        Translates from teachbot to Techman coordinates before sending.
         """
         self.logger_ri.info("stop_robot, stopping robot")
         nr_stop_actions = 50
         stop_step_counter = 0
 
         while stop_step_counter < nr_stop_actions:
-            # Send current position as stop command (already in Techman coordinates)
-            position = out["new_position"].copy()
-            script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
+            # Get current position in teachbot coordinates and translate to Techman
+            teachbot_position = out["new_position"].copy()
+            translated_position = action_master_TM_translation(teachbot_position, self.logger_ri)
+            script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*translated_position)
+            
             send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
             
             stop_step_counter += 1
@@ -1110,22 +1302,24 @@ class TechmanRobot():
     def _send_robot_position(self, robot_position, gripper_on, gripper_off):
         """
         Send robot position to Techman via TMSCT protocol.
-        Includes gripper state logging and velocity information.
+        Translate from teachbot coordinates to Techman coordinates right before sending.
         """
         try:
-            # Robot position is already in Techman coordinates (translated in update_input)
-            position = robot_position.copy()
-            script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
+            # robot_position is in teachbot coordinates - translate to Techman coordinates
+            teachbot_position = robot_position.copy()
+            translated_position = action_master_TM_translation(teachbot_position, self.logger_ri)
+            
+            script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*translated_position)
                   
-            # Send command
+            # Send command to robot
             success = send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
             
-            # Log gripper state changes
-            if gripper_on:
-                self.logger_ri.info(f"GRIPPER COMMAND: Turn ON - EE states: {self.ee_dof_states}")
-            if gripper_off:
-                self.logger_ri.info(f"GRIPPER COMMAND: Turn OFF - EE states: {self.ee_dof_states}")
-                
+            # Handle external EE communication - frequency control is now handled in _send_ee_data_to_plc
+            if self.ee_type == "external":
+                plc_success = self._send_ee_data_to_plc(self.ee_dof_states)
+                if not plc_success:
+                    self.logger_ri.warning("Failed to send EE data to PLC")
+            
             return success
             
         except Exception as e:
@@ -1151,18 +1345,28 @@ class TechmanRobot():
         ready_for_teleoperation = False
         self.target_pos_received = None
         time.sleep(0.01)
+        
+        self.logger_ri.info("Opening ceremony: waiting for target position within tolerance")
+        
         while self.robot_running:
             if not ready_for_teleoperation:
                 if self.target_pos_received is not None:
                     target_pos_received = self.target_pos_received[:self.dof]
                     start_position = self.start_position[:self.dof]
-                    diffs = [abs(c - s) for c, s in zip(target_pos_received, start_position)]
+                    
+                    # Calculate angular differences accounting for circular nature of rotational joints
+                    diffs = []
+                    for c, s in zip(target_pos_received, start_position):
+                        # Calculate the shortest angular distance between two angles
+                        diff = abs(c - s)
+                        # Handle wraparound for rotational joints (0-360° or -180° to 180°)
+                        if diff > 180:
+                            diff = 360 - diff
+                        diffs.append(diff)
                     
                     if all(d < self.start_joint_tolerance for d in diffs):
                         ready_for_teleoperation = True
-                        self.logger_ri.info(
-                            "teleoperation loop, position within tolerance, starting teleoperation"
-                        )
+                        self.logger_ri.info("Opening ceremony: position within tolerance, starting teleoperation")
                         return True
                 time.sleep(self.control_dt)
         return False
@@ -1187,7 +1391,7 @@ class TechmanRobot():
 
             # CRITICAL FIX: Apply translation BEFORE safety check
             # Raw action_deg is in teachbot coordinates, need to translate to Techman coordinates for safety check
-            translated_robot_joints = action_master_TM_translation(copy.deepcopy(action_deg[:self.dof]))
+            translated_robot_joints = action_master_TM_translation(copy.deepcopy(action_deg[:self.dof]), self.logger_ri)
             
             self.logger_ri.debug(f"Playback translation: {action_deg[:self.dof]} -> {translated_robot_joints}")
             
@@ -1212,7 +1416,9 @@ class TechmanRobot():
 
             # Send TMSCT command using already translated positions
             position = translated_robot_joints
+            self.logger_ri.debug(f"Sending playback position command: {position}")
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
+
             
             if not send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri):
                 self.logger_ri.error("Error sending command to Techman.")
@@ -1246,7 +1452,6 @@ class TechmanRobot():
         if script_cmd:
             for i in range(50):
                 send_tmsct_cmd(self.sock, "2", script_cmd, self.logger_ri)
-                self.logger_ri.info(f"Sent stop command: {script_cmd}")
                 # rate control
                 start_time = time.time()
                 elapsed = time.time() - start_time
@@ -1321,7 +1526,7 @@ class TechmanRobot():
 
         # Extract only robot joints from start position for movement command
         robot_start_position = copy.deepcopy(self.start_position[:self.dof])
-        position = action_master_TM_translation(robot_start_position)
+        position = action_master_TM_translation(robot_start_position, self.logger_ri)
         
         # Initialize EE states from start position if available
         if len(self.start_position) >= self.total_dof:
@@ -1329,13 +1534,14 @@ class TechmanRobot():
         else:
             self.ee_dof_states = [0.0] * self.dof_ee
             
-        self.logger_ri.info(f"Moving to start position with EE states: {self.ee_dof_states}")
+        self.logger_ri.info(f"Moving to start position with {len(robot_start_position)} joints")
         
         move_time = 5
         time_now = 0
         
         while time_now < move_time:
             pos_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
+            
             if not send_tmsct_cmd(self.sock, "2", pos_cmd, self.logger_ri):
                 self.logger_ri.error("Error sending command to Techman.")
                 return False
@@ -1346,6 +1552,7 @@ class TechmanRobot():
         disable_cmd = f'Position(false, "J", {self.move_accel_time}, {self.move_motion_gain}, {self.move_protection_time})'
         send_tmsct_cmd(self.sock, "3", disable_cmd, self.logger_ri)
 
+        self.logger_ri.info("Completed move to start position")
         return True
 
     ################################################################
@@ -1425,16 +1632,25 @@ class TechmanRobot():
             self.recv_sock.bind(bind_address)
             self.recv_sock.settimeout(0.5)
             self.logger_ri.info(f"Listener thread started. Listening on port {self.robot_recv_address[1]} for robot messages...")
+            self.logger_ri.info(f"Socket bound to: {self.recv_sock.getsockname()}")
+            
+            # Add a counter to track timeout cycles for debugging
+            timeout_counter = 0
             
             while self.listener_running:
                 try:
-                    data = self.recv_sock.recv(4096)
+                    data, addr = self.recv_sock.recvfrom(4096)
                     if data:
-                        self.logger_ri.info(f"Received from Techman: {data.decode(errors='ignore')}")
+                        self.logger_ri.info(f"Received {len(data)} bytes from {addr}: {data.decode(errors='ignore')[:200]}...")
+                        # Reset timeout counter when we receive data
+                        timeout_counter = 0
                         # Process robot feedback here if needed
                 except socket.timeout:
                     # Normal - no data arrived within 0.5s
-                    pass
+                    timeout_counter += 1
+                    # Log every 60 timeouts (30 seconds) to show we're still listening
+                    if timeout_counter % 60 == 0:
+                        self.logger_ri.debug(f"Listener still active, waiting for data... ({timeout_counter * 0.5:.1f}s elapsed)")
                 except Exception as e:
                     self.logger_ri.error(f"Error in listener thread: {e}")
                     break
@@ -1511,10 +1727,25 @@ class TechmanRobot():
         """
         Extract end effector DOF values from the action.
         Expects action_master to have self.total_dof elements (robot joints + EE DOFs).
+        
+        For external EE via MQTT:
+        - eedof1: Potentiometer value (0.0-1.0) -> will be scaled to 0-4095 in MQTT send
+        - eedof2: Grind value (0.0 or 1.0) -> will be converted to boolean in MQTT send
+        
         Returns the EE DOF values as a list.
         """
         if len(action_master) >= self.total_dof:
             ee_dof_values = action_master[self.dof:self.dof + self.dof_ee]
+            
+            # Ensure eedof1 (setpoint) is within 0-1 range for scaling
+            if self.ee_type == "external" and len(ee_dof_values) > 0:
+                # Clamp eedof1 to 0-1 range for proper scaling to 12-bit word (0-4095)
+                ee_dof_values[0] = max(0.0, min(1.0, ee_dof_values[0]))
+                
+                # Ensure eedof2 (grind) is 0 or 1
+                if len(ee_dof_values) > 1:
+                    ee_dof_values[1] = 1.0 if ee_dof_values[1] > 0.5 else 0.0
+            
             return ee_dof_values
         else:
             # Fallback: use zeros if not enough elements
@@ -1566,7 +1797,7 @@ class TechmanRobot():
             return False
 
         try:
-            position = action_master_TM_translation(joint_position)
+            position = action_master_TM_translation(joint_position, self.logger_ri)
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
             return send_tmsct_cmd(self.sock, "1", script_cmd, self.logger_ri)
         except Exception as e:
@@ -1608,17 +1839,90 @@ class TechmanRobot():
         """
         return self.ee_dof_states.copy()
 
-    def set_ee_dof_state(self, dof_index, value):
+    def test_udp_reception(self, test_duration=10):
         """
-        Set a specific end-effector DOF state.
+        Test UDP reception for a specified duration to diagnose connectivity issues.
+        This can be called manually to check if any UDP traffic is arriving.
         """
-        if 0 <= dof_index < self.dof_ee:
-            old_value = self.ee_dof_states[dof_index]
-            self.ee_dof_states[dof_index] = value
-            self.logger_ri.info(f"EE DOF {dof_index} changed from {old_value:.3f} to {value:.3f}")
+        self.logger_ri.info(f"Starting UDP reception test for {test_duration} seconds...")
+        
+        try:
+            # Create a test socket
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            
+            # Bind to the same port as the listener
+            bind_address = ("", self.robot_recv_address[1])
+            test_sock.bind(bind_address)
+            test_sock.settimeout(1.0)
+            
+            self.logger_ri.info(f"Test socket bound to: {test_sock.getsockname()}")
+            self.logger_ri.info(f"Listening for any UDP traffic on port {self.robot_recv_address[1]}...")
+            
+            packets_received = 0
+            start_time = time.time()
+            
+            while (time.time() - start_time) < test_duration:
+                try:
+                    data, addr = test_sock.recvfrom(4096)
+                    packets_received += 1
+                    self.logger_ri.info(f"UDP packet #{packets_received} from {addr}: {len(data)} bytes")
+                    self.logger_ri.info(f"Data preview: {data[:100] if len(data) > 100 else data}")
+                    
+                except socket.timeout:
+                    # No data within 1 second
+                    pass
+                    
+            test_sock.close()
+            
+            if packets_received == 0:
+                self.logger_ri.warning(f"No UDP packets received during {test_duration} second test")
+                self.logger_ri.info("Possible issues:")
+                self.logger_ri.info("1. Robot not configured to send data to this IP/port")
+                self.logger_ri.info("2. Firewall blocking incoming UDP on port 5891")
+                self.logger_ri.info("3. Robot not in correct mode for data transmission")
+                self.logger_ri.info("4. Network routing issues")
+            else:
+                self.logger_ri.info(f"Test completed: {packets_received} UDP packets received")
+                
+        except Exception as e:
+            self.logger_ri.error(f"Error during UDP test: {e}")
+
+    def check_robot_feedback_config(self):
+        """
+        Send commands to check/configure robot feedback settings.
+        This tries to enable data transmission from the robot.
+        """
+        if not self.connected:
+            self.logger_ri.error("Cannot configure robot feedback - not connected")
+            return False
+            
+        self.logger_ri.info("Attempting to configure robot feedback...")
+        
+        try:
+            # Try to enable data transmission to our IP and port
+            local_ip = self.robot_recv_address[0] if self.robot_recv_address[0] != "" else "192.168.10.3"
+            local_port = self.robot_recv_address[1]
+            
+            # Example commands to enable feedback (these may need adjustment for your specific robot)
+            feedback_commands = [
+                f'ScriptExit()',  # Ensure we're not in a script
+                f'SetTCPSpeedLimit(false)',  # Disable speed limits for feedback
+                # Add specific Techman commands to enable UDP feedback if available
+                # f'SendData("{local_ip}", {local_port}, "enable")',  # Example - adjust based on robot manual
+            ]
+            
+            for cmd in feedback_commands:
+                self.logger_ri.info(f"Sending feedback config command: {cmd}")
+                if not send_tmsct_cmd(self.sock, "1", cmd, self.logger_ri):
+                    self.logger_ri.warning(f"Failed to send command: {cmd}")
+                time.sleep(0.1)  # Small delay between commands
+                
+            self.logger_ri.info("Robot feedback configuration commands sent")
             return True
-        else:
-            self.logger_ri.error(f"Invalid EE DOF index: {dof_index}. Valid range: 0-{self.dof_ee-1}")
+            
+        except Exception as e:
+            self.logger_ri.error(f"Error configuring robot feedback: {e}")
             return False
 
 

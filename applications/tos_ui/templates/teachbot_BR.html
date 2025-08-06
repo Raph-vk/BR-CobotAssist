@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TOS UI</title>
+  <style>
+    /* Main brand colors */
+    :root {
+      --color-blue: #2a4595;
+      --color-red:  #d91b11;
+    }
+
+    /* Reset / Base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f2f2f2;
+      color: #333;
+      font-size: 18px; /* Increased base font size */
+    }
+
+    /* Full-width top header with centered logos */
+    .header {
+      width: 100%;
+      background-color: var(--color-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4rem;
+      padding: 0.5rem 1rem;
+    }
+    .logo-tos {
+      height: 100px;
+      object-fit: contain;
+    }
+    .logo-breda {
+      height: 100px;
+      object-fit: contain;
+    }
+    .logo-stimulus {
+      height: 50px;
+      object-fit: contain;
+    }
+
+    /* Container for the two sections + red lines */
+    .two-sections {
+      position: relative;    
+      width: 1200px;         
+      height: 840px;         /* Increased from 800px to accommodate taller bottom box */
+      margin: 2rem auto;     
+      background-color: #f2f2f2;
+    }
+
+    /* Red lines for top & bottom boxes */
+    .line-top-left {
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 5px;
+      height: 550px; /* Increased from 430px */
+      background-color: var(--color-red);
+    }
+    .line-top-bottom {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      top: 550px; /* Moved down from 430px */
+      background-color: var(--color-red);
+    }
+    .line-bottom-right {
+      position: absolute;
+      top: 550px; /* Moved down from 430px */
+      right: -5px;
+      width: 5px;
+      height: 285px; /* Increased to match new bottom box height */
+      background-color: var(--color-red);
+    }
+
+    /* Top box: increased height for larger content */
+    .box-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 550px; /* Increased from 430px */
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    /* Box-bottom positioning */
+    .box-bottom {
+      position: absolute;
+      top: 560px; /* Position below the box-top (550px height + 10px margin) */
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    /* Bottom box: increased height for larger content */
+    .bottom-box {
+      width: 100%;
+      border: 3px solid var(--color-red);
+      border-radius: 15px;
+      height: 280px; /* Increased from 240px to fit playback speed content */
+      overflow-y: auto;
+      background-color: white;
+      margin-top: 20px;
+    }
+
+    /* Headings */
+    .box-top h2,
+    .box-bottom h2 {
+      margin-bottom: 1rem;
+      color: var(--color-blue);
+      font-size: 2.5rem; /* Much larger headings */
+    }
+
+    /* Buttons row(s) */
+    .button-row {
+      margin-top: 1rem;
+    }
+    .btn {
+      display: inline-block;
+      width: 280px;  /* Increased from 220px for larger text */
+      white-space: nowrap;
+      text-align: center;
+      padding: 1.2rem 1.5rem; /* Much larger padding */
+      margin: 0.5rem 0.75rem;
+      background-color: var(--color-blue);
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      border: none;
+      font-size: 1.4rem; /* Much larger button text */
+      font-weight: bold;
+      transition: background-color 0.2s ease-in-out;
+    }
+    .btn:hover {
+      background-color: var(--color-red);
+    }
+
+    /* Fixed-width dropdown */
+    #recordingsDropdown {
+      width: 280px; /* Increased from 220px to match buttons */
+      padding: 0.8rem; /* Larger padding */
+      font-size: 1.4rem; /* Much larger dropdown text */
+      margin: 0.5rem 0.75rem;
+    }
+
+    /* Bottom Box sliders area */
+    .settings-section h3 {
+      margin-bottom: 1rem;
+      color: var(--color-blue);
+      font-size: 2rem; /* Much larger section headings */
+    }
+    .slider-row {
+      margin: 1rem auto;
+      text-align: center;
+      max-width: 700px; /* Increased to match pressure/position selector */
+      display: flex;
+      align-items: center;
+      justify-content: center; /* Changed back to center for better alignment */
+      gap: 0.5rem;
+    }
+    .slider-row label {
+      display: inline-block;
+      min-width: 200px; /* Increased to match pressure/position labels for perfect colon alignment */
+      text-align: right;
+      font-size: 1.3rem;
+      font-weight: bold;
+    }
+    .slider-row input[type="range"] {
+      vertical-align: middle;
+      width: 150px; /* Keep consistent slider width */
+      height: 8px;
+    }
+    .slider-value {
+      font-weight: bold;
+      color: var(--color-blue);
+      min-width: 70px;
+      text-align: left;
+      font-size: 1.3rem;
+    }
+
+    /* Settings section with two-column layout */
+    .settings-section {
+      display: grid;
+      grid-template-columns: 250px 1fr; /* Restored to 250px to prevent text wrapping */
+      gap: 0.5rem; /* Reduced from 1rem for tighter spacing */
+      row-gap: 2rem; /* Added vertical spacing between rows */
+      align-items: center;
+      max-width: 600px; /* Reduced max-width for better centering */
+      margin: 0 auto; /* Center the settings section */
+      justify-self: center; /* Additional centering */
+    }
+
+    /* Left column: labels */
+    .setting-label {
+      text-align: right;
+      font-size: 1.3rem;
+      font-weight: bold;
+      padding-right: 1rem;
+    }
+
+    /* Right column: controls */
+    .setting-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    /* Pressure/Position selector styles */
+    .pressure-position-selector {
+      display: contents; /* Use grid layout from parent */
+    }
+
+    .selector-buttons {
+      display: flex;
+      gap: 0.5rem;
+      width: 280px; /* Increased to match slider + value width */
+    }
+    .selector-button {
+      flex: 1;
+      padding: 0.8rem 1rem; /* Much larger padding */
+      border: 2px solid #4a5a8a; /* Softer blue */
+      background-color: white;
+      color: #4a5a8a; /* Softer blue */
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: bold; /* Make text bold */
+      font-size: 1.2rem; /* Much larger button text */
+      transition: all 0.3s ease;
+    }
+    .selector-button:hover {
+      background-color: #f5f5f5;
+      border-color: #3a4a7a;
+    }
+    .selector-button.selected {
+      background-color: rgba(217, 27, 17, 0.7); /* Same red as others but 70% opacity for subtlety */
+      color: white;
+      border-color: rgba(217, 27, 17, 0.7); /* Same opacity as background for consistent appearance */
+    }
+
+    /* Align all labels consistently */
+    .slider-row {
+      display: contents; /* Use grid layout from parent */
+    }
+    
+    .slider-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      width: 280px; /* Fixed width to match button width */
+    }
+
+    .slider-control input[type="range"] {
+      flex: 1;
+      max-width: 200px;
+    }
+
+    .slider-value {
+      min-width: 80px;
+      text-align: center;
+    }
+
+    /* Dropdown with action icons */
+    .dropdown-with-icons {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-option-icons {
+      position: absolute;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      gap: 4px;
+      z-index: 1000;
+    }
+
+    .dropdown-option-icons .icon {
+      cursor: pointer;
+      padding: 6px; /* Larger padding */
+      border-radius: 6px; /* Larger border radius */
+      font-size: 24px; /* Much larger icons */
+      opacity: 0.7;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .dropdown-option-icons .icon:hover {
+      opacity: 1;
+      background-color: rgba(244, 67, 54, 0.1);
+      color: #f44336 !important;
+      transform: scale(1.1);
+    }
+
+    .icon-rename {
+      color: #2196F3;
+    }
+
+    .icon-delete {
+      color: #f44336;
+    }
+
+    /* Tooltip styling */
+    .dropdown-option-icons .icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: white;
+      padding: 8px 12px; /* Larger tooltip padding */
+      border-radius: 6px; /* Larger border radius */
+      font-size: 16px; /* Much larger tooltip text */
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 1001;
+    }
+
+    .dropdown-option-icons .icon:hover::after {
+      opacity: 1;
+    }
+
+    /* Only show icons on hover when there's a valid selection */
+    .dropdown-with-icons.has-valid-selection:hover .dropdown-option-icons {
+      display: flex;
+    }
+
+    /* Hide icons when dropdown is open */
+    .dropdown-with-icons select:focus + .dropdown-option-icons {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header with logos -->
+  <div class="header">
+    <img class="logo-tos" src="{{ url_for('static', filename='tos_logo.jpg') }}" alt="TOS Logo">
+    <img class="logo-breda" src="{{ url_for('static', filename='breda_robotics_logo.png') }}" alt="Breda Robotics Logo">
+    <img class="logo-stimulus" src="{{ url_for('static', filename='logo_stimulus.png') }}" alt="Stimulus Logo">
+  </div>
+
+  <!-- Main container for 2 boxes + the lines -->
+  <div class="two-sections">
+    <div class="line-top-left"></div>
+    <div class="line-top-bottom"></div>
+    <div class="line-bottom-right"></div>
+
+    <!-- Top Box -->
+    <div class="box-top">
+      <h2>TOS UI Controls</h2>
+      
+      <!-- Teachbot mode: Show setup info only when multiple setups are defined -->
+      {% if total_setups >= 2 %}
+      <div style="text-align: center; margin: 20px 0;">
+        <span style="font-size: 1.6rem; color: var(--color-blue); font-weight: bold;">
+          Using {{ setups[0].display_name }}
+        </span>
+      </div>
+      {% endif %}
+
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('start_teleoperation')">
+          Start Teleop
+        </button>
+      </div>
+
+
+      <div class="button-row">
+        <div class="dropdown-with-icons">
+          <select id="recordingsDropdown"
+                  onmouseover="fetchRecordingsInBackground()" 
+                  onfocus="fetchRecordingsInBackground()"
+                  onchange="onRecordingSelected()">
+            <option hidden value="">Select name...</option>
+          </select>
+          <div class="dropdown-option-icons">
+            <span class="icon icon-rename" onclick="renameSelectedRecording()" data-tooltip="Rename recording">✏️</span>
+            <span class="icon icon-delete" onclick="deleteSelectedRecording()" data-tooltip="Delete recording">🗑️</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('start_teleoperation_record')">
+          Start Teleop &amp; Record
+        </button>
+          <button class="btn" onclick="playSelectedRecording()">
+          Play Recording
+        </button>
+      </div>
+
+      <div class="button-row">
+        <button class="btn" onclick="sendCommand('stop')">
+          Stop
+        </button>
+      </div>
+    </div>
+
+
+
+    <!-- Bottom Box -->
+    <div class="box-bottom">
+      <h2>Settings</h2>
+      <div class="settings-section">
+      
+      <!-- Pressure/Position Selector -->
+      <div class="pressure-position-selector">
+        <div class="setting-label">Control Mode:</div>
+        <div class="setting-control">
+          <div class="selector-buttons">
+            <button type="button" class="selector-button selected" id="pressure-btn" onclick="selectPressurePosition('pressure')">Pressure</button>
+            <button type="button" class="selector-button" id="position-btn" onclick="selectPressurePosition('position')">Position</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recording Speed slider -->
+      <div class="slider-row">
+        <div class="setting-label">Recording Speed:</div>
+        <div class="setting-control">
+          <div class="slider-control">
+            <input type="range" id="recording_speed" name="recording_speed"
+               min="0" max="2" value="1" step="1"
+               oninput="updateSliderValueRecording(this.value)">
+            <span class="slider-value" id="recording_speed_value">0.5</span>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        // Global variable to track extra_function1 state
+        window.extra_function1 = true; // Default to Pressure mode (true)
+        
+        function selectPressurePosition(mode) {
+          const pressureBtn = document.getElementById('pressure-btn');
+          const positionBtn = document.getElementById('position-btn');
+          
+          // Remove selected class from both buttons
+          pressureBtn.classList.remove('selected');
+          positionBtn.classList.remove('selected');
+          
+          // Add selected class to clicked button and set global variable
+          if (mode === 'pressure') {
+            pressureBtn.classList.add('selected');
+            window.extra_function1 = true;
+            console.log('Pressure mode selected - extra_function1:', window.extra_function1);
+          } else {
+            positionBtn.classList.add('selected');
+            window.extra_function1 = false;
+            console.log('Position mode selected - extra_function1:', window.extra_function1);
+          }
+        }
+        
+        function updateSliderValueRecording(index) {
+        const speeds = [0.25, 0.5, 1.0];
+        const valueSpan = document.getElementById('recording_speed_value');
+        valueSpan.textContent = speeds[index];
+        }
+        // Initialize with default value from config
+        const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
+        const speeds = [0.25, 0.5, 1.0];
+        const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
+        if (defaultIndex >= 0) {
+            document.getElementById('recording_speed').value = defaultIndex;
+            updateSliderValueRecording(defaultIndex);
+        } else {
+            // Fallback to middle value if config speed not in array
+            updateSliderValueRecording(1);
+        }
+      </script>
+
+        <!-- Playback Speed slider -->
+        <div class="slider-row">
+          <div class="setting-label">Playback Speed:</div>
+          <div class="setting-control">
+            <div class="slider-control">
+              <!-- We'll treat this slider as an index into a discrete array. -->
+              <input type="range" id="playback_speed" name="playback_speed"
+                     min="0" max="3" value="0" step="1"
+                     oninput="updateSliderValue('playback_speed', this.value)"
+                     data-speeds="[]"  
+              > <!-- We will fill this in at runtime -->
+              <span class="slider-value" id="playback_speed_value">N/A</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+  <script>
+    /**
+     * Global: We'll store the latest array of {file_name, recording_speed} objects here.
+     */
+    window.recordings = [];
+    
+    /**
+     * Track custom recordings that are pending (created but not yet used for recording)
+     */
+    window.pendingCustomRecordings = new Set();
+    
+    /**
+     * Track the last recording that was actually used for recording
+     */
+    window.lastUsedRecording = null;
+
+    /**
+     * Called whenever the user selects a new recording in the dropdown.
+     * We find its associated recording_speed and set up the playback_speed slider accordingly.
+     */
+    function onRecordingSelected() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selectedFile = dropdown.value;
+      
+      // Update icon visibility based on valid selection
+      updateIconVisibility('recordingsDropdown', selectedFile);
+      
+      if (!selectedFile) return;
+
+      // Handle "New..." option
+      if (selectedFile === "NEW_RECORDING") {
+        const now = new Date();
+        const defaultName = now.getFullYear().toString() + 
+                           (now.getMonth() + 1).toString().padStart(2, '0') + 
+                           now.getDate().toString().padStart(2, '0') + '_' +
+                           now.getHours().toString().padStart(2, '0') + 
+                           now.getMinutes().toString().padStart(2, '0') + 
+                           now.getSeconds().toString().padStart(2, '0');
+        
+        const newName = prompt('Enter new recording name:', defaultName);
+        if (newName && newName.trim()) {
+          // Remove any existing custom recording first
+          const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
+          if (existingCustomOption) {
+            existingCustomOption.remove();
+          }
+          
+          // Create a new option with the entered name
+          const newOpt = document.createElement('option');
+          // Store the name with .json extension as the value (for backend)
+          const nameWithExtension = newName.trim().endsWith('.json') ? newName.trim() : newName.trim() + '.json';
+          newOpt.value = nameWithExtension;
+          // Display without .json extension for cleaner UI
+          newOpt.textContent = newName.trim();
+          // Mark as custom recording
+          newOpt.setAttribute('data-custom', 'true');
+          // Insert before the "New..." option
+          dropdown.insertBefore(newOpt, dropdown.lastElementChild);
+          dropdown.value = nameWithExtension;
+          
+          // Set default playback speed options for new recording
+          setPlaybackSpeedOptions(1.0); // Default recording speed
+        } else {
+          // Reset to empty if cancelled or empty
+          dropdown.value = "";
+          return;
+        }
+      } else {
+        // Find the recording object in window.recordings
+        const selectedObj = window.recordings.find(
+          rec => rec.file_name === selectedFile
+        );
+        if (!selectedObj) {
+          console.warn("No matching recording object found for:", selectedFile);
+          // Set default playback speed for custom recordings
+          setPlaybackSpeedOptions(1.0);
+          return;
+        }
+
+        // Extract the speed. If it's 0.25, 0.5, or 1.0, we choose a set of discrete speeds.
+        // Otherwise, provide a fallback or your desired default set.
+        const recordingSpeed = selectedObj.recording_speed;
+        setPlaybackSpeedOptions(recordingSpeed);
+      }
+    }
+
+    /**
+     * Depending on the recording speed, limit the playback speeds to a discrete set.
+     * Then set the slider to "index" mode, defaulting to the index where speed=1.0 (if found).
+     */
+    function setPlaybackSpeedOptions(recordingSpeed) {
+      let speeds;
+      switch (recordingSpeed) {
+        case 0.25:
+          speeds = [0.5, 1.0, 2.0, 4.0];
+          break;
+        case 0.5:
+          speeds = [0.25, 0.5, 1.0, 2.0];
+          break;
+        case 1.0:
+          speeds = [0.25, 0.5, 0.75, 1.0];
+          break;
+        default:
+          // If recordingSpeed is something else (null or 0.8?), pick a fallback:
+          speeds = [0.25, 0.5, 1.0, 2.0]; // up to you
+          break;
+      }
+
+      const playbackSlider = document.getElementById('playback_speed');
+      // Store the discrete speed array in a data attribute
+      playbackSlider.setAttribute('data-speeds', JSON.stringify(speeds));
+
+      // Adjust the slider's min/max/step
+      playbackSlider.min = 0;
+      playbackSlider.max = speeds.length - 1;
+      playbackSlider.step = 1;
+
+      // Default to the index of "1.0" if present, else 0
+      let defaultIndex = speeds.indexOf(1.0);
+      if (defaultIndex < 0) {
+        defaultIndex = 0;
+      }
+      playbackSlider.value = defaultIndex;
+
+      // Update the label
+      updateSliderValue('playback_speed', defaultIndex);
+    }
+
+    /**
+     * Called when "Play Recording" button is clicked.
+     */
+    function playSelectedRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No recording selected to play!");
+        return;
+      }
+      sendCommand('play_recording', selected);
+    }
+
+    /**
+     * Called when delete icon is clicked.
+     */
+    function deleteSelectedRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = dropdown.value;
+      
+      if (!selected || selected === "" || selected === "NEW_RECORDING") {
+        alert("Please select a recording to delete first.");
+        return;
+      }
+      
+      // Confirm deletion
+      if (!confirm(`Are you sure you want to delete the recording "${selected}"? This action cannot be undone.`)) {
+        return;
+      }
+      
+      sendDeleteRecordingCommand(selected);
+    }
+
+    /**
+     * Send delete recording command
+     */
+    function sendDeleteRecordingCommand(recordingName) {
+      const params = new URLSearchParams({ 'message': 'delete_recording' });
+      params.append('recording_name', recordingName);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      // Send command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Delete response:', data);
+        // Check if deletion was successful - be more lenient with response format
+        if (data.success === true || data.success === 'true' || (!data.hasOwnProperty('success') && !data.error)) {
+          // Clear the dropdown selection
+          const dropdown = document.getElementById('recordingsDropdown');
+          dropdown.value = '';
+          
+          // Refresh recordings from server after a short delay
+          setTimeout(() => {
+            fetchRecordingsInBackground();
+          }, 500);
+        } else {
+          alert(`Error deleting recording: ${data.message || data.error || 'Unknown error'}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error deleting recording:', error);
+        alert('Network error while deleting recording. Please try again.');
+      });
+    }
+
+    /**
+     * Called when rename icon is clicked.
+     */
+    function renameSelectedRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = dropdown.value;
+      if (!selected) {
+        alert("No recording selected to rename!");
+        return;
+      }
+      
+      // First refresh the recordings to ensure we have the latest list from the server
+      fetch('/request_recordings', { method: 'POST' })
+        .then(response => response.json())
+        .then(recordingObjects => {
+          // Update the global recordings list
+          window.recordings = recordingObjects;
+          
+          // Now perform the checks with the updated data
+          checkAndRenameRecording(selected);
+        })
+        .catch(err => {
+          console.error('Error fetching recordings for rename check:', err);
+          // If we can't fetch recordings, fall back to the old behavior
+          checkAndRenameRecording(selected);
+        });
+    }
+
+    /**
+     * Helper function to check if recording can be renamed and perform the rename
+     */
+    function checkAndRenameRecording(selected) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      
+      // Check if this is a custom recording that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selected}"]`);
+      if (selectedOption && selectedOption.getAttribute('data-custom') === 'true') {
+        // Check if it now exists in the server recordings (after refresh)
+        const existingRecording = window.recordings.find(r => r.file_name === selected);
+        if (!existingRecording) {
+          // This is still a custom recording that was created but never used for actual recording
+          alert(`Cannot rename "${selected}" because it hasn't been used for recording yet. Please record episodes with this name first, or just create a new name.`);
+          return;
+        }
+      }
+      
+      // Check if this recording exists in the server's recording list (after refresh)
+      const existingRecording = window.recordings.find(r => r.file_name === selected);
+      if (!existingRecording) {
+        alert(`Cannot rename "${selected}" because no recording exists yet. Please record episodes with this name first.`);
+        return;
+      }
+      
+      // Prompt for new name
+      const newName = prompt('Enter new recording name:', selected);
+      if (newName && newName.trim() && newName.trim() !== selected) {
+        sendRenameRecordingCommand(selected, newName.trim());
+      }
+    }
+
+    /**
+     * Send rename command with old and new recording names.
+     */
+    function sendRenameRecordingCommand(oldName, newName) {
+      const params = new URLSearchParams({ 'message': 'rename_dataset' });
+      params.append('dataset_name', oldName);
+      params.append('new_name', newName);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+      
+      // Send command
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Rename response:', data);
+        if (data.success) {
+          alert(`Recording renamed successfully from "${oldName}" to "${newName}"`);
+          
+          // Update the dropdown option to reflect the new name
+          updateRecordingDropdownAfterRename(oldName, newName);
+          
+          // Refresh recordings from server after a short delay
+          setTimeout(() => {
+            fetchRecordingsInBackground();
+          }, 500);
+        } else {
+          alert(`Error renaming recording: ${data.message || 'Unknown error'}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error renaming recording:', error);
+        alert('Network error while renaming recording. Please try again.');
+      });
+    }
+
+    /**
+     * Helper function to check if recording can be renamed and perform the rename
+     */
+    function checkAndRenameRecording(selected) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      
+      // Check if this is a custom recording that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selected}"]`);
+      if (selectedOption && selectedOption.getAttribute('data-custom') === 'true') {
+        // Check if it now exists in the server recordings (after refresh)
+        const existingRecording = window.recordings.find(r => r.file_name === selected);
+        if (!existingRecording) {
+          // This is still a custom recording that was created but never used for actual recording
+          const displayName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
+          alert(`Cannot rename "${displayName}" because it hasn't been used for recording yet. Please record something with this name first, or just create a new name.`);
+          return;
+        }
+      }
+      
+      // Check if this recording exists in the server's recording list (after refresh)
+      const existingRecording = window.recordings.find(r => r.file_name === selected);
+      if (!existingRecording) {
+        const displayName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
+        alert(`Cannot rename "${displayName}" because no recording file exists yet. Please record something with this name first.`);
+        return;
+      }
+      
+      // Get current name without .json extension for display
+      const currentName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
+      
+      // Prompt for new name
+      const newName = prompt('Enter new recording name:', currentName);
+      if (newName && newName.trim() && newName.trim() !== currentName) {
+        // Ensure new name has .json extension for backend
+        const newNameWithExtension = newName.trim().endsWith('.json') ? newName.trim() : newName.trim() + '.json';
+        sendRenameCommand(selected, newNameWithExtension);
+      }
+    }
+
+    /**
+     * Send rename command with old and new recording names.
+     */
+    function sendRenameCommand(oldName, newName) {
+      const params = new URLSearchParams({ 'message': 'rename_recording' });
+      params.append('old_recording_name', oldName);
+      params.append('new_recording_name', newName);
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+
+      // Teachbot mode: automatically use the single active setup
+      const setupId = '{{ setups[0].setup_id }}';
+      params.append('setup_id', setupId);
+      
+      // Send command to the single setup
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(r => r.json())
+      .then(data => {
+        console.log(`Rename response for setup ${setupId}:`, data);
+        // Handle successful rename
+        if (data.status === 'ok') {
+          // Update the dropdown immediately to reflect the rename
+          updateDropdownAfterRename(oldName, newName);
+          // Also refresh the recordings list from server to ensure consistency
+          fetchRecordingsInBackground();
+        }
+      })
+      .catch(err => console.error(`Error sending rename command to setup ${setupId}:`, err));
+    }
+
+    /**
+     * Update the dropdown immediately after a successful rename operation.
+     */
+    function updateDropdownAfterRename(oldName, newName) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      
+      // Find the option with the old name
+      const oldOption = dropdown.querySelector(`option[value="${oldName}"]`);
+      if (oldOption) {
+        // Update the option's value and text
+        oldOption.value = newName;
+        // Display without .json extension for cleaner UI
+        const displayName = newName.endsWith('.json') ? newName.slice(0, -5) : newName;
+        oldOption.textContent = displayName;
+        
+        // Remove custom attribute if it exists (since it's now a real recording)
+        oldOption.removeAttribute('data-custom');
+        
+        // Keep this option selected
+        dropdown.value = newName;
+        
+        console.log(`Updated dropdown: ${oldName} -> ${newName}`);
+      }
+    }
+
+    function sendCommand(cmd, itemName = null) {
+      const params = new URLSearchParams({ 'message': cmd });
+
+      // Always attach the itemName if provided.
+      // For recording commands, this will be the recording_name
+      if (itemName) {
+        if (cmd.includes('recording') || cmd === 'play_recording' || cmd === 'delete_recording') {
+          // Don't send the special "NEW_RECORDING" value
+          if (itemName !== 'NEW_RECORDING') {
+            params.append('recording_name', itemName);
+          }
+        } else {
+          // Generic fallback - avoid sending special values
+          if (itemName !== 'NEW_RECORDING') {
+            params.append('item_name', itemName);
+          }
+        }
+      }
+
+      // For record commands, automatically include the selected recording name
+      if (cmd === 'start_teleoperation_record') {
+        const recordingsDropdown = document.getElementById('recordingsDropdown');
+        const selectedRecording = recordingsDropdown ? recordingsDropdown.value : '';
+        
+        // Check if we have a valid recording name (not empty and not the special NEW_RECORDING value)
+        if (!selectedRecording || selectedRecording === 'NEW_RECORDING') {
+          alert('Please select a recording name first.');
+          return; // Don't proceed without a recording name
+        }
+        
+        // Check if this is an existing recording and show overwrite warning
+        const existingRecording = window.recordings.find(r => r.file_name === selectedRecording);
+        if (existingRecording) {
+          const confirmed = confirm(`Recording "${selectedRecording}" already exists. Do you want to overwrite it?`);
+          if (!confirmed) {
+            console.log('Recording cancelled by user');
+            return; // Don't proceed with the command
+          }
+        }
+        
+        params.append('recording_name', selectedRecording);
+      }
+
+      // Always fetch both speeds from the UI sliders.
+      const rSpeed = getRecordingSpeed();
+      const pSpeed = getPlaybackSpeed();
+      params.append('recording_speed', rSpeed);
+      params.append('playback_speed', pSpeed);
+
+      // Add extra_function1 parameter for relevant commands
+      if (cmd === 'start_teleoperation' || cmd === 'start_teleoperation_record' || cmd === 'play_recording') {
+        params.append('extra_function1', window.extra_function1);
+        console.log(`Adding extra_function1: ${window.extra_function1} to command: ${cmd}`);
+      }
+
+      // Teachbot mode: automatically use the single active setup
+      const setupId = '{{ setups[0].setup_id }}';
+      params.append('setup_id', setupId);
+      
+      // Send command to the single setup
+      fetch('/send_command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+      })
+      .then(r => r.json())
+      .then(data => {
+        console.log(`Command response for setup ${setupId}:`, data);
+        
+        // After successful recording operations, update icon visibility
+        if (data.success && cmd === 'start_teleoperation_record') {
+          // Immediately remove data-custom attribute for current selection
+          const recordingsDropdown = document.getElementById('recordingsDropdown');
+          const currentValue = recordingsDropdown.value;
+          if (currentValue) {
+            const currentOption = recordingsDropdown.querySelector(`option[value="${currentValue}"]`);
+            if (currentOption && currentOption.getAttribute('data-custom') === 'true') {
+              currentOption.removeAttribute('data-custom');
+              // Update icon visibility immediately
+              updateIconVisibility('recordingsDropdown', currentValue);
+            }
+          }
+          // Also refresh recordings data for consistency
+          setTimeout(() => {
+            refreshRecordingsAndUpdateIcons();
+          }, 200);
+        }
+      })
+      .catch(err => console.error(`Error sending command to setup ${setupId}:`, err));
+    }
+
+    /**
+     * For the "Recording Speed" slider, we assume an index of [0, 1, 2]
+     * mapping to [0.25, 0.5, 1.0].
+     */
+    function getRecordingSpeed() {
+      const slider = document.getElementById('recording_speed');
+      const index = parseInt(slider.value, 10);
+      const speeds = [0.25, 0.5, 1.0];
+      return speeds[index]; // e.g. 0.5
+    }
+
+    /**
+     * For the "Playback Speed" slider, we read a dynamic array from data-speeds,
+     * then use the slider's value as an array index.
+     */
+    function getPlaybackSpeed() {
+      const playbackSlider = document.getElementById('playback_speed');
+      const speeds = JSON.parse(playbackSlider.getAttribute('data-speeds') || "[]");
+      const index = parseInt(playbackSlider.value, 10);
+
+      if (index >= 0 && index < speeds.length) {
+        return speeds[index]; // e.g. 2.0
+      }
+      return 1.0; // fallback
+    }
+
+    /**
+     * Fetch latest recordings from server, store them globally in window.recordings,
+     * and repopulate the <select> with the .file_name values only.
+     */
+    function fetchRecordingsInBackground() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const oldSelected = dropdown.value;
+      
+      // Store the current custom recording if it exists
+      let customRecording = null;
+      const customOption = dropdown.querySelector('option[data-custom="true"]');
+      if (customOption) {
+        customRecording = {
+          value: customOption.value,
+          displayName: customOption.textContent
+        };
+      }
+
+      fetch('/request_recordings', { method: 'POST' })
+        .then(response => response.json())
+        .then(recordingObjects => {
+          // Store entire array so we can look up speeds
+          window.recordings = recordingObjects;
+
+          dropdown.innerHTML = "";
+          const placeholder = document.createElement('option');
+          placeholder.value = "";
+          placeholder.hidden = true;
+          placeholder.textContent = "Select name...";
+          dropdown.appendChild(placeholder);
+
+          // For each {file_name, recording_speed}, we only show file_name without .json extension.
+          recordingObjects.forEach(obj => {
+            const { file_name, recording_speed } = obj;
+            const opt = document.createElement('option');
+            // Store the full filename with .json extension as the value
+            opt.value = file_name;
+            // Display without .json extension for cleaner UI
+            const displayName = file_name.endsWith('.json') ? file_name.slice(0, -5) : file_name;
+            opt.textContent = displayName;
+            // Store speed in data attribute if you want quick lookups
+            opt.dataset.speed = recording_speed;
+            dropdown.appendChild(opt);
+          });
+
+          // Re-add the single custom recording if it exists and wasn't found in server recordings
+          if (customRecording && !recordingObjects.some(r => r.file_name === customRecording.value)) {
+            const opt = document.createElement('option');
+            opt.value = customRecording.value;
+            opt.textContent = customRecording.displayName;
+            opt.setAttribute('data-custom', 'true');
+            dropdown.appendChild(opt);
+          }
+
+          // Add "New..." option
+          const newOpt = document.createElement('option');
+          newOpt.value = "NEW_RECORDING";
+          newOpt.textContent = "New...";
+          dropdown.appendChild(newOpt);
+
+          // restore old selection if valid
+          const allValidNames = recordingObjects.map(r => r.file_name);
+          if (customRecording) allValidNames.push(customRecording.value);
+          
+          if (allValidNames.includes(oldSelected)) {
+            dropdown.value = oldSelected;
+          } else {
+            dropdown.value = "";
+          }
+        })
+        .catch(err => console.error('Error fetching recordings:', err));
+    }
+
+    /**
+     * The generic slider update function:
+     * - If it's the "playback_speed" slider, we treat `newValue` as an array index.
+     * - If it's the "recording_speed" slider, we just print the numeric value for now.
+     */
+    function updateSliderValue(sliderId, newValue) {
+      const sliderValueSpan = document.getElementById(sliderId + '_value');
+      if (!sliderValueSpan) return;
+
+      if (sliderId === "playback_speed") {
+        const slider = document.getElementById(sliderId);
+        // Read the array of discrete speeds
+        const speeds = JSON.parse(slider.getAttribute('data-speeds') || "[]");
+
+        const index = parseInt(newValue, 10);
+        if (index >= 0 && index < speeds.length) {
+          sliderValueSpan.textContent = speeds[index];
+        } else {
+          sliderValueSpan.textContent = 'N/A';
+        }
+      } else {
+        // For the "recording_speed" slider, just show the numeric value [0..100].
+        sliderValueSpan.textContent = newValue;
+      }
+    }
+
+    /**
+     * Updates the dropdown after a successful rename operation
+     */
+    function updateRecordingDropdownAfterRename(oldName, newName) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const oldOption = dropdown.querySelector(`option[value="${oldName}"]`);
+      
+      if (oldOption) {
+        // Update the option's value and text
+        oldOption.value = newName;
+        // Display without .json extension for cleaner UI
+        const displayName = newName.endsWith('.json') ? newName.slice(0, -5) : newName;
+        oldOption.textContent = displayName;
+        
+        // Remove custom attribute if it exists (since it's now a real recording)
+        oldOption.removeAttribute('data-custom');
+        
+        // Keep this option selected
+        dropdown.value = newName;
+        
+        console.log(`Updated dropdown: ${oldName} -> ${newName}`);
+      }
+    }
+
+    /**
+     * Update icon visibility based on whether the selection is valid for rename/delete
+     */
+    function updateIconVisibility(dropdownId, selectedValue) {
+      const dropdown = document.getElementById(dropdownId);
+      const container = dropdown.parentElement;
+      
+      // Always remove the class first
+      container.classList.remove('has-valid-selection');
+      
+      // Early return for invalid selections - icons should be hidden
+      if (!selectedValue || 
+          selectedValue === "" || 
+          selectedValue === "NEW_RECORDING") {
+        return; // Icons will remain hidden
+      }
+      
+      // Check if this is a custom item that hasn't been used yet
+      const selectedOption = dropdown.querySelector(`option[value="${selectedValue}"]`);
+      const isCustom = selectedOption && selectedOption.getAttribute('data-custom') === 'true';
+      
+      if (dropdownId === 'recordingsDropdown') {
+        // For recordings: check if it exists in the server's recording list
+        const existingRecording = window.recordings && window.recordings.find(r => r.file_name === selectedValue);
+        if (existingRecording || !isCustom) {
+          container.classList.add('has-valid-selection');
+        }
+      }
+    }
+
+    /**
+     * Refresh recordings data and update icon visibility
+     */
+    function refreshRecordingsAndUpdateIcons() {
+      fetch('/request_recordings', { method: 'POST' })
+        .then(response => response.json())
+        .then(recordingObjects => {
+          // Update the global recordings list
+          window.recordings = recordingObjects;
+          
+          // Update icon visibility for current selection
+          const recordingsDropdown = document.getElementById('recordingsDropdown');
+          const currentValue = recordingsDropdown.value;
+          
+          // Remove data-custom attribute if the recording now exists on server
+          if (currentValue) {
+            const currentOption = recordingsDropdown.querySelector(`option[value="${currentValue}"]`);
+            const existingRecording = recordingObjects.find(r => r.file_name === currentValue);
+            if (currentOption && existingRecording) {
+              currentOption.removeAttribute('data-custom');
+            }
+          }
+          
+          updateIconVisibility('recordingsDropdown', currentValue);
+        })
+        .catch(err => {
+          console.error('Error refreshing recordings:', err);
+          // Fallback to just updating with current data
+          const recordingsDropdown = document.getElementById('recordingsDropdown');
+          updateIconVisibility('recordingsDropdown', recordingsDropdown.value);
+        });
+    }
+
+    // Initialize icon visibility on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set initial icon visibility based on current selection
+      updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
+      
+      // Add hover listener to update icon visibility in real-time
+      const recordingsContainer = document.getElementById('recordingsDropdown').parentElement;
+      
+      recordingsContainer.addEventListener('mouseenter', function() {
+        updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
+      });
+    });
+  </script>
+</body>
+</html>

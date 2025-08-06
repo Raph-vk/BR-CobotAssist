@@ -138,7 +138,16 @@ class TOSUIApplication:
                         # Return error page or fallback
                         return f"<h1>Configuration Error</h1><p>{error_msg}</p><p>Please configure exactly one setup in active_setups for Teachbot mode.</p>"
                     
-                    template_name = 'teachbot.html'
+                    # Check for customer-specific template
+                    customer = self.config.get("general", {}).get("customer", None)
+                    self.ui_logger.info(f"Customer from config: {customer}")
+                    self.ui_logger.info(f"Flask template folder: {self.app.template_folder}")
+                    if customer:
+                        template_name = f'teachbot_{customer}.html'
+                    else:
+                        template_name = 'teachbot.html'
+                        self.ui_logger.info("No customer specified in config. Using default teachbot.html template.")
+                    
                     self.ui_logger.info(f"Using Teachbot mode with setup: {setup_info[0]['name']}")
                     
                     # Pass setup info and total setup count to template
@@ -194,6 +203,7 @@ class TOSUIApplication:
             new_model_name = request.form.get("new_model_name", "")
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
+            extra_function1 = request.form.get("extra_function1", "false").lower() == "true"  # Convert string to boolean
             
             # Handle multiple robot setups (comma-separated) or single setup_id for backward compatibility
             robot_setups_str = request.form.get("robot_setups", "")
@@ -206,7 +216,7 @@ class TOSUIApplication:
                 # Fall back to single setup_id for backward compatibility
                 target_setups = [setup_id]
 
-            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}")
+            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}, extra_function1: {extra_function1}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
@@ -219,6 +229,7 @@ class TOSUIApplication:
             if message == "play_recording":
                 msg["recording_name"] = recording_name
                 msg["playback_speed"] = playback_speed
+                msg["extra_function1"] = extra_function1
             elif message == "delete_recording":
                 msg["recording_name"] = recording_name
             elif message == "rename_recording":
@@ -247,6 +258,7 @@ class TOSUIApplication:
                         recording_name = recording_name + '.json'
                 msg["recording_name"] = recording_name
                 msg["recording_speed"] = recording_speed
+                msg["extra_function1"] = extra_function1
 
             elif message == "record_episodes":
                 # If no dataset name is selected, create a new one based on timestamp
@@ -275,6 +287,7 @@ class TOSUIApplication:
 
             elif message == "start_teleoperation":
                 msg["recording_speed"] = recording_speed
+                msg["extra_function1"] = extra_function1
 
             # Send the command via RabbitMQ to all selected setups
             sent_to_setups = []

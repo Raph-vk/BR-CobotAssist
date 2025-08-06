@@ -1,12 +1,14 @@
 #!/bin/bash
 
 ###############################################################################
-# TOS Application Installer Script
+# TOS Application Installer Script - B&R PLC Integration Version
 # 
-# This script installs all dependencies needed to run the TOS robotic application.
+# This script installs all dependencies needed to run the TOS robotic application
+# with B&R PLC integration via MQTT. Includes Mosquitto MQTT broker installation
+# and configuration for external PLC connections.
 # Excludes Interbotix and ROS modules as requested.
 #
-# Usage: chmod +x install_tos.sh && ./install_tos.sh [OPTIONS]
+# Usage: chmod +x install_tos_BR.sh && ./install_tos_BR.sh [OPTIONS]
 #
 # Options:
 #   --env-name <name>         Set the conda environment name (default: TOS)
@@ -15,7 +17,8 @@
 #   --help                    Show this help message
 #
 # Author: TOS Development Team
-# Date: 2025-06-26
+# Date: 2025-08-01
+# B&R Integration: Added Mosquitto MQTT broker for PLC communication
 ###############################################################################
 
 set -e  # Exit on any error
@@ -93,14 +96,14 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Helper function to find TOS root directory
+# Helper function to find TOS application root directory
 find_tos_root() {
     local current_dir="$(pwd)"
     local search_dir="$current_dir"
     
-    # Look for TOS root indicators in current directory and parent directories
+    # Search current directory and parent directories for TOS indicators
     while [[ "$search_dir" != "/" ]]; do
-        if [[ -f "$search_dir/applications/tos_ui/main.py" ]] && [[ -f "$search_dir/config/config.yaml" ]]; then
+        if [[ -f "$search_dir/applications/tos_ui/main.py" && -f "$search_dir/config/config.yaml" ]]; then
             echo "$search_dir"
             return 0
         fi
@@ -650,6 +653,168 @@ install_rabbitmq() {
     fi
 }
 
+# Install and configure Mosquitto MQTT broker for B&R PLC integration
+install_mosquitto_broker() {
+    log_info "Installing and configuring Mosquitto MQTT broker for B&R PLC integration..."
+    
+    # Check if mosquitto is already installed
+    if command -v mosquitto &> /dev/null; then
+        log_info "Mosquitto is already installed system-wide"
+    else
+        log_info "Installing Mosquitto MQTT broker..."
+        
+        if command -v apt-get &> /dev/null; then
+            # Ubuntu/Debian installation
+            sudo apt-get update
+            sudo apt-get install -y mosquitto mosquitto-clients
+            
+        elif command -v yum &> /dev/null; then
+            # RHEL/CentOS installation  
+            sudo yum install -y mosquitto mosquitto-clients
+            
+        elif command -v pacman &> /dev/null; then
+            # Arch Linux installation
+            sudo pacman -S --noconfirm mosquitto
+            
+        else
+            log_error "Unsupported package manager for Mosquitto installation"
+            return 1
+        fi
+        
+        log_success "Mosquitto MQTT broker installed"
+    fi
+    
+    # Install paho-mqtt Python client in the conda environment
+    log_info "Installing paho-mqtt Python client in TOS environment..."
+    source "$CONDA_PROFILE_PATH"
+    conda activate "${ENV_NAME}"
+    pip install paho-mqtt
+    log_success "paho-mqtt Python client installed"
+    
+    # Backup original mosquitto configuration
+    if [[ -f /etc/mosquitto/mosquitto.conf ]]; then
+        sudo cp /etc/mosquitto/mosquitto.conf /etc/mosquitto/mosquitto.conf.backup
+        log_info "Original mosquitto.conf backed up"
+    fi
+    
+    # Create mosquitto configuration for B&R PLC integration
+    log_info "Configuring Mosquitto for B&R PLC integration..."
+    
+    sudo tee /etc/mosquitto/conf.d/br_plc_integration.conf > /dev/null << 'EOF'
+# B&R PLC Integration Configuration for Mosquitto MQTT Broker
+# This configuration allows B&R PLCs to connect and communicate via MQTT
+
+# Listen on all interfaces (allow external connections)
+listener 1883 0.0.0.0
+protocol mqtt
+
+# Allow anonymous connections (can be disabled for production)
+allow_anonymous true
+
+# Client connection settings
+max_keepalive 300
+
+# Don't persist sessions - better for PLC integration
+persistence false
+
+# Connection and message limits
+max_connections 100
+max_inflight_messages 100
+
+# Message size limits (B&R PLCs typically send small messages)
+message_size_limit 8192
+
+# Logging configuration
+log_type error
+log_type warning
+log_type notice
+log_type information
+connection_messages true
+log_timestamp true
+
+# Security settings (can be enhanced for production)
+# For development/testing, we allow all operations
+#password_file
+#acl_file
+
+# Auto-save settings (disabled for better performance)
+autosave_interval 1800
+autosave_on_changes false
+
+# Websockets support (useful for web-based monitoring)
+listener 9001
+protocol websockets
+EOF
+    
+    # Set proper permissions
+    sudo chmod 644 /etc/mosquitto/conf.d/br_plc_integration.conf
+    
+    # Create log directory if it doesn't exist
+    sudo mkdir -p /var/log/mosquitto
+    sudo chown mosquitto:mosquitto /var/log/mosquitto
+    
+    # Start and enable mosquitto service
+    log_info "Starting and enabling Mosquitto service..."
+    sudo systemctl start mosquitto
+    sudo systemctl enable mosquitto
+    
+    # Wait a moment for service to start
+    sleep 2
+    
+    # Verify mosquitto is running
+    if sudo systemctl is-active --quiet mosquitto; then
+        log_success "Mosquitto MQTT broker is running"
+        
+        # Test the broker with a simple publish/subscribe
+        log_info "Testing MQTT broker functionality..."
+        
+        # Start a background subscriber
+        timeout 5 mosquitto_sub -h localhost -t "test/topic" &
+        sleep 1
+        
+        # Publish a test message
+        echo "test message" | mosquitto_pub -h localhost -t "test/topic" -l
+        
+        wait 2>/dev/null || true  # Wait for background process to finish
+        
+        log_success "MQTT broker test completed"
+        
+    else
+        log_error "Failed to start Mosquitto service"
+        log_info "Check service status with: sudo systemctl status mosquitto"
+        log_info "Check logs with: sudo journalctl -u mosquitto"
+        return 1
+    fi
+    
+    # Display connection information
+    echo ""
+    log_info "=== MOSQUITTO MQTT BROKER CONFIGURATION ==="
+    echo "MQTT Broker Address: $(hostname -I | awk '{print $1}'):1883"
+    echo "WebSocket Address: $(hostname -I | awk '{print $1}'):9001"
+    echo "Local connections: localhost:1883"
+    echo ""
+    echo "B&R PLC Connection Settings:"
+    echo "  - Host: $(hostname -I | awk '{print $1}') (or use IP address of this machine)"
+    echo "  - Port: 1883"
+    echo "  - Protocol: MQTT v3.1.1 or v5.0"
+    echo "  - Authentication: None (anonymous allowed)"
+    echo "  - Client ID: Use unique ID (e.g., PLC_Line1, FT2JLijn1)"
+    echo ""
+    echo "Service Management:"
+    echo "  - Start: sudo systemctl start mosquitto"
+    echo "  - Stop: sudo systemctl stop mosquitto"
+    echo "  - Restart: sudo systemctl restart mosquitto"
+    echo "  - Status: sudo systemctl status mosquitto"
+    echo "  - Logs: sudo tail -f /var/log/mosquitto/mosquitto.log"
+    echo ""
+    echo "Testing Commands:"
+    echo "  - Subscribe: mosquitto_sub -h localhost -t 'TOS/+'"
+    echo "  - Publish: mosquitto_pub -h localhost -t 'TOS/test' -m 'Hello World'"
+    echo "  - Monitor: sudo tail -f /var/log/mosquitto/mosquitto.log"
+    echo ""
+    log_info "Mosquitto MQTT broker ready for B&R PLC integration!"
+}
+
 # Install Intel RealSense SDK in conda environment (skip system-wide build)
 install_realsense_sdk() {
     log_info "Installing Intel RealSense SDK in conda environment..."
@@ -701,9 +866,9 @@ build_cpp_modules() {
     # Get the absolute path to the TOS application root
     local tos_root
     if ! tos_root=$(find_tos_root); then
-        log_error "Cannot find TOS application root directory!"
+        log_error "Could not find TOS application root directory!"
         log_error "Current directory: $(pwd)"
-        log_error "Please ensure you're running this script from within the TOS application directory tree."
+        log_error "Please run this script from within the TOS application directory tree."
         exit 1
     fi
     
@@ -790,26 +955,11 @@ setup_tos_config() {
     log_info "Setting up TOS application configuration..."
     
     # Get the absolute path to the TOS application root
-    # Check if we're in a subdirectory and need to go up
-    local current_dir="$(pwd)"
-    local tos_root="$current_dir"
-    
-    # If we're in a subdirectory, try to find the TOS root
-    while [[ ! -f "$tos_root/applications/tos_ui/main.py" && ! -f "$tos_root/config/config.yaml" ]]; do
-        local parent_dir="$(dirname "$tos_root")"
-        if [[ "$parent_dir" == "$tos_root" ]]; then
-            # We've reached the filesystem root without finding TOS files
-            break
-        fi
-        tos_root="$parent_dir"
-    done
-    
-    # Verify we found the right directory by checking for key files
-    if [[ ! -f "$tos_root/applications/tos_ui/main.py" ]] || [[ ! -f "$tos_root/config/config.yaml" ]]; then
-        log_error "Cannot find TOS application root directory!"
-        log_error "Current directory: $current_dir"
-        log_error "Searched up to: $tos_root"
-        log_error "Please ensure you're running this script from within the TOS application directory tree."
+    local tos_root
+    if ! tos_root=$(find_tos_root); then
+        log_error "Could not find TOS application root directory!"
+        log_error "Current directory: $(pwd)"
+        log_error "Please run this script from within the TOS application directory tree."
         exit 1
     fi
     
@@ -879,14 +1029,11 @@ create_desktop_launcher() {
     local icons_dir="$HOME/.local/share/icons"
     
     # Get the absolute path to the TOS application root
-    # Use the current working directory since that's where the install script should be run from
-    local tos_root="$(pwd)"
-    
-    # Verify we're in the right directory by checking for key files
-    if [[ ! -f "applications/tos_ui/main.py" ]] || [[ ! -f "config/config.yaml" ]]; then
-        log_error "This script must be run from the TOS application root directory!"
-        log_error "Current directory: $tos_root"
-        log_error "Please cd to the TOS application directory and run the script from there."
+    local tos_root
+    if ! tos_root=$(find_tos_root); then
+        log_error "Could not find TOS application root directory!"
+        log_error "Current directory: $(pwd)"
+        log_error "Please run this script from within the TOS application directory tree."
         exit 1
     fi
     
@@ -1219,6 +1366,8 @@ main() {
     install_ruckig
     log_info "Installing RabbitMQ..."
     install_rabbitmq
+    log_info "Installing Mosquitto MQTT broker for B&R PLC integration..."
+    install_mosquitto_broker
     log_info "Installing Intel RealSense SDK..."
     install_realsense_sdk
     log_info "Building TOS C++ modules..."
