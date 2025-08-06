@@ -124,10 +124,14 @@ class TOSUIApplication:
                 # Get default recording speed from config
                 default_recording_speed = self.config.get("general", {}).get("default_recording_speed", 0.5)
                 
+                # Get UI scaling factor from config
+                ui_scale_factor = self.config.get("application", {}).get("ui_scale_factor", 1.0)
+                
                 self.ui_logger.debug(f"Application type: {application_type}")
                 self.ui_logger.debug(f"setup_info is: {setup_info}")
                 self.ui_logger.debug(f"Total setups defined in config: {total_setups_count}")
                 self.ui_logger.debug(f"Default recording speed: {default_recording_speed}")
+                self.ui_logger.debug(f"UI scale factor: {ui_scale_factor}")
                 
                 # Choose template based on application type
                 if application_type == "Teachbot_controller":
@@ -151,7 +155,7 @@ class TOSUIApplication:
                     self.ui_logger.info(f"Using Teachbot mode with setup: {setup_info[0]['name']}")
                     
                     # Pass setup info and total setup count to template
-                    return render_template(template_name, setups=setup_info, total_setups=total_setups_count, default_recording_speed=default_recording_speed)
+                    return render_template(template_name, setups=setup_info, total_setups=total_setups_count, default_recording_speed=default_recording_speed, ui_scale_factor=ui_scale_factor)
                     
                 elif application_type == "AI_robot_controller":
                     # AI robot controller mode - choose based on number of setups
@@ -174,14 +178,14 @@ class TOSUIApplication:
                 self.ui_logger.debug(f"Using template: {template_name} for {len(setup_info)} setups")
                 
                 # Pass setup info and total setup count to the template
-                return render_template(template_name, setups=setup_info, total_setups=total_setups_count, default_recording_speed=default_recording_speed)
+                return render_template(template_name, setups=setup_info, total_setups=total_setups_count, default_recording_speed=default_recording_speed, ui_scale_factor=ui_scale_factor)
             except Exception as e:
                 self.ui_logger.error(f"Error in index route: {e}")
                 import traceback
                 self.ui_logger.error(traceback.format_exc())
                 # Provide a fallback with a simple info object
                 fallback_setup = [{'name': 'Default', 'setup_id': '1', 'id': '1', 'display_name': 'Setup 1'}]
-                return render_template('1_robot.html', setups=fallback_setup, total_setups=1, default_recording_speed=0.5)
+                return render_template('1_robot.html', setups=fallback_setup, total_setups=1, default_recording_speed=0.5, ui_scale_factor=1.0)
              
         
         @self.app.route("/send_command", methods=["POST"])
