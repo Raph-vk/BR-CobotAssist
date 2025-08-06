@@ -3,11 +3,10 @@
 <head>
   <title>TOS UI</title>
   <style>
-    /* Main brand colors and scaling factor */
+    /* Main brand colors */
     :root {
       --color-blue: #2a4595;
       --color-red:  #d91b11;
-      --scale-factor: {{ ui_scale_factor }}; /* Scaling factor from config.yaml */
     }
 
     /* Reset / Base styles */
@@ -20,7 +19,6 @@
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f2f2f2;
       color: #333;
-      font-size: calc(16px * var(--scale-factor)); /* Base font size */
     }
 
     /* Full-width top header with centered logos */
@@ -30,28 +28,28 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: calc(4rem * var(--scale-factor));
-      padding: calc(0.5rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+      gap: 4rem;
+      padding: 0.5rem 1rem;
     }
     .logo-tos {
-      height: calc(100px * var(--scale-factor));
+      height: 100px;
       object-fit: contain;
     }
     .logo-breda {
-      height: calc(100px * var(--scale-factor));
+      height: 100px;
       object-fit: contain;
     }
     .logo-stimulus {
-      height: calc(50px * var(--scale-factor));
+      height: 50px;
       object-fit: contain;
     }
 
     /* Container for the two sections + red lines */
     .two-sections {
       position: relative;    
-      width: calc(900px * var(--scale-factor));          
-      height: calc(505px * var(--scale-factor));         
-      margin: calc(2rem * var(--scale-factor)) auto;     
+      width: 900px;          
+      height: 505px;         
+      margin: 2rem auto;     
       background-color: #f2f2f2;
     }
 
@@ -59,25 +57,25 @@
     .line-top-left {
       position: absolute;
       top: 0;
-      left: calc(-5px * var(--scale-factor));
-      width: calc(5px * var(--scale-factor));
-      height: calc(500px * var(--scale-factor));
+      left: -5px;
+      width: 5px;
+      height: 500px;
       background-color: var(--color-red);
     }
     .line-top-bottom {
       position: absolute;
       left: 0;
       width: 100%;
-      height: calc(5px * var(--scale-factor));
-      top: calc(500px * var(--scale-factor));
+      height: 5px;
+      top: 500px;
       background-color: var(--color-red);
     }
     .line-bottom-right {
       position: absolute;
-      top: calc(500px * var(--scale-factor));
-      right: calc(-5px * var(--scale-factor));
-      width: calc(5px * var(--scale-factor));
-      height: calc(205px * var(--scale-factor));
+      top: 500px;
+      right: -5px;
+      width: 5px;
+      height: 205px;
       background-color: var(--color-red);
     }
 
@@ -87,53 +85,52 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(500px * var(--scale-factor));
+      height: 500px;
       background-color: #fff;
-      border-radius: calc(6px * var(--scale-factor));
-      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
-      padding: calc(1.5rem * var(--scale-factor));
+      padding: 1.5rem;
     }
 
     /* Bottom box: 200px tall */
     .box-bottom {
       position: absolute;
-      top: calc(505px * var(--scale-factor));  
+      top: 505px;  
       left: 0;
       width: 100%;
-      height: calc(200px * var(--scale-factor));
+      height: 200px;
       background-color: #fff;
-      border-radius: calc(6px * var(--scale-factor));
-      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
-      padding: calc(1.5rem * var(--scale-factor));
+      padding: 1.5rem;
     }
 
     /* Headings */
     .box-top h2,
     .box-bottom h2 {
-      margin-bottom: calc(1rem * var(--scale-factor));
+      margin-bottom: 1rem;
       color: var(--color-blue);
-      font-size: calc(1.5rem * var(--scale-factor)); /* Standard headings */
     }
 
     /* Buttons row(s) */
     .button-row {
-      margin-top: calc(1rem * var(--scale-factor));
+      margin-top: 1rem;
     }
     .btn {
       display: inline-block;
-      width: calc(220px * var(--scale-factor));  /* fixed width for uniform button size */
+      width: 220px;  /* fixed width for uniform button size */
       white-space: nowrap;
       text-align: center;
-      padding: calc(0.7rem * var(--scale-factor));
-      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
+      padding: 0.7rem;
+      margin: 0.5rem 0.75rem;
       background-color: var(--color-blue);
       color: #fff;
-      border-radius: calc(4px * var(--scale-factor));
+      border-radius: 4px;
       cursor: pointer;
       border: none;
-      font-size: calc(1rem * var(--scale-factor));
+      font-size: 1rem;
       transition: background-color 0.2s ease-in-out;
     }
     .btn:hover {
@@ -142,51 +139,49 @@
 
     /* Fixed-width dropdown */
     #recordingsDropdown {
-      width: calc(220px * var(--scale-factor)); 
-      padding: calc(0.4rem * var(--scale-factor));
-      font-size: calc(1rem * var(--scale-factor));
-      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
+      width: 220px; 
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin: 0.5rem 0.75rem;
     }
 
     #datasetsDropdown {
-      width: calc(220px * var(--scale-factor)); 
-      padding: calc(0.4rem * var(--scale-factor));
-      font-size: calc(1rem * var(--scale-factor));
-      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
+      width: 220px; 
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin: 0.5rem 0.75rem;
     }
 
     #modelsDropdown {
-      width: calc(220px * var(--scale-factor)); 
-      padding: calc(0.4rem * var(--scale-factor));
-      font-size: calc(1rem * var(--scale-factor));
-      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
+      width: 220px; 
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin: 0.5rem 0.75rem;
     }
 
     /* Bottom Box sliders area */
     .settings-section h3 {
-      margin-bottom: calc(1rem * var(--scale-factor));
+      margin-bottom: 1rem;
       color: var(--color-blue);
-      font-size: calc(1.2rem * var(--scale-factor));
+      font-size: 1.2rem;
     }
     .slider-row {
-      margin: calc(1rem * var(--scale-factor)) auto;
+      margin: 1rem auto;
       text-align: left;
-      max-width: calc(300px * var(--scale-factor));
+      max-width: 300px;
     }
     .slider-row label {
       display: inline-block;
-      min-width: calc(120px * var(--scale-factor));
-      font-size: calc(1rem * var(--scale-factor));
+      min-width: 120px;
     }
     .slider-row input[type="range"] {
       vertical-align: middle;
-      margin-left: calc(0.5rem * var(--scale-factor));
+      margin-left: 0.5rem;
     }
     .slider-value {
       font-weight: bold;
       color: var(--color-blue);
-      margin-left: calc(1rem * var(--scale-factor));
-      font-size: calc(1rem * var(--scale-factor));
+      margin-left: 1rem;
     }
   </style>
 </head>

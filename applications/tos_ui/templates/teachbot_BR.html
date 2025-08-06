@@ -3,11 +3,10 @@
 <head>
   <title>TOS UI</title>
   <style>
-    /* Main brand colors and scaling factor */
+    /* Main brand colors */
     :root {
       --color-blue: #2a4595;
       --color-red:  #d91b11;
-      --scale-factor: {{ ui_scale_factor }}; /* Scaling factor from config.yaml */
     }
 
     /* Reset / Base styles */
@@ -20,7 +19,7 @@
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f2f2f2;
       color: #333;
-      font-size: calc(18px * var(--scale-factor)); /* Increased base font size */
+      font-size: 18px; /* Increased base font size */
     }
 
     /* Full-width top header with centered logos */
@@ -30,28 +29,28 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: calc(4rem * var(--scale-factor));
-      padding: calc(0.5rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+      gap: 4rem;
+      padding: 0.5rem 1rem;
     }
     .logo-tos {
-      height: calc(100px * var(--scale-factor));
+      height: 100px;
       object-fit: contain;
     }
     .logo-breda {
-      height: calc(100px * var(--scale-factor));
+      height: 100px;
       object-fit: contain;
     }
     .logo-stimulus {
-      height: calc(50px * var(--scale-factor));
+      height: 50px;
       object-fit: contain;
     }
 
     /* Container for the two sections + red lines */
     .two-sections {
       position: relative;    
-      width: calc(1200px * var(--scale-factor));         
-      height: calc(840px * var(--scale-factor));         /* Increased from 800px to accommodate taller bottom box */
-      margin: calc(2rem * var(--scale-factor)) auto;     
+      width: 1200px;         
+      height: 840px;         /* Increased from 800px to accommodate taller bottom box */
+      margin: 2rem auto;     
       background-color: #f2f2f2;
     }
 
@@ -59,25 +58,25 @@
     .line-top-left {
       position: absolute;
       top: 0;
-      left: calc(-5px * var(--scale-factor));
-      width: calc(5px * var(--scale-factor));
-      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
+      left: -5px;
+      width: 5px;
+      height: 550px; /* Increased from 430px */
       background-color: var(--color-red);
     }
     .line-top-bottom {
       position: absolute;
       left: 0;
       width: 100%;
-      height: calc(5px * var(--scale-factor));
-      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
+      height: 5px;
+      top: 550px; /* Moved down from 430px */
       background-color: var(--color-red);
     }
     .line-bottom-right {
       position: absolute;
-      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
-      right: calc(-5px * var(--scale-factor));
-      width: calc(5px * var(--scale-factor));
-      height: calc(285px * var(--scale-factor)); /* Increased to match new bottom box height */
+      top: 550px; /* Moved down from 430px */
+      right: -5px;
+      width: 5px;
+      height: 285px; /* Increased to match new bottom box height */
       background-color: var(--color-red);
     }
 
@@ -87,60 +86,60 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
+      height: 550px; /* Increased from 430px */
       background-color: #fff;
-      border-radius: calc(6px * var(--scale-factor));
-      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
-      padding: calc(1.5rem * var(--scale-factor));
+      padding: 1.5rem;
     }
 
     /* Box-bottom positioning */
     .box-bottom {
       position: absolute;
-      top: calc(560px * var(--scale-factor)); /* Position below the box-top (550px height + 10px margin) */
+      top: 560px; /* Position below the box-top (550px height + 10px margin) */
       left: 0;
       width: 100%;
       text-align: center;
-      padding: calc(1.5rem * var(--scale-factor));
+      padding: 1.5rem;
     }
 
     /* Bottom box: increased height for larger content */
     .bottom-box {
       width: 100%;
-      border: calc(3px * var(--scale-factor)) solid var(--color-red);
-      border-radius: calc(15px * var(--scale-factor));
-      height: calc(280px * var(--scale-factor)); /* Increased from 240px to fit playback speed content */
+      border: 3px solid var(--color-red);
+      border-radius: 15px;
+      height: 280px; /* Increased from 240px to fit playback speed content */
       overflow-y: auto;
       background-color: white;
-      margin-top: calc(20px * var(--scale-factor));
+      margin-top: 20px;
     }
 
     /* Headings */
     .box-top h2,
     .box-bottom h2 {
-      margin-bottom: calc(1rem * var(--scale-factor));
+      margin-bottom: 1rem;
       color: var(--color-blue);
-      font-size: calc(2.5rem * var(--scale-factor)); /* Much larger headings */
+      font-size: 2.5rem; /* Much larger headings */
     }
 
     /* Buttons row(s) */
     .button-row {
-      margin-top: calc(1rem * var(--scale-factor));
+      margin-top: 1rem;
     }
     .btn {
       display: inline-block;
-      width: calc(280px * var(--scale-factor));  /* Increased from 220px for larger text */
+      width: 280px;  /* Increased from 220px for larger text */
       white-space: nowrap;
       text-align: center;
-      padding: calc(1.2rem * var(--scale-factor)) calc(1.5rem * var(--scale-factor)); /* Much larger padding */
-      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
+      padding: 1.2rem 1.5rem; /* Much larger padding */
+      margin: 0.5rem 0.75rem;
       background-color: var(--color-blue);
       color: #fff;
-      border-radius: calc(4px * var(--scale-factor));
+      border-radius: 4px;
       cursor: pointer;
       border: none;
-      font-size: calc(1.4rem * var(--scale-factor)); /* Much larger button text */
+      font-size: 1.4rem; /* Much larger button text */
       font-weight: bold;
       transition: background-color 0.2s ease-in-out;
     }
@@ -150,55 +149,55 @@
 
     /* Fixed-width dropdown */
     #recordingsDropdown {
-      width: calc(280px * var(--scale-factor)); /* Increased from 220px to match buttons */
-      padding: calc(0.8rem * var(--scale-factor)); /* Larger padding */
-      font-size: calc(1.4rem * var(--scale-factor)); /* Much larger dropdown text */
-      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
+      width: 280px; /* Increased from 220px to match buttons */
+      padding: 0.8rem; /* Larger padding */
+      font-size: 1.4rem; /* Much larger dropdown text */
+      margin: 0.5rem 0.75rem;
     }
 
     /* Bottom Box sliders area */
     .settings-section h3 {
-      margin-bottom: calc(1rem * var(--scale-factor));
+      margin-bottom: 1rem;
       color: var(--color-blue);
-      font-size: calc(2rem * var(--scale-factor)); /* Much larger section headings */
+      font-size: 2rem; /* Much larger section headings */
     }
     .slider-row {
-      margin: calc(1rem * var(--scale-factor)) auto;
+      margin: 1rem auto;
       text-align: center;
-      max-width: calc(700px * var(--scale-factor)); /* Increased to match pressure/position selector */
+      max-width: 700px; /* Increased to match pressure/position selector */
       display: flex;
       align-items: center;
       justify-content: center; /* Changed back to center for better alignment */
-      gap: calc(0.5rem * var(--scale-factor));
+      gap: 0.5rem;
     }
     .slider-row label {
       display: inline-block;
-      min-width: calc(200px * var(--scale-factor)); /* Increased to match pressure/position labels for perfect colon alignment */
+      min-width: 200px; /* Increased to match pressure/position labels for perfect colon alignment */
       text-align: right;
-      font-size: calc(1.3rem * var(--scale-factor));
+      font-size: 1.3rem;
       font-weight: bold;
     }
     .slider-row input[type="range"] {
       vertical-align: middle;
-      width: calc(150px * var(--scale-factor)); /* Keep consistent slider width */
-      height: calc(8px * var(--scale-factor));
+      width: 150px; /* Keep consistent slider width */
+      height: 8px;
     }
     .slider-value {
       font-weight: bold;
       color: var(--color-blue);
-      min-width: calc(70px * var(--scale-factor));
+      min-width: 70px;
       text-align: left;
-      font-size: calc(1.3rem * var(--scale-factor));
+      font-size: 1.3rem;
     }
 
     /* Settings section with two-column layout */
     .settings-section {
       display: grid;
-      grid-template-columns: calc(250px * var(--scale-factor)) 1fr; /* Restored to 250px to prevent text wrapping */
-      gap: calc(0.5rem * var(--scale-factor)); /* Reduced from 1rem for tighter spacing */
-      row-gap: calc(2rem * var(--scale-factor)); /* Added vertical spacing between rows */
+      grid-template-columns: 250px 1fr; /* Restored to 250px to prevent text wrapping */
+      gap: 0.5rem; /* Reduced from 1rem for tighter spacing */
+      row-gap: 2rem; /* Added vertical spacing between rows */
       align-items: center;
-      max-width: calc(600px * var(--scale-factor)); /* Reduced max-width for better centering */
+      max-width: 600px; /* Reduced max-width for better centering */
       margin: 0 auto; /* Center the settings section */
       justify-self: center; /* Additional centering */
     }
@@ -206,9 +205,9 @@
     /* Left column: labels */
     .setting-label {
       text-align: right;
-      font-size: calc(1.3rem * var(--scale-factor));
+      font-size: 1.3rem;
       font-weight: bold;
-      padding-right: calc(1rem * var(--scale-factor));
+      padding-right: 1rem;
     }
 
     /* Right column: controls */
@@ -216,7 +215,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: calc(1rem * var(--scale-factor));
+      gap: 1rem;
     }
 
     /* Pressure/Position selector styles */
@@ -226,19 +225,19 @@
 
     .selector-buttons {
       display: flex;
-      gap: calc(0.5rem * var(--scale-factor));
-      width: calc(280px * var(--scale-factor)); /* Increased to match slider + value width */
+      gap: 0.5rem;
+      width: 280px; /* Increased to match slider + value width */
     }
     .selector-button {
       flex: 1;
-      padding: calc(0.8rem * var(--scale-factor)) calc(1rem * var(--scale-factor)); /* Much larger padding */
-      border: calc(2px * var(--scale-factor)) solid #4a5a8a; /* Softer blue */
+      padding: 0.8rem 1rem; /* Much larger padding */
+      border: 2px solid #4a5a8a; /* Softer blue */
       background-color: white;
       color: #4a5a8a; /* Softer blue */
       cursor: pointer;
-      border-radius: calc(4px * var(--scale-factor));
+      border-radius: 4px;
       font-weight: bold; /* Make text bold */
-      font-size: calc(1.2rem * var(--scale-factor)); /* Much larger button text */
+      font-size: 1.2rem; /* Much larger button text */
       transition: all 0.3s ease;
     }
     .selector-button:hover {
@@ -260,17 +259,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: calc(1rem * var(--scale-factor));
-      width: calc(280px * var(--scale-factor)); /* Fixed width to match button width */
+      gap: 1rem;
+      width: 280px; /* Fixed width to match button width */
     }
 
     .slider-control input[type="range"] {
       flex: 1;
-      max-width: calc(200px * var(--scale-factor));
+      max-width: 200px;
     }
 
     .slider-value {
-      min-width: calc(80px * var(--scale-factor));
+      min-width: 80px;
       text-align: center;
     }
 
@@ -282,19 +281,19 @@
 
     .dropdown-option-icons {
       position: absolute;
-      right: calc(30px * var(--scale-factor));
+      right: 30px;
       top: 50%;
       transform: translateY(-50%);
       display: none;
-      gap: calc(4px * var(--scale-factor));
+      gap: 4px;
       z-index: 1000;
     }
 
     .dropdown-option-icons .icon {
       cursor: pointer;
-      padding: calc(6px * var(--scale-factor)); /* Larger padding */
-      border-radius: calc(6px * var(--scale-factor)); /* Larger border radius */
-      font-size: calc(24px * var(--scale-factor)); /* Much larger icons */
+      padding: 6px; /* Larger padding */
+      border-radius: 6px; /* Larger border radius */
+      font-size: 24px; /* Much larger icons */
       opacity: 0.7;
       transition: all 0.2s;
       position: relative;
@@ -324,9 +323,9 @@
       transform: translateX(-50%);
       background-color: #333;
       color: white;
-      padding: calc(8px * var(--scale-factor)) calc(12px * var(--scale-factor)); /* Larger tooltip padding */
-      border-radius: calc(6px * var(--scale-factor)); /* Larger border radius */
-      font-size: calc(16px * var(--scale-factor)); /* Much larger tooltip text */
+      padding: 8px 12px; /* Larger tooltip padding */
+      border-radius: 6px; /* Larger border radius */
+      font-size: 16px; /* Much larger tooltip text */
       white-space: nowrap;
       opacity: 0;
       pointer-events: none;
@@ -369,8 +368,8 @@
       
       <!-- Teachbot mode: Show setup info only when multiple setups are defined -->
       {% if total_setups >= 2 %}
-      <div style="text-align: center; margin: calc(20px * var(--scale-factor)) 0;">
-        <span style="font-size: calc(1.6rem * var(--scale-factor)); color: var(--color-blue); font-weight: bold;">
+      <div style="text-align: center; margin: 20px 0;">
+        <span style="font-size: 1.6rem; color: var(--color-blue); font-weight: bold;">
           Using {{ setups[0].display_name }}
         </span>
       </div>
