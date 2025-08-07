@@ -185,9 +185,54 @@
     .slider-value {
       font-weight: bold;
       color: var(--color-blue);
-      min-width: 70px;
+      min-width: calc(70px * var(--scale-factor));
       text-align: left;
-      font-size: 1.3rem;
+      font-size: calc(1.3rem * var(--scale-factor));
+    }
+    
+    /* Touch-friendly speed control buttons - styled like selector buttons */
+    .speed-control {
+      display: flex;
+      flex-direction: column;
+      gap: calc(0.5rem * var(--scale-factor));
+    }
+    
+    .speed-buttons {
+      display: flex;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor)); /* Match both selector buttons + gap total width */
+    }
+    
+    .speed-button {
+      flex: 1;
+      padding: calc(0.8rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+      border: 2px solid #4a5a8a !important;
+      border-radius: calc(0.3rem * var(--scale-factor));
+      background-color: white !important;
+      color: #333 !important;
+      cursor: pointer;
+      font-size: calc(1rem * var(--scale-factor));
+      transition: all 0.2s ease;
+      box-sizing: border-box !important;
+    }    .speed-button:hover {
+      background-color: #f5f5f5 !important;
+      border-color: #3a4a7a !important;
+      color: #3a4a7a !important;
+    }
+    
+    .speed-button.active {
+      background-color: rgba(217, 27, 17, 0.7) !important; /* Red selected state */
+      color: white !important;
+      border-color: rgba(217, 27, 17, 0.7) !important;
+    }
+    
+    .speed-button:active {
+      transform: translateY(calc(1px * var(--scale-factor)));
+    }
+    
+    .speed-button:focus {
+      outline: calc(2px * var(--scale-factor)) solid var(--color-blue);
+      outline-offset: calc(2px * var(--scale-factor));
     }
 
     /* Settings section with two-column layout */
@@ -468,14 +513,18 @@
         </div>
       </div>
       
-      <!-- Recording Speed buttons -->
-      <div class="speed-control-row">
+      <!-- Recording Speed button group -->
+      <div class="slider-row">
         <div class="setting-label">Recording Speed:</div>
         <div class="setting-control">
-          <div class="speed-buttons" id="recording-speed-buttons">
-            <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0)">0.25</button>
-            <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1)">0.5</button>
-            <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2)">1.0</button>
+          <div class="speed-control">
+            <div class="speed-buttons">
+              <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0, 0.25)">0.25</button>
+              <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1, 0.5)">0.5</button>
+              <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2, 1.0)">1.0</button>
+            </div>
+            <!-- Hidden input to maintain compatibility with existing form submission -->
+            <input type="hidden" id="recording_speed" name="recording_speed" value="1">
           </div>
         </div>
       </div>
@@ -508,61 +557,62 @@
           }
         }
         
-        function selectRecordingSpeed(index) {
+        function selectRecordingSpeed(index, speed) {
+          // Remove active class from all recording speed buttons
+          const speedButtons = document.querySelectorAll('.speed-button[data-speed]');
+          speedButtons.forEach(button => button.classList.remove('active'));
+          
+          // Add active class to selected button
+          const selectedButton = document.querySelector(`.speed-button[data-speed="${speed}"]`);
+          if (selectedButton) {
+            selectedButton.classList.add('active');
+          }
+          
+          // Update hidden input for form compatibility
+          const hiddenInput = document.getElementById('recording_speed');
+          if (hiddenInput) {
+            hiddenInput.value = index;
+          }
+          
+          // Update playback speed options based on new recording speed
+          setPlaybackSpeedOptions(speed);
+          
+          console.log(`Recording speed selected: ${speed}x (index: ${index})`);
+        }
+        
+        function updateSliderValueRecording(index) {
+          // Legacy function for compatibility - now delegates to button selection
           const speeds = [0.25, 0.5, 1.0];
-          const buttons = document.querySelectorAll('#recording-speed-buttons .speed-button');
-          
-          // Remove active class from all buttons
-          buttons.forEach(btn => btn.classList.remove('active'));
-          
-          // Add active class to selected button
-          if (buttons[index]) {
-            buttons[index].classList.add('active');
-            window.selectedRecordingSpeedIndex = index;
-            console.log('Recording speed selected:', speeds[index]);
-            
-            // Update playback speed options based on new recording speed
-            setPlaybackSpeedOptions(speeds[index]);
+          if (index >= 0 && index < speeds.length) {
+            selectRecordingSpeed(index, speeds[index]);
           }
         }
         
-        function selectPlaybackSpeed(index) {
-          const buttons = document.querySelectorAll('#playback-speed-buttons .speed-button');
-          
-          // Remove active class from all buttons
-          buttons.forEach(btn => btn.classList.remove('active'));
-          
-          // Add active class to selected button
-          if (buttons[index]) {
-            buttons[index].classList.add('active');
-            window.selectedPlaybackSpeedIndex = index;
-            
-            const speed = parseFloat(buttons[index].getAttribute('data-speed'));
-            console.log('Playback speed selected:', speed);
-          }
-        }
-        
-        // Initialize with default recording speed from config
+        // Initialize with default value from config
         const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
-        const recordingSpeeds = [0.25, 0.5, 1.0];
-        const defaultRecordingIndex = recordingSpeeds.indexOf(defaultRecordingSpeed);
-        if (defaultRecordingIndex >= 0) {
-          window.selectedRecordingSpeedIndex = defaultRecordingIndex;
-          // Set default playback speed options
-          setPlaybackSpeedOptions(defaultRecordingSpeed);
+        const speeds = [0.25, 0.5, 1.0];
+        const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
+        if (defaultIndex >= 0) {
+            selectRecordingSpeed(defaultIndex, defaultRecordingSpeed);
         } else {
-          // Fallback to middle value if config speed not in array
-          window.selectedRecordingSpeedIndex = 1;
-          setPlaybackSpeedOptions(0.5);
+            // Fallback to middle value if config speed not in array
+            selectRecordingSpeed(1, 0.5);
         }
+        
+        // Initialize playback speed options based on default recording speed
+        setPlaybackSpeedOptions(defaultRecordingSpeed || 0.5);
       </script>
 
-        <!-- Playback Speed buttons -->
-        <div class="speed-control-row">
+        <!-- Playback Speed button group -->
+        <div class="slider-row">
           <div class="setting-label">Playback Speed:</div>
           <div class="setting-control">
-            <div class="speed-buttons" id="playback-speed-buttons">
-              <!-- Buttons will be dynamically generated based on recording speed -->
+            <div class="speed-control">
+              <div class="speed-buttons" id="playback-speed-buttons">
+                <!-- Buttons will be dynamically generated based on recording speed -->
+              </div>
+              <!-- Hidden input to maintain compatibility with existing form submission -->
+              <input type="hidden" id="playback_speed" name="playback_speed" value="0" data-speeds="[]">
             </div>
           </div>
         </div>
@@ -689,17 +739,24 @@
           break;
       }
 
+      const playbackHiddenInput = document.getElementById('playback_speed');
       const playbackButtonsContainer = document.getElementById('playback-speed-buttons');
-      playbackButtonsContainer.innerHTML = ''; // Clear existing buttons
+      
+      // Store the discrete speed array in a data attribute
+      playbackHiddenInput.setAttribute('data-speeds', JSON.stringify(speeds));
 
-      // Create buttons for each speed
+      // Clear existing buttons
+      playbackButtonsContainer.innerHTML = '';
+
+      // Create button for each speed
       speeds.forEach((speed, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'speed-button';
         button.setAttribute('data-speed', speed);
-        button.textContent = speed;
-        button.onclick = () => selectPlaybackSpeed(index);
+        button.setAttribute('data-index', index);
+        button.textContent = speed; // Removed 'x' suffix
+        button.onclick = () => selectPlaybackSpeed(index, speed);
         playbackButtonsContainer.appendChild(button);
       });
 
@@ -709,8 +766,28 @@
         defaultIndex = 0;
       }
       
-      // Set the active button
-      selectPlaybackSpeed(defaultIndex);
+      // Select the default button
+      selectPlaybackSpeed(defaultIndex, speeds[defaultIndex]);
+    }
+    
+    function selectPlaybackSpeed(index, speed) {
+      // Remove active class from all playback speed buttons
+      const playbackButtons = document.querySelectorAll('#playback-speed-buttons .speed-button');
+      playbackButtons.forEach(button => button.classList.remove('active'));
+      
+      // Add active class to selected button
+      const selectedButton = document.querySelector(`#playback-speed-buttons .speed-button[data-speed="${speed}"]`);
+      if (selectedButton) {
+        selectedButton.classList.add('active');
+      }
+      
+      // Update hidden input for form compatibility
+      const hiddenInput = document.getElementById('playback_speed');
+      if (hiddenInput) {
+        hiddenInput.value = index;
+      }
+      
+      console.log(`Playback speed selected: ${speed}x (index: ${index})`);
     }
 
     /**
@@ -1180,6 +1257,21 @@
      * Fetch latest recordings from server, store them globally in window.recordings,
      * and repopulate the <select> with the .file_name values only.
      */
+    function updateSliderValue(sliderId, newValue) {
+      // Legacy function for compatibility - now delegates to button group functions
+      if (sliderId === "playback_speed") {
+        const hiddenInput = document.getElementById(sliderId);
+        const speeds = JSON.parse(hiddenInput.getAttribute('data-speeds') || "[]");
+        
+        const index = parseInt(newValue, 10);
+        if (index >= 0 && index < speeds.length) {
+          selectPlaybackSpeed(index, speeds[index]);
+        }
+      } else if (sliderId === "recording_speed") {
+        // For recording speed, delegate to the recording speed function
+        updateSliderValueRecording(newValue);
+      }
+    }
 
     /**
      * Updates the dropdown after a successful rename operation
