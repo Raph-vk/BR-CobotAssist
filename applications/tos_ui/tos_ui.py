@@ -139,14 +139,14 @@ class TOSUIApplication:
                         return f"<h1>Configuration Error</h1><p>{error_msg}</p><p>Please configure exactly one setup in active_setups for Teachbot mode.</p>"
                     
                     # Check for customer-specific template
-                    customer = self.config.get("general", {}).get("customer", None)
+                    customer = self.config.get("general", {}).get("customer", "")
                     self.ui_logger.info(f"Customer from config: {customer}")
                     self.ui_logger.info(f"Flask template folder: {self.app.template_folder}")
-                    if customer:
+                    if customer and not customer == "TOS":
                         template_name = f'teachbot_{customer}.html'
                     else:
                         template_name = 'teachbot.html'
-                        self.ui_logger.info("No customer specified in config. Using default teachbot.html template.")
+                        self.ui_logger.info("No specific customer specified in config. Using default TOS teachbot.html template.")
                     
                     self.ui_logger.info(f"Using Teachbot mode with setup: {setup_info[0]['name']}")
                     
