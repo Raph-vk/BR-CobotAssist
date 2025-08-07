@@ -20,7 +20,7 @@
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f2f2f2;
       color: #333;
-      font-size: calc(16px * var(--scale-factor)); /* Base font size */
+      font-size: calc(18px * var(--scale-factor)); /* Increased base font size */
     }
 
     /* Full-width top header with centered logos */
@@ -49,8 +49,8 @@
     /* Container for the two sections + red lines */
     .two-sections {
       position: relative;    
-      width: calc(900px * var(--scale-factor));          
-      height: calc(505px * var(--scale-factor));         
+      width: calc(1200px * var(--scale-factor));         
+      height: calc(840px * var(--scale-factor));         /* Increased from 800px to accommodate taller bottom box */
       margin: calc(2rem * var(--scale-factor)) auto;     
       background-color: #f2f2f2;
     }
@@ -61,7 +61,7 @@
       top: 0;
       left: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(500px * var(--scale-factor));
+      height: calc(555px * var(--scale-factor)); /* Increased from 430px */
       background-color: var(--color-red);
     }
     .line-top-bottom {
@@ -69,25 +69,25 @@
       left: 0;
       width: 100%;
       height: calc(5px * var(--scale-factor));
-      top: calc(500px * var(--scale-factor));
+      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
       background-color: var(--color-red);
     }
     .line-bottom-right {
       position: absolute;
-      top: calc(500px * var(--scale-factor));
+      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
       right: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(205px * var(--scale-factor));
+      height: calc(400px * var(--scale-factor)); /* Increased to match new bottom box height */
       background-color: var(--color-red);
     }
 
-    /* Top box: 300px tall */
+    /* Top box: increased height for larger content */
     .box-top {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(500px * var(--scale-factor));
+      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
       background-color: #fff;
       border-radius: calc(6px * var(--scale-factor));
       box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
@@ -95,18 +95,25 @@
       padding: calc(1.5rem * var(--scale-factor));
     }
 
-    /* Bottom box: 200px tall */
+    /* Box-bottom positioning */
     .box-bottom {
       position: absolute;
-      top: calc(505px * var(--scale-factor));  
+      top: calc(560px * var(--scale-factor)); /* Position below the box-top (550px height + 10px margin) */
       left: 0;
       width: 100%;
-      height: calc(200px * var(--scale-factor));
-      background-color: #fff;
-      border-radius: calc(6px * var(--scale-factor));
-      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
       text-align: center;
       padding: calc(1.5rem * var(--scale-factor));
+    }
+
+    /* Bottom box: increased height for larger content */
+    .bottom-box {
+      width: 100%;
+      border: calc(3px * var(--scale-factor)) solid var(--color-red);
+      border-radius: calc(15px * var(--scale-factor));
+      height: calc(280px * var(--scale-factor)); /* Increased from 240px to fit playback speed content */
+      overflow-y: auto;
+      background-color: white;
+      margin-top: calc(20px * var(--scale-factor));
     }
 
     /* Headings */
@@ -114,7 +121,7 @@
     .box-bottom h2 {
       margin-bottom: calc(1rem * var(--scale-factor));
       color: var(--color-blue);
-      font-size: calc(1.5rem * var(--scale-factor)); /* Standard headings */
+      font-size: calc(2.5rem * var(--scale-factor)); /* Much larger headings */
     }
 
     /* Buttons row(s) */
@@ -123,17 +130,18 @@
     }
     .btn {
       display: inline-block;
-      width: calc(220px * var(--scale-factor));  /* fixed width for uniform button size */
+      width: calc(280px * var(--scale-factor));  /* Increased from 220px for larger text */
       white-space: nowrap;
       text-align: center;
-      padding: calc(0.7rem * var(--scale-factor));
+      padding: calc(1.2rem * var(--scale-factor)) calc(1.5rem * var(--scale-factor)); /* Much larger padding */
       margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
       background-color: var(--color-blue);
       color: #fff;
       border-radius: calc(4px * var(--scale-factor));
       cursor: pointer;
       border: none;
-      font-size: calc(1rem * var(--scale-factor));
+      font-size: calc(1.4rem * var(--scale-factor)); /* Much larger button text */
+      font-weight: bold;
       transition: background-color 0.2s ease-in-out;
     }
     .btn:hover {
@@ -142,9 +150,9 @@
 
     /* Fixed-width dropdown */
     #recordingsDropdown {
-      width: calc(220px * var(--scale-factor)); 
-      padding: calc(0.4rem * var(--scale-factor));
-      font-size: calc(1rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor)); /* Increased from 220px to match buttons */
+      padding: calc(0.8rem * var(--scale-factor)); /* Larger padding */
+      font-size: calc(1.4rem * var(--scale-factor)); /* Much larger dropdown text */
       margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
     }
 
@@ -152,33 +160,123 @@
     .settings-section h3 {
       margin-bottom: calc(1rem * var(--scale-factor));
       color: var(--color-blue);
-      font-size: calc(1.2rem * var(--scale-factor));
+      font-size: calc(2rem * var(--scale-factor)); /* Much larger section headings */
     }
     .slider-row {
       margin: calc(1rem * var(--scale-factor)) auto;
       text-align: center;
-      max-width: calc(400px * var(--scale-factor));
+      max-width: calc(700px * var(--scale-factor)); /* Increased to match pressure/position selector */
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center; /* Changed back to center for better alignment */
       gap: calc(0.5rem * var(--scale-factor));
     }
     .slider-row label {
       display: inline-block;
-      min-width: calc(140px * var(--scale-factor));
+      min-width: calc(200px * var(--scale-factor)); /* Increased to match pressure/position labels for perfect colon alignment */
       text-align: right;
-      font-size: calc(1rem * var(--scale-factor));
+      font-size: calc(1.3rem * var(--scale-factor));
+      font-weight: bold;
     }
     .slider-row input[type="range"] {
       vertical-align: middle;
-      width: calc(120px * var(--scale-factor));
+      width: calc(150px * var(--scale-factor)); /* Keep consistent slider width */
+      height: calc(8px * var(--scale-factor));
     }
     .slider-value {
       font-weight: bold;
       color: var(--color-blue);
-      min-width: calc(50px * var(--scale-factor));
+      min-width: calc(70px * var(--scale-factor));
       text-align: left;
-      font-size: calc(1rem * var(--scale-factor));
+      font-size: calc(1.3rem * var(--scale-factor));
+    }
+
+    /* Settings section with two-column layout */
+    .settings-section {
+      display: grid;
+      grid-template-columns: calc(250px * var(--scale-factor)) 1fr; /* Restored to 250px to prevent text wrapping */
+      gap: calc(0.5rem * var(--scale-factor)); /* Reduced from 1rem for tighter spacing */
+      row-gap: calc(2rem * var(--scale-factor)); /* Added vertical spacing between rows */
+      align-items: center;
+      max-width: calc(600px * var(--scale-factor)); /* Reduced max-width for better centering */
+      margin: 0 auto; /* Center the settings section */
+      justify-self: center; /* Additional centering */
+    }
+
+    /* Left column: labels */
+    .setting-label {
+      text-align: right;
+      font-size: calc(1.3rem * var(--scale-factor));
+      font-weight: bold;
+      padding-right: calc(1rem * var(--scale-factor));
+    }
+
+    /* Right column: controls */
+    .setting-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(1rem * var(--scale-factor));
+    }
+
+    /* Speed control styling */
+    .speed-control-row {
+      display: contents; /* Use grid layout from parent */
+    }
+
+    .speed-buttons {
+      display: flex;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor)); /* Match both selector buttons + gap total width */
+    }
+    
+    .speed-button {
+      flex: 1;
+      padding: calc(0.8rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #4a5a8a !important;
+      border-radius: calc(4px * var(--scale-factor));
+      background-color: white !important;
+      color: #4a5a8a !important;
+      cursor: pointer;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-sizing: border-box !important;
+    }
+    
+    .speed-button:hover {
+      background-color: #f5f5f5 !important;
+      border-color: #3a4a7a !important;
+      color: #3a4a7a !important;
+    }
+    
+    .speed-button.active {
+      background-color: rgba(217, 27, 17, 0.7) !important; /* Red selected state */
+      color: white !important;
+      border-color: rgba(217, 27, 17, 0.7) !important;
+    }
+
+    /* Align all labels consistently */
+    .slider-row {
+      display: contents; /* Use grid layout from parent */
+    }
+    
+    .slider-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(1rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor)); /* Fixed width to match button width */
+    }
+
+    .slider-control input[type="range"] {
+      flex: 1;
+      max-width: calc(200px * var(--scale-factor));
+    }
+
+    .slider-value {
+      min-width: calc(80px * var(--scale-factor));
+      text-align: center;
     }
 
     /* Dropdown with action icons */
@@ -199,9 +297,9 @@
 
     .dropdown-option-icons .icon {
       cursor: pointer;
-      padding: calc(2px * var(--scale-factor));
-      border-radius: calc(3px * var(--scale-factor));
-      font-size: calc(14px * var(--scale-factor));
+      padding: calc(6px * var(--scale-factor)); /* Larger padding */
+      border-radius: calc(6px * var(--scale-factor)); /* Larger border radius */
+      font-size: calc(24px * var(--scale-factor)); /* Much larger icons */
       opacity: 0.7;
       transition: all 0.2s;
       position: relative;
@@ -231,9 +329,9 @@
       transform: translateX(-50%);
       background-color: #333;
       color: white;
-      padding: calc(4px * var(--scale-factor)) calc(8px * var(--scale-factor));
-      border-radius: calc(4px * var(--scale-factor));
-      font-size: calc(12px * var(--scale-factor));
+      padding: calc(8px * var(--scale-factor)) calc(12px * var(--scale-factor)); /* Larger tooltip padding */
+      border-radius: calc(6px * var(--scale-factor)); /* Larger border radius */
+      font-size: calc(16px * var(--scale-factor)); /* Much larger tooltip text */
       white-space: nowrap;
       opacity: 0;
       pointer-events: none;
@@ -277,7 +375,7 @@
       <!-- Teachbot mode: Show setup info only when multiple setups are defined -->
       {% if total_setups >= 2 %}
       <div style="text-align: center; margin: calc(20px * var(--scale-factor)) 0;">
-        <span style="font-size: calc(16px * var(--scale-factor)); color: var(--color-blue); font-weight: bold;">
+        <span style="font-size: calc(1.6rem * var(--scale-factor)); color: var(--color-blue); font-weight: bold;">
           Using {{ setups[0].display_name }}
         </span>
       </div>
@@ -327,44 +425,81 @@
     <div class="box-bottom">
       <h2>Settings</h2>
       <div class="settings-section">
-      <!-- Recording Speed slider -->
-      <div class="slider-row">
-        <label for="recording_speed">Recording Speed:</label>
-        <input type="range" id="recording_speed" name="recording_speed"
-           min="0" max="2" value="1" step="1"
-           oninput="updateSliderValueRecording(this.value)">
-        <span class="slider-value" id="recording_speed_value">0.5</span>
+      
+      <!-- Recording Speed buttons -->
+      <div class="speed-control-row">
+        <div class="setting-label">Recording Speed:</div>
+        <div class="setting-control">
+          <div class="speed-buttons" id="recording-speed-buttons">
+            <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0)">0.25</button>
+            <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1)">0.5</button>
+            <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2)">1.0</button>
+          </div>
+        </div>
       </div>
 
       <script>
-        function updateSliderValueRecording(index) {
-        const speeds = [0.25, 0.5, 1.0];
-        const valueSpan = document.getElementById('recording_speed_value');
-        valueSpan.textContent = speeds[index];
+        // Global variables to track selected speeds
+        window.selectedRecordingSpeedIndex = 1; // Default to 0.5x (index 1)
+        window.selectedPlaybackSpeedIndex = 0; // Default to first option
+        
+        function selectRecordingSpeed(index) {
+          const speeds = [0.25, 0.5, 1.0];
+          const buttons = document.querySelectorAll('#recording-speed-buttons .speed-button');
+          
+          // Remove active class from all buttons
+          buttons.forEach(btn => btn.classList.remove('active'));
+          
+          // Add active class to selected button
+          if (buttons[index]) {
+            buttons[index].classList.add('active');
+            window.selectedRecordingSpeedIndex = index;
+            console.log('Recording speed selected:', speeds[index]);
+            
+            // Update playback speed options based on new recording speed
+            setPlaybackSpeedOptions(speeds[index]);
+          }
         }
-        // Initialize with default value from config
+        
+        function selectPlaybackSpeed(index) {
+          const buttons = document.querySelectorAll('#playback-speed-buttons .speed-button');
+          
+          // Remove active class from all buttons
+          buttons.forEach(btn => btn.classList.remove('active'));
+          
+          // Add active class to selected button
+          if (buttons[index]) {
+            buttons[index].classList.add('active');
+            window.selectedPlaybackSpeedIndex = index;
+            
+            const speed = parseFloat(buttons[index].getAttribute('data-speed'));
+            console.log('Playback speed selected:', speed);
+          }
+        }
+        
+        // Initialize with default recording speed from config
         const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
-        const speeds = [0.25, 0.5, 1.0];
-        const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
-        if (defaultIndex >= 0) {
-            document.getElementById('recording_speed').value = defaultIndex;
-            updateSliderValueRecording(defaultIndex);
+        const recordingSpeeds = [0.25, 0.5, 1.0];
+        const defaultRecordingIndex = recordingSpeeds.indexOf(defaultRecordingSpeed);
+        if (defaultRecordingIndex >= 0) {
+          window.selectedRecordingSpeedIndex = defaultRecordingIndex;
+          // Set default playback speed options
+          setPlaybackSpeedOptions(defaultRecordingSpeed);
         } else {
-            // Fallback to middle value if config speed not in array
-            updateSliderValueRecording(1);
+          // Fallback to middle value if config speed not in array
+          window.selectedRecordingSpeedIndex = 1;
+          setPlaybackSpeedOptions(0.5);
         }
       </script>
 
-        <!-- Playback Speed slider -->
-        <div class="slider-row">
-          <label for="playback_speed">Playback Speed:</label>
-          <!-- We'll treat this slider as an index into a discrete array. -->
-          <input type="range" id="playback_speed" name="playback_speed"
-                 min="0" max="3" value="0" step="1"
-                 oninput="updateSliderValue('playback_speed', this.value)"
-                 data-speeds="[]"  
-          > <!-- We will fill this in at runtime -->
-          <span class="slider-value" id="playback_speed_value">N/A</span>
+        <!-- Playback Speed buttons -->
+        <div class="speed-control-row">
+          <div class="setting-label">Playback Speed:</div>
+          <div class="setting-control">
+            <div class="speed-buttons" id="playback-speed-buttons">
+              <!-- Buttons will be dynamically generated based on recording speed -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -469,7 +604,7 @@
 
     /**
      * Depending on the recording speed, limit the playback speeds to a discrete set.
-     * Then set the slider to "index" mode, defaulting to the index where speed=1.0 (if found).
+     * Then create buttons dynamically and select the one closest to 1.0x.
      */
     function setPlaybackSpeedOptions(recordingSpeed) {
       let speeds;
@@ -489,24 +624,28 @@
           break;
       }
 
-      const playbackSlider = document.getElementById('playback_speed');
-      // Store the discrete speed array in a data attribute
-      playbackSlider.setAttribute('data-speeds', JSON.stringify(speeds));
+      const playbackButtonsContainer = document.getElementById('playback-speed-buttons');
+      playbackButtonsContainer.innerHTML = ''; // Clear existing buttons
 
-      // Adjust the slider's min/max/step
-      playbackSlider.min = 0;
-      playbackSlider.max = speeds.length - 1;
-      playbackSlider.step = 1;
+      // Create buttons for each speed
+      speeds.forEach((speed, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'speed-button';
+        button.setAttribute('data-speed', speed);
+        button.textContent = speed;
+        button.onclick = () => selectPlaybackSpeed(index);
+        playbackButtonsContainer.appendChild(button);
+      });
 
       // Default to the index of "1.0" if present, else 0
       let defaultIndex = speeds.indexOf(1.0);
       if (defaultIndex < 0) {
         defaultIndex = 0;
       }
-      playbackSlider.value = defaultIndex;
-
-      // Update the label
-      updateSliderValue('playback_speed', defaultIndex);
+      
+      // Set the active button
+      selectPlaybackSpeed(defaultIndex);
     }
 
     /**
@@ -875,27 +1014,20 @@
     }
 
     /**
-     * For the "Recording Speed" slider, we assume an index of [0, 1, 2]
-     * mapping to [0.25, 0.5, 1.0].
+     * Get the currently selected recording speed from the button interface.
      */
     function getRecordingSpeed() {
-      const slider = document.getElementById('recording_speed');
-      const index = parseInt(slider.value, 10);
       const speeds = [0.25, 0.5, 1.0];
-      return speeds[index]; // e.g. 0.5
+      return speeds[window.selectedRecordingSpeedIndex] || 0.5;
     }
 
     /**
-     * For the "Playback Speed" slider, we read a dynamic array from data-speeds,
-     * then use the slider's value as an array index.
+     * Get the currently selected playback speed from the button interface.
      */
     function getPlaybackSpeed() {
-      const playbackSlider = document.getElementById('playback_speed');
-      const speeds = JSON.parse(playbackSlider.getAttribute('data-speeds') || "[]");
-      const index = parseInt(playbackSlider.value, 10);
-
-      if (index >= 0 && index < speeds.length) {
-        return speeds[index]; // e.g. 2.0
+      const activeButton = document.querySelector('#playback-speed-buttons .speed-button.active');
+      if (activeButton) {
+        return parseFloat(activeButton.getAttribute('data-speed'));
       }
       return 1.0; // fallback
     }
@@ -974,30 +1106,9 @@
     }
 
     /**
-     * The generic slider update function:
-     * - If it's the "playback_speed" slider, we treat `newValue` as an array index.
-     * - If it's the "recording_speed" slider, we just print the numeric value for now.
+     * Fetch latest recordings from server, store them globally in window.recordings,
+     * and repopulate the <select> with the .file_name values only.
      */
-    function updateSliderValue(sliderId, newValue) {
-      const sliderValueSpan = document.getElementById(sliderId + '_value');
-      if (!sliderValueSpan) return;
-
-      if (sliderId === "playback_speed") {
-        const slider = document.getElementById(sliderId);
-        // Read the array of discrete speeds
-        const speeds = JSON.parse(slider.getAttribute('data-speeds') || "[]");
-
-        const index = parseInt(newValue, 10);
-        if (index >= 0 && index < speeds.length) {
-          sliderValueSpan.textContent = speeds[index];
-        } else {
-          sliderValueSpan.textContent = 'N/A';
-        }
-      } else {
-        // For the "recording_speed" slider, just show the numeric value [0..100].
-        sliderValueSpan.textContent = newValue;
-      }
-    }
 
     /**
      * Updates the dropdown after a successful rename operation
@@ -1097,6 +1208,9 @@
       recordingsContainer.addEventListener('mouseenter', function() {
         updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
       });
+      
+      // Initialize speed button states
+      selectRecordingSpeed(window.selectedRecordingSpeedIndex);
     });
   </script>
 </body>

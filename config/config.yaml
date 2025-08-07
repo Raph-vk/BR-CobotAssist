@@ -4,8 +4,8 @@
 
 general:
   # Application
-  application: 'AI_robot_controller'
-  # application: 'Teachbot_controller'
+  # application: 'AI_robot_controller'
+  application: 'Teachbot_controller'
   customer: 'BR'
 
 
@@ -17,7 +17,7 @@ general:
   default_recording_speed: 0.5
   gripper_delay: 0.3 # In seconds on robot speed 1
   gripper_treshold: 0.5
-  action_buffer_length: 3
+  action_buffer_length: 1
   j4_locked: True
 
   # Directories
@@ -48,38 +48,11 @@ general:
 
 hardware:
   active_setups: ['setup_1']  # List of active setups to load
-  # active_setups: ['setup_1', 'setup_2']  # Uncomment to enable multiple setups
 
   setup_1:
     setup_id: 1
 
   # --------------------------------------Robot Configuration--------------------------------
-    # robot:
-    #   # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
-    #   number: 2
-    #   brand: "fanuc"
-    #   model: "LRMate 200iD 7l"
-    #   control_dt : 0.004
-    #   utool_no: 1 #not used yet
-    #   uframe_no: 1 #not used yet
-    #   payload_weight: 2
-    #   max_payload: 7
-    #   j3_limit: 59
-    #   j3_interaction: True
-    #   dof: 6
-    #   dof_ee: 1
-    #   server_address: 
-    #     - "192.168.1.201"
-    #     - 8001  # IP and port of the cpp connects to  port + 1
-    #   robot_address: 
-    #     - "192.168.1.202"
-    #     - 60015
-    #   rmi_port: 16001
-    #   upper_limits: [165, 140, 208, 185, 120, 355]
-    #   lower_limits: [-165, -95, -65, -185, -120, -355]
-    #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
     robot:
       # Robot settings
@@ -135,48 +108,8 @@ hardware:
 
 
 
-    # robot:
-    #   # Dummy robot settings (same as FANUC but without actual communication)
-    #   brand: "dummy"
-    #   model: "Dummy Robot"
-    #   control_dt : 0.004
-    #   utool_no: 1 #not used yet
-    #   uframe_no: 1 #not used yet
-    #   payload_weight: 2
-    #   max_payload: 7
-    #   j3_limit: 59
-    #   j3_interaction: True
-    #   dof: 6
-    #   dof_ee: 1
-    #   server_address: 
-    #     - "127.0.0.1"  # Localhost for dummy
-    #     - 8001  # IP and port of the cpp connects to  port + 1
-    #   robot_address: 
-    #     - "127.0.0.1"  # Localhost for dummy
-    #     - 60015
-    #   rmi_port: 16001
-    #   upper_limits: [165, 140, 208, 185, 120, 355]
-    #   lower_limits: [-165, -95, -65, -185, -120, -355]
-    #   velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    #   acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
-    #   jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
-
-
     # --------------------------------------Teachbot Configuration--------------------------------
 
-    # teachbot:
-    #   # Teachbot settings
-    #   brand: "dummy"
-    #   model: "_"
-    #   joint_target_period: 0.004
-    #   j6_min_angle: -140
-    #   j6_max_angle: 220
-    #   j6_multiplier: 1
-    #   gripper_treshold: 1085
-    #   gripper_min: 91.14
-    #   gripper_max: 102.65
-    #   dof: 6
-    #   dof_ee: 2
 
     teachbot:
       # TOS encoder settings for teachbot
@@ -222,18 +155,6 @@ hardware:
           action: "EE_dof_2"  # Action to perform when button 2 is pressed
 
 
-    # teachbot:
-    #   # Teachbot settings
-    #   brand: "Interbotix"
-    #   model: "WX250S"
-    #   j6_min_angle: -140
-    #   j6_max_angle: 220
-    #   j6_multiplier: 1
-    #   gripper_min: 91.14
-    #   gripper_max: 102.65
-    #   dof: 6
-    #   dof_ee: 2
-
 
 
 
@@ -243,10 +164,6 @@ hardware:
 
 
 # --------------------------------------GENERAL CONFIGURATION--------------------------------
-
-
-
-
 
 
 logging:
@@ -294,7 +211,7 @@ application:
   # Whether to automatically open browser window for TOS UI
   open_browser_default: true
   # UI scaling factor - adjusts the size of all interface elements proportionally
-  ui_scale_factor: 1.5  # 1.0 = normal size, 1.3 = 30% larger (like teachbot_BR), 0.8 = 20% smaller
+  ui_scale_factor: 1.0  # 1.0 = normal size, 1.3 = 30% larger (like teachbot_BR), 0.8 = 20% smaller
 
 
 
@@ -339,31 +256,3 @@ rabbitmq:
   product: "MyRabbitApp"
   information: "A robust RabbitMQ client using Pika"
 
-
-cpp:
-  # Shared memory configuration for C++ interface
-  shared_memory:
-    # For save interface (recording)
-    shm_joint_data1:
-      shm_name: "shm_cpp_joint_data1"
-      slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
-      header_format: "=IIII"
-    # For policy interface (real-time control)
-    shm_joint_data2:
-      shm_name: "shm_cpp_joint_data2"
-      capacity: 100
-      slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
-      header_format: "=IIII" 
-
-
-policy:
-  name: "ACT"
-  # Temporal ensemble configuration
-  temporal_ensemble:
-    enabled: true
-    overlap_weight: 0.5  # Weight for overlapping actions (0.0 to 1.0)
-  # Shared memory configuration for policy interface
-  shared_memory:
-    shm_name: "shm_target_pos2"
-    capacity: 500  # Number of sequence entries - should match policy_sequence_buffer_length
-    entry_format_template: "=I{dof}d"  # sequence_id (I) + dof joint positions (d each)
