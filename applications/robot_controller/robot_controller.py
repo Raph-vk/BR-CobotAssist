@@ -70,8 +70,7 @@ class RobotController:
         error_msg = "None"
 
         try:
-            if self.has_teachbot:
-                self.connect_teachbot_interface()
+            self.connect_teachbot_interface()
             self.connect_robot_interface()
 
             # Copy for robot interface
@@ -116,8 +115,7 @@ class RobotController:
 
         try:
             self.connect_save_interface()
-            if self.has_teachbot:
-                self.connect_teachbot_interface()
+            self.connect_teachbot_interface()
             self.connect_robot_interface()
 
             # Save interface copy
@@ -453,8 +451,7 @@ class RobotController:
             if self.has_camera:
                 self.connect_camera_interface()
             self.connect_save_interface()
-            if self.has_teachbot:
-                self.connect_teachbot_interface()
+            self.connect_teachbot_interface()
             self.connect_robot_interface()
 
             # Camera interface copy (only if camera is configured)
@@ -492,8 +489,7 @@ class RobotController:
             if self.has_camera:
                 self.connect_camera_interface()
             self.connect_save_interface()
-            if self.has_teachbot:
-                self.connect_teachbot_interface()
+            self.connect_teachbot_interface()
             self.connect_robot_interface()
 
             # Camera interface copy (only if camera is configured)
@@ -768,16 +764,7 @@ class RobotController:
                 self.setup_routing_id = None
             
             self.robot_brand = hw["robot"]["brand"].lower()
-            
-            # Teachbot is optional - set to None if not configured
-            if "teachbot" in hw and "brand" in hw["teachbot"]:
-                self.teachbot_brand = hw["teachbot"]["brand"].lower()
-                self.has_teachbot = True
-            else:
-                self.teachbot_brand = None
-                self.has_teachbot = False
-                self.logger_tc.info("No teachbot configuration found, teachbot functionality disabled")
-                
+            self.teachbot_brand = hw["teachbot"]["brand"].lower()
             # Camera is optional - set to None if not configured
             if "camera" in hw and "brand" in hw["camera"]:
                 self.camera_brand = hw["camera"]["brand"].lower()
@@ -898,19 +885,15 @@ class RobotController:
             self.logger_tc.error(f"Unsupported robot brand: {self.robot_brand} => {e}")
             sys.exit(1)
 
-        # Teachbot interface module (only if teachbot is configured)
-        if self.has_teachbot:
-            try:
-                teachbot_module_name = f"modules.teachbot.teachbot_{self.teachbot_brand}"
-                teachbot_module = importlib.import_module(teachbot_module_name)
-                self.run_teachbot_interface = teachbot_module.run_teachbot_interface
-                self.logger_tc.info(f"Imported {teachbot_module_name} for teachbot_brand={self.teachbot_brand}")
-            except ImportError as e:
-                self.logger_tc.error(f"Unsupported teachbot brand: {self.teachbot_brand} => {e}")
-                sys.exit(1)
-        else:
-            self.run_teachbot_interface = None
-            self.logger_tc.warning("Teachbot interface disabled - no teachbot configured")
+        # Teachbot interface module
+        try:
+            teachbot_module_name = f"modules.teachbot.teachbot_{self.teachbot_brand}"
+            teachbot_module = importlib.import_module(teachbot_module_name)
+            self.run_teachbot_interface = teachbot_module.run_teachbot_interface
+            self.logger_tc.info(f"Imported {teachbot_module_name} for teachbot_brand={self.teachbot_brand}")
+        except ImportError as e:
+            self.logger_tc.error(f"Unsupported teachbot brand: {self.teachbot_brand} => {e}")
+            sys.exit(1)
 
         # Save interface is known
         from modules.save.save_interface import run_save_interface
@@ -1560,9 +1543,6 @@ class RobotController:
         base_interface_name = self.get_base_interface_name(interface_name)
 
         if base_interface_name == "TEACHBOT_INTERFACE":
-            if not self.has_teachbot:
-                self.logger_tc.error("TEACHBOT_INTERFACE requested but teachbot not configured.")
-                return
             if self.teachbot_interface_process is None:
                 self.logger_tc.warning("TEACHBOT_INTERFACE process not running.")
                 return
@@ -1674,11 +1654,6 @@ class RobotController:
         self.logger_tc.info("SAVE_INTERFACE is ready for commands.")
 
     def connect_teachbot_interface(self):
-        # Return early if teachbot is not configured
-        if not self.has_teachbot:
-            self.logger_tc.info("Teachbot interface not configured, skipping connection.")
-            return
-            
         if self.teachbot_interface_process is not None:
             self.logger_tc.info("TEACHBOT_INTERFACE is already running.")
             return
@@ -2314,9 +2289,8 @@ class RobotController:
         self._stop_interface_process(self.robot_interface_process, self.get_interface_name("ROBOT_INTERFACE"))
         self.robot_interface_process = None
 
-        if self.has_teachbot:
-            self._stop_interface_process(self.teachbot_interface_process, self.get_interface_name("TEACHBOT_INTERFACE"))
-            self.teachbot_interface_process = None
+        self._stop_interface_process(self.teachbot_interface_process, self.get_interface_name("TEACHBOT_INTERFACE"))
+        self.teachbot_interface_process = None
 
         self._stop_interface_process(self.save_interface_process, self.get_interface_name("SAVE_INTERFACE"))
         self.save_interface_process = None

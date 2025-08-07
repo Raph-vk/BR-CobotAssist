@@ -3,10 +3,11 @@
 <head>
   <title>TOS UI</title>
   <style>
-    /* Main brand colors */
+    /* Main brand colors and scaling factor */
     :root {
       --color-blue: #2a4595;
       --color-red:  #d91b11;
+      --scale-factor: {{ ui_scale_factor }}; /* Scaling factor from config.yaml */
     }
 
     /* Reset / Base styles */
@@ -19,7 +20,7 @@
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f2f2f2;
       color: #333;
-      font-size: 18px; /* Increased base font size */
+      font-size: calc(18px * var(--scale-factor)); /* Increased base font size */
     }
 
     /* Full-width top header with centered logos */
@@ -29,28 +30,28 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4rem;
-      padding: 0.5rem 1rem;
+      gap: calc(4rem * var(--scale-factor));
+      padding: calc(0.5rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
     }
     .logo-tos {
-      height: 100px;
+      height: calc(100px * var(--scale-factor));
       object-fit: contain;
     }
     .logo-breda {
-      height: 100px;
+      height: calc(100px * var(--scale-factor));
       object-fit: contain;
     }
     .logo-stimulus {
-      height: 50px;
+      height: calc(50px * var(--scale-factor));
       object-fit: contain;
     }
 
     /* Container for the two sections + red lines */
     .two-sections {
       position: relative;    
-      width: 1200px;         
-      height: 840px;         /* Increased from 800px to accommodate taller bottom box */
-      margin: 2rem auto;     
+      width: calc(1200px * var(--scale-factor));         
+      height: calc(840px * var(--scale-factor));         /* Increased from 800px to accommodate taller bottom box */
+      margin: calc(2rem * var(--scale-factor)) auto;     
       background-color: #f2f2f2;
     }
 
@@ -60,15 +61,15 @@
       top: 0;
       left: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(555px * var(--scale-factor)); /* Increased from 430px */
+      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
       background-color: var(--color-red);
     }
     .line-top-bottom {
       position: absolute;
       left: 0;
       width: 100%;
-      height: 5px;
-      top: 550px; /* Moved down from 430px */
+      height: calc(5px * var(--scale-factor));
+      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
       background-color: var(--color-red);
     }
     .line-bottom-right {
@@ -76,7 +77,7 @@
       top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
       right: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(400px * var(--scale-factor)); /* Increased to match new bottom box height */
+      height: calc(285px * var(--scale-factor)); /* Increased to match new bottom box height */
       background-color: var(--color-red);
     }
 
@@ -86,60 +87,60 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 550px; /* Increased from 430px */
+      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
       background-color: #fff;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: calc(6px * var(--scale-factor));
+      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
       text-align: center;
-      padding: 1.5rem;
+      padding: calc(1.5rem * var(--scale-factor));
     }
 
     /* Box-bottom positioning */
     .box-bottom {
       position: absolute;
-      top: 560px; /* Position below the box-top (550px height + 10px margin) */
+      top: calc(560px * var(--scale-factor)); /* Position below the box-top (550px height + 10px margin) */
       left: 0;
       width: 100%;
       text-align: center;
-      padding: 1.5rem;
+      padding: calc(1.5rem * var(--scale-factor));
     }
 
     /* Bottom box: increased height for larger content */
     .bottom-box {
       width: 100%;
-      border: 3px solid var(--color-red);
-      border-radius: 15px;
-      height: 280px; /* Increased from 240px to fit playback speed content */
+      border: calc(3px * var(--scale-factor)) solid var(--color-red);
+      border-radius: calc(15px * var(--scale-factor));
+      height: calc(280px * var(--scale-factor)); /* Increased from 240px to fit playback speed content */
       overflow-y: auto;
       background-color: white;
-      margin-top: 20px;
+      margin-top: calc(20px * var(--scale-factor));
     }
 
     /* Headings */
     .box-top h2,
     .box-bottom h2 {
-      margin-bottom: 1rem;
+      margin-bottom: calc(1rem * var(--scale-factor));
       color: var(--color-blue);
-      font-size: 2.5rem; /* Much larger headings */
+      font-size: calc(2.5rem * var(--scale-factor)); /* Much larger headings */
     }
 
     /* Buttons row(s) */
     .button-row {
-      margin-top: 1rem;
+      margin-top: calc(1rem * var(--scale-factor));
     }
     .btn {
       display: inline-block;
-      width: 280px;  /* Increased from 220px for larger text */
+      width: calc(280px * var(--scale-factor));  /* Increased from 220px for larger text */
       white-space: nowrap;
       text-align: center;
-      padding: 1.2rem 1.5rem; /* Much larger padding */
-      margin: 0.5rem 0.75rem;
+      padding: calc(1.2rem * var(--scale-factor)) calc(1.5rem * var(--scale-factor)); /* Much larger padding */
+      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
       background-color: var(--color-blue);
       color: #fff;
-      border-radius: 4px;
+      border-radius: calc(4px * var(--scale-factor));
       cursor: pointer;
       border: none;
-      font-size: 1.4rem; /* Much larger button text */
+      font-size: calc(1.4rem * var(--scale-factor)); /* Much larger button text */
       font-weight: bold;
       transition: background-color 0.2s ease-in-out;
     }
@@ -149,38 +150,38 @@
 
     /* Fixed-width dropdown */
     #recordingsDropdown {
-      width: 280px; /* Increased from 220px to match buttons */
-      padding: 0.8rem; /* Larger padding */
-      font-size: 1.4rem; /* Much larger dropdown text */
-      margin: 0.5rem 0.75rem;
+      width: calc(280px * var(--scale-factor)); /* Increased from 220px to match buttons */
+      padding: calc(0.8rem * var(--scale-factor)); /* Larger padding */
+      font-size: calc(1.4rem * var(--scale-factor)); /* Much larger dropdown text */
+      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
     }
 
     /* Bottom Box sliders area */
     .settings-section h3 {
-      margin-bottom: 1rem;
+      margin-bottom: calc(1rem * var(--scale-factor));
       color: var(--color-blue);
-      font-size: 2rem; /* Much larger section headings */
+      font-size: calc(2rem * var(--scale-factor)); /* Much larger section headings */
     }
     .slider-row {
-      margin: 1rem auto;
+      margin: calc(1rem * var(--scale-factor)) auto;
       text-align: center;
-      max-width: 700px; /* Increased to match pressure/position selector */
+      max-width: calc(700px * var(--scale-factor)); /* Increased to match pressure/position selector */
       display: flex;
       align-items: center;
       justify-content: center; /* Changed back to center for better alignment */
-      gap: 0.5rem;
+      gap: calc(0.5rem * var(--scale-factor));
     }
     .slider-row label {
       display: inline-block;
-      min-width: 200px; /* Increased to match pressure/position labels for perfect colon alignment */
+      min-width: calc(200px * var(--scale-factor)); /* Increased to match pressure/position labels for perfect colon alignment */
       text-align: right;
-      font-size: 1.3rem;
+      font-size: calc(1.3rem * var(--scale-factor));
       font-weight: bold;
     }
     .slider-row input[type="range"] {
       vertical-align: middle;
-      width: 150px; /* Keep consistent slider width */
-      height: 8px;
+      width: calc(150px * var(--scale-factor)); /* Keep consistent slider width */
+      height: calc(8px * var(--scale-factor));
     }
     .slider-value {
       font-weight: bold;
@@ -189,60 +190,15 @@
       text-align: left;
       font-size: calc(1.3rem * var(--scale-factor));
     }
-    
-    /* Touch-friendly speed control buttons - styled like selector buttons */
-    .speed-control {
-      display: flex;
-      flex-direction: column;
-      gap: calc(0.5rem * var(--scale-factor));
-    }
-    
-    .speed-buttons {
-      display: flex;
-      gap: calc(0.5rem * var(--scale-factor));
-      width: calc(280px * var(--scale-factor)); /* Match both selector buttons + gap total width */
-    }
-    
-    .speed-button {
-      flex: 1;
-      padding: calc(0.8rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
-      border: 2px solid #4a5a8a !important;
-      border-radius: calc(0.3rem * var(--scale-factor));
-      background-color: white !important;
-      color: #333 !important;
-      cursor: pointer;
-      font-size: calc(1rem * var(--scale-factor));
-      transition: all 0.2s ease;
-      box-sizing: border-box !important;
-    }    .speed-button:hover {
-      background-color: #f5f5f5 !important;
-      border-color: #3a4a7a !important;
-      color: #3a4a7a !important;
-    }
-    
-    .speed-button.active {
-      background-color: rgba(217, 27, 17, 0.7) !important; /* Red selected state */
-      color: white !important;
-      border-color: rgba(217, 27, 17, 0.7) !important;
-    }
-    
-    .speed-button:active {
-      transform: translateY(calc(1px * var(--scale-factor)));
-    }
-    
-    .speed-button:focus {
-      outline: calc(2px * var(--scale-factor)) solid var(--color-blue);
-      outline-offset: calc(2px * var(--scale-factor));
-    }
 
     /* Settings section with two-column layout */
     .settings-section {
       display: grid;
-      grid-template-columns: 250px 1fr; /* Restored to 250px to prevent text wrapping */
-      gap: 0.5rem; /* Reduced from 1rem for tighter spacing */
-      row-gap: 2rem; /* Added vertical spacing between rows */
+      grid-template-columns: calc(250px * var(--scale-factor)) 1fr; /* Restored to 250px to prevent text wrapping */
+      gap: calc(0.5rem * var(--scale-factor)); /* Reduced from 1rem for tighter spacing */
+      row-gap: calc(2rem * var(--scale-factor)); /* Added vertical spacing between rows */
       align-items: center;
-      max-width: 600px; /* Reduced max-width for better centering */
+      max-width: calc(600px * var(--scale-factor)); /* Reduced max-width for better centering */
       margin: 0 auto; /* Center the settings section */
       justify-self: center; /* Additional centering */
     }
@@ -250,9 +206,9 @@
     /* Left column: labels */
     .setting-label {
       text-align: right;
-      font-size: 1.3rem;
+      font-size: calc(1.3rem * var(--scale-factor));
       font-weight: bold;
-      padding-right: 1rem;
+      padding-right: calc(1rem * var(--scale-factor));
     }
 
     /* Right column: controls */
@@ -260,7 +216,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 1rem;
+      gap: calc(1rem * var(--scale-factor));
     }
 
     /* Pressure/Position selector styles */
@@ -270,19 +226,19 @@
 
     .selector-buttons {
       display: flex;
-      gap: 0.5rem;
-      width: 280px; /* Increased to match slider + value width */
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor)); /* Increased to match slider + value width */
     }
     .selector-button {
       flex: 1;
-      padding: 0.8rem 1rem; /* Much larger padding */
-      border: 2px solid #4a5a8a; /* Softer blue */
+      padding: calc(0.8rem * var(--scale-factor)) calc(1rem * var(--scale-factor)); /* Much larger padding */
+      border: calc(2px * var(--scale-factor)) solid #4a5a8a; /* Softer blue */
       background-color: white;
       color: #4a5a8a; /* Softer blue */
       cursor: pointer;
-      border-radius: 4px;
+      border-radius: calc(4px * var(--scale-factor));
       font-weight: bold; /* Make text bold */
-      font-size: 1.2rem; /* Much larger button text */
+      font-size: calc(1.2rem * var(--scale-factor)); /* Much larger button text */
       transition: all 0.3s ease;
     }
     .selector-button:hover {
@@ -341,17 +297,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 1rem;
-      width: 280px; /* Fixed width to match button width */
+      gap: calc(1rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor)); /* Fixed width to match button width */
     }
 
     .slider-control input[type="range"] {
       flex: 1;
-      max-width: 200px;
+      max-width: calc(200px * var(--scale-factor));
     }
 
     .slider-value {
-      min-width: 80px;
+      min-width: calc(80px * var(--scale-factor));
       text-align: center;
     }
 
@@ -363,19 +319,19 @@
 
     .dropdown-option-icons {
       position: absolute;
-      right: 30px;
+      right: calc(30px * var(--scale-factor));
       top: 50%;
       transform: translateY(-50%);
       display: none;
-      gap: 4px;
+      gap: calc(4px * var(--scale-factor));
       z-index: 1000;
     }
 
     .dropdown-option-icons .icon {
       cursor: pointer;
-      padding: 6px; /* Larger padding */
-      border-radius: 6px; /* Larger border radius */
-      font-size: 24px; /* Much larger icons */
+      padding: calc(6px * var(--scale-factor)); /* Larger padding */
+      border-radius: calc(6px * var(--scale-factor)); /* Larger border radius */
+      font-size: calc(24px * var(--scale-factor)); /* Much larger icons */
       opacity: 0.7;
       transition: all 0.2s;
       position: relative;
@@ -405,9 +361,9 @@
       transform: translateX(-50%);
       background-color: #333;
       color: white;
-      padding: 8px 12px; /* Larger tooltip padding */
-      border-radius: 6px; /* Larger border radius */
-      font-size: 16px; /* Much larger tooltip text */
+      padding: calc(8px * var(--scale-factor)) calc(12px * var(--scale-factor)); /* Larger tooltip padding */
+      border-radius: calc(6px * var(--scale-factor)); /* Larger border radius */
+      font-size: calc(16px * var(--scale-factor)); /* Much larger tooltip text */
       white-space: nowrap;
       opacity: 0;
       pointer-events: none;
@@ -450,8 +406,8 @@
       
       <!-- Teachbot mode: Show setup info only when multiple setups are defined -->
       {% if total_setups >= 2 %}
-      <div style="text-align: center; margin: 20px 0;">
-        <span style="font-size: 1.6rem; color: var(--color-blue); font-weight: bold;">
+      <div style="text-align: center; margin: calc(20px * var(--scale-factor)) 0;">
+        <span style="font-size: calc(1.6rem * var(--scale-factor)); color: var(--color-blue); font-weight: bold;">
           Using {{ setups[0].display_name }}
         </span>
       </div>
@@ -513,18 +469,14 @@
         </div>
       </div>
       
-      <!-- Recording Speed button group -->
-      <div class="slider-row">
+      <!-- Recording Speed buttons -->
+      <div class="speed-control-row">
         <div class="setting-label">Recording Speed:</div>
         <div class="setting-control">
-          <div class="speed-control">
-            <div class="speed-buttons">
-              <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0, 0.25)">0.25</button>
-              <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1, 0.5)">0.5</button>
-              <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2, 1.0)">1.0</button>
-            </div>
-            <!-- Hidden input to maintain compatibility with existing form submission -->
-            <input type="hidden" id="recording_speed" name="recording_speed" value="1">
+          <div class="speed-buttons" id="recording-speed-buttons">
+            <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0)">0.25</button>
+            <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1)">0.5</button>
+            <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2)">1.0</button>
           </div>
         </div>
       </div>
@@ -557,62 +509,61 @@
           }
         }
         
-        function selectRecordingSpeed(index, speed) {
-          // Remove active class from all recording speed buttons
-          const speedButtons = document.querySelectorAll('.speed-button[data-speed]');
-          speedButtons.forEach(button => button.classList.remove('active'));
+        function selectRecordingSpeed(index) {
+          const speeds = [0.25, 0.5, 1.0];
+          const buttons = document.querySelectorAll('#recording-speed-buttons .speed-button');
+          
+          // Remove active class from all buttons
+          buttons.forEach(btn => btn.classList.remove('active'));
           
           // Add active class to selected button
-          const selectedButton = document.querySelector(`.speed-button[data-speed="${speed}"]`);
-          if (selectedButton) {
-            selectedButton.classList.add('active');
-          }
-          
-          // Update hidden input for form compatibility
-          const hiddenInput = document.getElementById('recording_speed');
-          if (hiddenInput) {
-            hiddenInput.value = index;
-          }
-          
-          // Update playback speed options based on new recording speed
-          setPlaybackSpeedOptions(speed);
-          
-          console.log(`Recording speed selected: ${speed}x (index: ${index})`);
-        }
-        
-        function updateSliderValueRecording(index) {
-          // Legacy function for compatibility - now delegates to button selection
-          const speeds = [0.25, 0.5, 1.0];
-          if (index >= 0 && index < speeds.length) {
-            selectRecordingSpeed(index, speeds[index]);
+          if (buttons[index]) {
+            buttons[index].classList.add('active');
+            window.selectedRecordingSpeedIndex = index;
+            console.log('Recording speed selected:', speeds[index]);
+            
+            // Update playback speed options based on new recording speed
+            setPlaybackSpeedOptions(speeds[index]);
           }
         }
         
-        // Initialize with default value from config
+        function selectPlaybackSpeed(index) {
+          const buttons = document.querySelectorAll('#playback-speed-buttons .speed-button');
+          
+          // Remove active class from all buttons
+          buttons.forEach(btn => btn.classList.remove('active'));
+          
+          // Add active class to selected button
+          if (buttons[index]) {
+            buttons[index].classList.add('active');
+            window.selectedPlaybackSpeedIndex = index;
+            
+            const speed = parseFloat(buttons[index].getAttribute('data-speed'));
+            console.log('Playback speed selected:', speed);
+          }
+        }
+        
+        // Initialize with default recording speed from config
         const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
-        const speeds = [0.25, 0.5, 1.0];
-        const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
-        if (defaultIndex >= 0) {
-            selectRecordingSpeed(defaultIndex, defaultRecordingSpeed);
+        const recordingSpeeds = [0.25, 0.5, 1.0];
+        const defaultRecordingIndex = recordingSpeeds.indexOf(defaultRecordingSpeed);
+        if (defaultRecordingIndex >= 0) {
+          window.selectedRecordingSpeedIndex = defaultRecordingIndex;
+          // Set default playback speed options
+          setPlaybackSpeedOptions(defaultRecordingSpeed);
         } else {
-            // Fallback to middle value if config speed not in array
-            selectRecordingSpeed(1, 0.5);
+          // Fallback to middle value if config speed not in array
+          window.selectedRecordingSpeedIndex = 1;
+          setPlaybackSpeedOptions(0.5);
         }
-        
-        // Initialize playback speed options based on default recording speed
-        setPlaybackSpeedOptions(defaultRecordingSpeed || 0.5);
       </script>
 
-        <!-- Playback Speed button group -->
-        <div class="slider-row">
+        <!-- Playback Speed buttons -->
+        <div class="speed-control-row">
           <div class="setting-label">Playback Speed:</div>
           <div class="setting-control">
-            <div class="speed-control">
-              <div class="speed-buttons" id="playback-speed-buttons">
-                <!-- Buttons will be dynamically generated based on recording speed -->
-              </div>
-              <!-- Hidden input to maintain compatibility with existing form submission -->
-              <input type="hidden" id="playback_speed" name="playback_speed" value="0" data-speeds="[]">
+            <div class="speed-buttons" id="playback-speed-buttons">
+              <!-- Buttons will be dynamically generated based on recording speed -->
             </div>
           </div>
         </div>
@@ -739,24 +690,17 @@
           break;
       }
 
-      const playbackHiddenInput = document.getElementById('playback_speed');
       const playbackButtonsContainer = document.getElementById('playback-speed-buttons');
-      
-      // Store the discrete speed array in a data attribute
-      playbackHiddenInput.setAttribute('data-speeds', JSON.stringify(speeds));
+      playbackButtonsContainer.innerHTML = ''; // Clear existing buttons
 
-      // Clear existing buttons
-      playbackButtonsContainer.innerHTML = '';
-
-      // Create button for each speed
+      // Create buttons for each speed
       speeds.forEach((speed, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'speed-button';
         button.setAttribute('data-speed', speed);
-        button.setAttribute('data-index', index);
-        button.textContent = speed; // Removed 'x' suffix
-        button.onclick = () => selectPlaybackSpeed(index, speed);
+        button.textContent = speed;
+        button.onclick = () => selectPlaybackSpeed(index);
         playbackButtonsContainer.appendChild(button);
       });
 
@@ -766,28 +710,8 @@
         defaultIndex = 0;
       }
       
-      // Select the default button
-      selectPlaybackSpeed(defaultIndex, speeds[defaultIndex]);
-    }
-    
-    function selectPlaybackSpeed(index, speed) {
-      // Remove active class from all playback speed buttons
-      const playbackButtons = document.querySelectorAll('#playback-speed-buttons .speed-button');
-      playbackButtons.forEach(button => button.classList.remove('active'));
-      
-      // Add active class to selected button
-      const selectedButton = document.querySelector(`#playback-speed-buttons .speed-button[data-speed="${speed}"]`);
-      if (selectedButton) {
-        selectedButton.classList.add('active');
-      }
-      
-      // Update hidden input for form compatibility
-      const hiddenInput = document.getElementById('playback_speed');
-      if (hiddenInput) {
-        hiddenInput.value = index;
-      }
-      
-      console.log(`Playback speed selected: ${speed}x (index: ${index})`);
+      // Set the active button
+      selectPlaybackSpeed(defaultIndex);
     }
 
     /**
@@ -1257,21 +1181,6 @@
      * Fetch latest recordings from server, store them globally in window.recordings,
      * and repopulate the <select> with the .file_name values only.
      */
-    function updateSliderValue(sliderId, newValue) {
-      // Legacy function for compatibility - now delegates to button group functions
-      if (sliderId === "playback_speed") {
-        const hiddenInput = document.getElementById(sliderId);
-        const speeds = JSON.parse(hiddenInput.getAttribute('data-speeds') || "[]");
-        
-        const index = parseInt(newValue, 10);
-        if (index >= 0 && index < speeds.length) {
-          selectPlaybackSpeed(index, speeds[index]);
-        }
-      } else if (sliderId === "recording_speed") {
-        // For recording speed, delegate to the recording speed function
-        updateSliderValueRecording(newValue);
-      }
-    }
 
     /**
      * Updates the dropdown after a successful rename operation
