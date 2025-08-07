@@ -368,7 +368,7 @@ if __name__ == "__main__":
         {"port": 5007, "label": "Encoder 1 (P5007)", "offset": 71100},
     ]
 
-    LOCAL_IP = "192.168.10.3"  # Adapt to your NIC
+    LOCAL_IP = "192.168.1.201"  # Adapt to your NIC
 
     root = tk.Tk()
     DeviceGUI(root, local_ip=LOCAL_IP, encoders=ENCODERS, rs485_port=5004)
