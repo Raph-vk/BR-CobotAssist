@@ -210,7 +210,7 @@ application:
   # Whether to automatically open browser window for TOS UI
   open_browser_default: true
   # UI scaling factor - adjusts the size of all interface elements proportionally
-  ui_scale_factor: 1.5  # 1.0 = normal size, 1.3 = 30% larger (like teachbot_BR), 0.8 = 20% smaller
+  ui_scale_factor: 1.0  # 1.0 = normal size, 1.3 = 30% larger (like teachbot_BR), 0.8 = 20% smaller
 
 
 

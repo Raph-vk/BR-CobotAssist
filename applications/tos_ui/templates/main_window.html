@@ -183,6 +183,87 @@
       color: var(--color-blue);
       margin-left: 1rem;
     }
+
+    /* Custom Prompt Modal Styling */
+    .custom-prompt-overlay {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .custom-prompt-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: calc(20px * var(--scale-factor));
+      border-radius: calc(8px * var(--scale-factor));
+      box-shadow: 0 calc(4px * var(--scale-factor)) calc(16px * var(--scale-factor)) rgba(0, 0, 0, 0.2);
+      min-width: calc(300px * var(--scale-factor));
+      max-width: calc(500px * var(--scale-factor));
+    }
+
+    .custom-prompt-title {
+      margin: 0 0 calc(1rem * var(--scale-factor)) 0;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: bold;
+      color: var(--color-blue);
+    }
+
+    .custom-prompt-input {
+      width: 100%;
+      padding: calc(0.8rem * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #ddd;
+      border-radius: calc(4px * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      margin-bottom: calc(1.5rem * var(--scale-factor));
+      box-sizing: border-box;
+    }
+
+    .custom-prompt-input:focus {
+      border-color: var(--color-blue);
+      outline: none;
+    }
+
+    .custom-prompt-buttons {
+      display: flex;
+      gap: calc(1rem * var(--scale-factor));
+      justify-content: center;
+    }
+
+    .custom-prompt-btn {
+      padding: calc(0.8rem * var(--scale-factor)) calc(1.5rem * var(--scale-factor));
+      border: none;
+      border-radius: calc(4px * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      cursor: pointer;
+      min-width: calc(80px * var(--scale-factor));
+      transition: background-color 0.3s ease;
+    }
+
+    .custom-prompt-btn.primary {
+      background-color: var(--color-blue);
+      color: white;
+    }
+
+    .custom-prompt-btn.primary:hover {
+      background-color: #1a2d75; /* Darker blue */
+    }
+
+    .custom-prompt-btn.secondary {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .custom-prompt-btn.secondary:hover {
+      background-color: #e0e0e0;
+    }
   </style>
 </head>
 <body>
@@ -674,20 +755,27 @@
                            now.getMinutes().toString().padStart(2, '0') + 
                            now.getSeconds().toString().padStart(2, '0');
         
-        const newName = prompt('Enter new dataset name:', defaultName);
-        if (newName && newName.trim()) {
-          // Create a new option with the entered name
-          const newOpt = document.createElement('option');
-          newOpt.value = newName.trim();
-          newOpt.textContent = newName.trim();
-          // Insert before the "New..." option
-          dropdown.insertBefore(newOpt, dropdown.lastElementChild);
-          dropdown.value = newName.trim();
-        } else {
-          // Reset to empty if cancelled or empty
-          dropdown.value = "";
-          return;
-        }
+        showCustomPrompt('Enter new dataset name:', defaultName).then(newName => {
+          if (newName && newName.trim()) {
+            // Create a new option with the entered name
+            const newOpt = document.createElement('option');
+            newOpt.value = newName.trim();
+            newOpt.textContent = newName.trim();
+            // Insert before the "New..." option
+            dropdown.insertBefore(newOpt, dropdown.lastElementChild);
+            dropdown.value = newName.trim();
+            
+            console.log('Selected dataset:', dropdown.value);
+            
+            // Refresh the models dropdown when dataset changes
+            fetchModelsInBackground();
+          } else {
+            // Reset to empty if cancelled or empty
+            dropdown.value = "";
+            return;
+          }
+        });
+        return;
       }
 
       console.log('Selected dataset:', dropdown.value);
@@ -815,7 +903,7 @@
                            now.getMinutes().toString().padStart(2, '0') + 
                            now.getSeconds().toString().padStart(2, '0');
         
-        const newName = prompt('Enter new model name:', defaultName);
+        showCustomPrompt('Enter new model name:', defaultName).then(newName => {
         if (newName && newName.trim()) {
           // Create a new option with the entered name
           const newOpt = document.createElement('option');
@@ -824,11 +912,15 @@
           // Insert before the "New..." option
           dropdown.insertBefore(newOpt, dropdown.lastElementChild);
           dropdown.value = newName.trim();
+          
+          console.log('Selected model:', dropdown.value);
         } else {
           // Reset to empty if cancelled or empty
           dropdown.value = "";
           return;
         }
+        });
+        return;
       }
 
       console.log('Selected model:', dropdown.value);
@@ -879,6 +971,72 @@
         sliderValueSpan.textContent = newValue;
       }
     }
+
+    // Custom prompt modal system
+    function showCustomPrompt(title, defaultValue = '') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('customPromptModal');
+        const input = document.getElementById('customPromptInput');
+        const titleElement = document.getElementById('customPromptTitle');
+        
+        titleElement.textContent = title;
+        input.value = defaultValue;
+        modal.style.display = 'block';
+        input.focus();
+        input.select();
+        
+        window.customPromptResolve = resolve;
+      });
+    }
+
+    function closeCustomPrompt() {
+      const modal = document.getElementById('customPromptModal');
+      modal.style.display = 'none';
+      if (window.customPromptResolve) {
+        window.customPromptResolve(null);
+        window.customPromptResolve = null;
+      }
+    }
+
+    function confirmCustomPrompt() {
+      const input = document.getElementById('customPromptInput');
+      const value = input.value;
+      const modal = document.getElementById('customPromptModal');
+      modal.style.display = 'none';
+      if (window.customPromptResolve) {
+        window.customPromptResolve(value);
+        window.customPromptResolve = null;
+      }
+    }
+
+    // Handle Enter key in the input
+    document.getElementById('customPromptInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        confirmCustomPrompt();
+      } else if (e.key === 'Escape') {
+        closeCustomPrompt();
+      }
+    });
+
+    // Handle clicks outside the modal
+    document.getElementById('customPromptModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCustomPrompt();
+      }
+    });
   </script>
+
+  <!-- Custom Prompt Modal -->
+  <div id="customPromptModal" class="custom-prompt-overlay">
+    <div class="custom-prompt-content">
+      <h3 id="customPromptTitle" class="custom-prompt-title"></h3>
+      <input type="text" id="customPromptInput" class="custom-prompt-input">
+      <div class="custom-prompt-buttons">
+        <button class="custom-prompt-btn secondary" onclick="closeCustomPrompt()">Cancel</button>
+        <button class="custom-prompt-btn primary" onclick="confirmCustomPrompt()">OK</button>
+      </div>
+    </div>
+  </div>
+  
 </body>
 </html>

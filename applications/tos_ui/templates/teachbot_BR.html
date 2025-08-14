@@ -61,7 +61,7 @@
       top: 0;
       left: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
+      height: calc(555px * var(--scale-factor)); /* Increased from 430px */
       background-color: var(--color-red);
     }
     .line-top-bottom {
@@ -77,7 +77,7 @@
       top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
       right: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(285px * var(--scale-factor)); /* Increased to match new bottom box height */
+      height: calc(400px * var(--scale-factor)); /* Increased to match new bottom box height */
       background-color: var(--color-red);
     }
 
@@ -384,6 +384,123 @@
     .dropdown-with-icons select:focus + .dropdown-option-icons {
       display: none;
     }
+
+    /* Error popup styles */
+    .error-popup {
+      position: fixed;
+      top: calc(20px * var(--scale-factor));
+      right: calc(20px * var(--scale-factor));
+      background-color: #f44336;
+      color: white;
+      padding: calc(15px * var(--scale-factor)) calc(20px * var(--scale-factor));
+      border-radius: calc(8px * var(--scale-factor));
+      box-shadow: 0 calc(4px * var(--scale-factor)) calc(12px * var(--scale-factor)) rgba(0,0,0,0.3);
+      max-width: calc(400px * var(--scale-factor));
+      z-index: 9999;
+      font-size: calc(16px * var(--scale-factor));
+      font-weight: bold;
+      cursor: pointer;
+      transform: translateX(calc(420px * var(--scale-factor)));
+      transition: transform 0.3s ease-in-out;
+    }
+
+    .error-popup.show {
+      transform: translateX(0);
+    }
+
+    .error-popup .close-btn {
+      float: right;
+      margin-left: calc(10px * var(--scale-factor));
+      font-size: calc(20px * var(--scale-factor));
+      font-weight: bold;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .error-popup .close-btn:hover {
+      opacity: 1;
+    }
+
+    /* Custom Prompt Modal Styling */
+    .custom-prompt-overlay {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .custom-prompt-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: calc(20px * var(--scale-factor));
+      border-radius: calc(8px * var(--scale-factor));
+      box-shadow: 0 calc(4px * var(--scale-factor)) calc(16px * var(--scale-factor)) rgba(0, 0, 0, 0.2);
+      min-width: calc(300px * var(--scale-factor));
+      max-width: calc(500px * var(--scale-factor));
+    }
+
+    .custom-prompt-title {
+      margin: 0 0 calc(1rem * var(--scale-factor)) 0;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: bold;
+      color: var(--color-blue);
+    }
+
+    .custom-prompt-input {
+      width: 100%;
+      padding: calc(0.8rem * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #ddd;
+      border-radius: calc(4px * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      margin-bottom: calc(1.5rem * var(--scale-factor));
+      box-sizing: border-box;
+    }
+
+    .custom-prompt-input:focus {
+      border-color: var(--color-blue);
+      outline: none;
+    }
+
+    .custom-prompt-buttons {
+      display: flex;
+      gap: calc(1rem * var(--scale-factor));
+      justify-content: center;
+    }
+
+    .custom-prompt-btn {
+      padding: calc(0.8rem * var(--scale-factor)) calc(1.5rem * var(--scale-factor));
+      border: none;
+      border-radius: calc(4px * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      cursor: pointer;
+      min-width: calc(80px * var(--scale-factor));
+      transition: background-color 0.3s ease;
+    }
+
+    .custom-prompt-btn.primary {
+      background-color: var(--color-blue);
+      color: white;
+    }
+
+    .custom-prompt-btn.primary:hover {
+      background-color: #1a2d75; /* Darker blue */
+    }
+
+    .custom-prompt-btn.secondary {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .custom-prompt-btn.secondary:hover {
+      background-color: #e0e0e0;
+    }
   </style>
 </head>
 <body>
@@ -621,7 +738,7 @@
                            now.getMinutes().toString().padStart(2, '0') + 
                            now.getSeconds().toString().padStart(2, '0');
         
-        const newName = prompt('Enter new recording name:', defaultName);
+        showCustomPrompt('Enter new recording name:', defaultName).then(newName => {
         if (newName && newName.trim()) {
           // Remove any existing custom recording first
           const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
@@ -644,11 +761,13 @@
           
           // Set default playback speed options for new recording
           setPlaybackSpeedOptions(1.0); // Default recording speed
-        } else {
-          // Reset to empty if cancelled or empty
-          dropdown.value = "";
-          return;
-        }
+          } else {
+            // Reset to empty if cancelled or empty
+            dropdown.value = "";
+            return;
+          }
+        });
+        return;
       } else {
         // Find the recording object in window.recordings
         const selectedObj = window.recordings.find(
@@ -843,10 +962,11 @@
       }
       
       // Prompt for new name
-      const newName = prompt('Enter new recording name:', selected);
-      if (newName && newName.trim() && newName.trim() !== selected) {
-        sendRenameRecordingCommand(selected, newName.trim());
-      }
+      showCustomPrompt('Enter new recording name:', selected).then(newName => {
+        if (newName && newName.trim() && newName.trim() !== selected) {
+          sendRenameRecordingCommand(selected, newName.trim());
+        }
+      });
     }
 
     /**
@@ -923,12 +1043,13 @@
       const currentName = selected.endsWith('.json') ? selected.slice(0, -5) : selected;
       
       // Prompt for new name
-      const newName = prompt('Enter new recording name:', currentName);
-      if (newName && newName.trim() && newName.trim() !== currentName) {
-        // Ensure new name has .json extension for backend
-        const newNameWithExtension = newName.trim().endsWith('.json') ? newName.trim() : newName.trim() + '.json';
-        sendRenameCommand(selected, newNameWithExtension);
-      }
+      showCustomPrompt('Enter new recording name:', currentName).then(newName => {
+        if (newName && newName.trim() && newName.trim() !== currentName) {
+          // Ensure new name has .json extension for backend
+          const newNameWithExtension = newName.trim().endsWith('.json') ? newName.trim() : newName.trim() + '.json';
+          sendRenameCommand(selected, newNameWithExtension);
+        }
+      });
     }
 
     /**
@@ -1284,6 +1405,140 @@
       // Initialize speed button states
       selectRecordingSpeed(window.selectedRecordingSpeedIndex);
     });
+
+    // Error message polling and display functionality
+    function checkForErrors() {
+      fetch('/get_error_messages')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.errors && data.errors.length > 0) {
+            data.errors.forEach(error => {
+              showErrorPopup(error.message);
+            });
+          }
+        })
+        .catch(err => {
+          console.error('Error checking for error messages:', err);
+        });
+    }
+
+    function showErrorPopup(message) {
+      // Remove any existing error popup
+      const existingPopup = document.querySelector('.error-popup');
+      if (existingPopup) {
+        existingPopup.remove();
+      }
+
+      // Create new popup
+      const popup = document.createElement('div');
+      popup.className = 'error-popup';
+      popup.innerHTML = `
+        <span class="close-btn" onclick="this.parentElement.remove()">&times;</span>
+        <div>${message}</div>
+      `;
+
+      // Add to body
+      document.body.appendChild(popup);
+
+      // Trigger animation
+      setTimeout(() => {
+        popup.classList.add('show');
+      }, 100);
+
+      // Auto-close after 8 seconds
+      setTimeout(() => {
+        if (popup && popup.parentElement) {
+          popup.classList.remove('show');
+          setTimeout(() => {
+            if (popup && popup.parentElement) {
+              popup.remove();
+            }
+          }, 300);
+        }
+      }, 8000);
+
+      // Allow manual close by clicking the popup
+      popup.addEventListener('click', function() {
+        popup.classList.remove('show');
+        setTimeout(() => {
+          if (popup && popup.parentElement) {
+            popup.remove();
+          }
+        }, 300);
+      });
+    }
+
+    // Start polling for errors every 2 seconds
+    setInterval(checkForErrors, 2000);
+    
+    // Check immediately on load
+    checkForErrors();
+
+    // Custom prompt modal system
+    function showCustomPrompt(title, defaultValue = '') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('customPromptModal');
+        const input = document.getElementById('customPromptInput');
+        const titleElement = document.getElementById('customPromptTitle');
+        
+        titleElement.textContent = title;
+        input.value = defaultValue;
+        modal.style.display = 'block';
+        input.focus();
+        input.select();
+        
+        window.customPromptResolve = resolve;
+      });
+    }
+
+    function closeCustomPrompt() {
+      const modal = document.getElementById('customPromptModal');
+      modal.style.display = 'none';
+      if (window.customPromptResolve) {
+        window.customPromptResolve(null);
+        window.customPromptResolve = null;
+      }
+    }
+
+    function confirmCustomPrompt() {
+      const input = document.getElementById('customPromptInput');
+      const value = input.value;
+      const modal = document.getElementById('customPromptModal');
+      modal.style.display = 'none';
+      if (window.customPromptResolve) {
+        window.customPromptResolve(value);
+        window.customPromptResolve = null;
+      }
+    }
+
+    // Handle Enter key in the input
+    document.getElementById('customPromptInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        confirmCustomPrompt();
+      } else if (e.key === 'Escape') {
+        closeCustomPrompt();
+      }
+    });
+
+    // Handle clicks outside the modal
+    document.getElementById('customPromptModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCustomPrompt();
+      }
+    });
   </script>
+
+  <!-- Custom Prompt Modal -->
+  <div id="customPromptModal" class="custom-prompt-overlay">
+    <div class="custom-prompt-content">
+      <h3 id="customPromptTitle" class="custom-prompt-title"></h3>
+      <input type="text" id="customPromptInput" class="custom-prompt-input">
+      <div class="custom-prompt-buttons">
+        <button class="custom-prompt-btn secondary" onclick="closeCustomPrompt()">Cancel</button>
+        <button class="custom-prompt-btn primary" onclick="confirmCustomPrompt()">OK</button>
+      </div>
+    </div>
+  </div>
+  
 </body>
 </html>

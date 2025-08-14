@@ -39,6 +39,10 @@ class TOSUIApplication:
         self.recv_dataset_names_status = False
         self.model_names = None  # For model names if needed later
         self.recv_model_names_status = False
+        
+        # Error message queue for frontend notifications
+        self.error_messages = []
+        self.error_lock = threading.Lock()
 
         # Prepare infrastructure once (exchange, queues, bindings)
         self.setup_rabbitmq_infrastructure()
@@ -413,6 +417,16 @@ class TOSUIApplication:
             self.ui_logger.info(f"Returning {len(result)} model names from all setups")
             return jsonify(result)
 
+        @self.app.route("/get_error_messages", methods=["GET"])
+        def get_error_messages():
+            """Get pending error messages for frontend display."""
+            try:
+                messages = self.get_error_messages()
+                return jsonify({"success": True, "errors": messages})
+            except Exception as e:
+                self.ui_logger.error(f"Error retrieving error messages: {e}")
+                return jsonify({"success": False, "errors": []})
+
 
     def start(self, host, port):
         """Start the Flask application."""
@@ -491,6 +505,8 @@ class TOSUIApplication:
             # We only treat it as an error if it's not None, empty string, or the literal string "None"
             if err_val and err_val not in ("None", ""):
                 self.ui_logger.error("Response error: %s", err_val)
+                # Add error to the queue for frontend notification
+                self._add_error_message(err_val)
 
         msg_type = data.get("type", "")
         message_cmd = data.get("message", "")
@@ -559,6 +575,27 @@ class TOSUIApplication:
 
         # Acknowledge that we processed the message
         ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    def _add_error_message(self, error_msg):
+        """Add an error message to the queue for frontend notification."""
+        import time
+        with self.error_lock:
+            # Add timestamp and limit queue size to prevent memory issues
+            error_entry = {
+                'message': error_msg,
+                'timestamp': time.time()
+            }
+            self.error_messages.append(error_entry)
+            # Keep only the last 10 error messages
+            if len(self.error_messages) > 10:
+                self.error_messages = self.error_messages[-10:]
+
+    def get_error_messages(self):
+        """Get and clear all pending error messages."""
+        with self.error_lock:
+            messages = self.error_messages.copy()
+            self.error_messages.clear()
+            return messages
 
 
     ###################################################################

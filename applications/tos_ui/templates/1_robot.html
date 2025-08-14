@@ -3,10 +3,11 @@
 <head>
   <title>TOS UI</title>
   <style>
-    /* Main brand colors */
+    /* Main brand colors and scaling factor */
     :root {
       --color-blue: #2a4595;
       --color-red:  #d91b11;
+      --scale-factor: {{ ui_scale_factor }}; /* Scaling factor from config.yaml */
     }
 
     /* Reset / Base styles */
@@ -19,6 +20,7 @@
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background-color: #f2f2f2;
       color: #333;
+      font-size: calc(16px * var(--scale-factor)); /* Scaled base font size */
     }
 
     /* Full-width top header with centered logos */
@@ -28,28 +30,28 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4rem;
-      padding: 0.5rem 1rem;
+      gap: calc(4rem * var(--scale-factor));
+      padding: calc(0.5rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
     }
     .logo-tos {
-      height: 100px;
+      height: calc(100px * var(--scale-factor));
       object-fit: contain;
     }
     .logo-breda {
-      height: 100px;
+      height: calc(100px * var(--scale-factor));
       object-fit: contain;
     }
     .logo-stimulus {
-      height: 50px;
+      height: calc(50px * var(--scale-factor));
       object-fit: contain;
     }
 
     /* Container for the two sections + red lines */
     .two-sections {
       position: relative;    
-      width: 900px;          
-      height: 505px;         
-      margin: 2rem auto;     
+      width: calc(900px * var(--scale-factor));          
+      height: calc(505px * var(--scale-factor));         
+      margin: calc(2rem * var(--scale-factor)) auto;     
       background-color: #f2f2f2;
     }
 
@@ -57,25 +59,25 @@
     .line-top-left {
       position: absolute;
       top: 0;
-      left: -5px;
-      width: 5px;
-      height: 500px;
+      left: calc(-5px * var(--scale-factor));
+      width: calc(5px * var(--scale-factor));
+      height: calc(500px * var(--scale-factor));
       background-color: var(--color-red);
     }
     .line-top-bottom {
       position: absolute;
       left: 0;
       width: 100%;
-      height: 5px;
-      top: 500px;
+      height: calc(5px * var(--scale-factor));
+      top: calc(500px * var(--scale-factor));
       background-color: var(--color-red);
     }
     .line-bottom-right {
       position: absolute;
-      top: 500px;
-      right: -5px;
-      width: 5px;
-      height: 205px;
+      top: calc(500px * var(--scale-factor));
+      right: calc(-5px * var(--scale-factor));
+      width: calc(5px * var(--scale-factor));
+      height: calc(205px * var(--scale-factor));
       background-color: var(--color-red);
     }
 
@@ -85,52 +87,52 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 500px;
+      height: calc(500px * var(--scale-factor));
       background-color: #fff;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: calc(6px * var(--scale-factor));
+      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
       text-align: center;
-      padding: 1.5rem;
+      padding: calc(1.5rem * var(--scale-factor));
     }
 
     /* Bottom box: 200px tall */
     .box-bottom {
       position: absolute;
-      top: 505px;  
+      top: calc(505px * var(--scale-factor));  
       left: 0;
       width: 100%;
-      height: 200px;
+      height: calc(200px * var(--scale-factor));
       background-color: #fff;
-      border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: calc(6px * var(--scale-factor));
+      box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
       text-align: center;
-      padding: 1.5rem;
+      padding: calc(1.5rem * var(--scale-factor));
     }
 
     /* Headings */
     .box-top h2,
     .box-bottom h2 {
-      margin-bottom: 1rem;
+      margin-bottom: calc(1rem * var(--scale-factor));
       color: var(--color-blue);
     }
 
     /* Buttons row(s) */
     .button-row {
-      margin-top: 1rem;
+      margin-top: calc(1rem * var(--scale-factor));
     }
     .btn {
       display: inline-block;
-      width: 220px;  /* fixed width for uniform button size */
+      width: calc(220px * var(--scale-factor));  /* fixed width for uniform button size */
       white-space: nowrap;
       text-align: center;
-      padding: 0.7rem;
-      margin: 0.5rem 0.75rem;
+      padding: calc(0.7rem * var(--scale-factor));
+      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
       background-color: var(--color-blue);
       color: #fff;
-      border-radius: 4px;
+      border-radius: calc(4px * var(--scale-factor));
       cursor: pointer;
       border: none;
-      font-size: 1rem;
+      font-size: calc(1rem * var(--scale-factor));
       transition: background-color 0.2s ease-in-out;
     }
     .btn:hover {
@@ -139,17 +141,17 @@
 
     /* Fixed-width dropdown */
     #datasetsDropdown {
-      width: 220px; 
-      padding: 0.4rem;
-      font-size: 1rem;
-      margin: 0.5rem 0.75rem;
+      width: calc(220px * var(--scale-factor)); 
+      padding: calc(0.4rem * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
     }
 
     #modelsDropdown {
-      width: 220px; 
-      padding: 0.4rem;
-      font-size: 1rem;
-      margin: 0.5rem 0.75rem;
+      width: calc(220px * var(--scale-factor)); 
+      padding: calc(0.4rem * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      margin: calc(0.5rem * var(--scale-factor)) calc(0.75rem * var(--scale-factor));
     }
 
     /* Dropdown with action icons */
@@ -160,11 +162,11 @@
 
     .dropdown-option-icons {
       position: absolute;
-      right: 30px;
+      right: calc(30px * var(--scale-factor));
       top: 50%;
       transform: translateY(-50%);
       display: none;
-      gap: 4px;
+      gap: calc(4px * var(--scale-factor));
       z-index: 1000;
     }
 
@@ -180,9 +182,9 @@
 
     .dropdown-option-icons .icon {
       cursor: pointer;
-      padding: 2px;
-      border-radius: 3px;
-      font-size: 14px;
+      padding: calc(2px * var(--scale-factor));
+      border-radius: calc(3px * var(--scale-factor));
+      font-size: calc(14px * var(--scale-factor));
       opacity: 0.7;
       transition: all 0.2s;
       position: relative;
@@ -212,9 +214,9 @@
       transform: translateX(-50%);
       background-color: #333;
       color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
+      padding: calc(4px * var(--scale-factor)) calc(8px * var(--scale-factor));
+      border-radius: calc(4px * var(--scale-factor));
+      font-size: calc(12px * var(--scale-factor));
       white-space: nowrap;
       opacity: 0;
       pointer-events: none;
@@ -231,29 +233,182 @@
       display: none;
     }
 
-    /* Bottom Box sliders area */
+    /* Bottom Box settings area */
     .settings-section h3 {
-      margin-bottom: 1rem;
+      margin-bottom: calc(1rem * var(--scale-factor));
       color: var(--color-blue);
-      font-size: 1.2rem;
+      font-size: calc(1.2rem * var(--scale-factor));
     }
-    .slider-row {
-      margin: 1rem auto;
-      text-align: left;
-      max-width: 300px;
+
+    /* Speed control styling */
+    .speed-control-row {
+      display: grid;
+      grid-template-columns: calc(140px * var(--scale-factor)) 1fr;
+      align-items: center;
+      margin: calc(1rem * var(--scale-factor)) auto;
+      max-width: calc(400px * var(--scale-factor));
+      gap: calc(1rem * var(--scale-factor));
     }
-    .slider-row label {
-      display: inline-block;
-      min-width: 120px;
+
+    .setting-label {
+      color: var(--color-blue);
+      font-weight: bold;
+      padding-right: calc(1rem * var(--scale-factor));
     }
-    .slider-row input[type="range"] {
-      vertical-align: middle;
-      margin-left: 0.5rem;
+
+    .setting-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(1rem * var(--scale-factor));
     }
-    .slider-value {
+
+    .speed-buttons {
+      display: flex;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor));
+    }
+    
+    .speed-button {
+      flex: 1;
+      padding: calc(0.8rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #4a5a8a !important;
+      border-radius: calc(4px * var(--scale-factor));
+      background-color: white !important;
+      color: #4a5a8a !important;
+      cursor: pointer;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-sizing: border-box !important;
+    }
+    
+    .speed-button:hover {
+      background-color: #f5f5f5 !important;
+      border-color: #3a4a7a !important;
+      color: #3a4a7a !important;
+    }
+    
+    .speed-button.active {
+      background-color: rgba(217, 27, 17, 0.7) !important;
+      color: white !important;
+      border-color: rgba(217, 27, 17, 0.7) !important;
+    }
+
+    /* Custom prompt modal styles */
+    .custom-prompt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+
+    .custom-prompt-modal {
+      background-color: white;
+      border-radius: calc(8px * var(--scale-factor));
+      box-shadow: 0 calc(4px * var(--scale-factor)) calc(20px * var(--scale-factor)) rgba(0, 0, 0, 0.3);
+      padding: calc(2rem * var(--scale-factor));
+      width: calc(400px * var(--scale-factor));
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .custom-prompt-title {
+      font-size: calc(1.2rem * var(--scale-factor));
       font-weight: bold;
       color: var(--color-blue);
-      margin-left: 1rem;
+      margin-bottom: calc(1rem * var(--scale-factor));
+    }
+
+    .custom-prompt-input {
+      width: 100%;
+      padding: calc(0.8rem * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #ddd;
+      border-radius: calc(4px * var(--scale-factor));
+      margin-bottom: calc(1.5rem * var(--scale-factor));
+      box-sizing: border-box;
+    }
+
+    .custom-prompt-input:focus {
+      outline: none;
+      border-color: var(--color-blue);
+    }
+
+    .custom-prompt-buttons {
+      display: flex;
+      gap: calc(1rem * var(--scale-factor));
+      justify-content: center;
+    }
+
+    .custom-prompt-btn {
+      padding: calc(0.8rem * var(--scale-factor)) calc(1.5rem * var(--scale-factor));
+      font-size: calc(1rem * var(--scale-factor));
+      border: none;
+      border-radius: calc(4px * var(--scale-factor));
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      min-width: calc(80px * var(--scale-factor));
+    }
+
+    .custom-prompt-btn.primary {
+      background-color: var(--color-blue);
+      color: white;
+    }
+
+    .custom-prompt-btn.primary:hover {
+      background-color: #3a4a7a;
+    }
+
+    .custom-prompt-btn.secondary {
+      background-color: #ddd;
+      color: #333;
+    }
+
+    .custom-prompt-btn.secondary:hover {
+      background-color: #ccc;
+    }
+
+    /* Error popup styles */
+    .error-popup {
+      position: fixed;
+      top: calc(20px * var(--scale-factor));
+      right: calc(20px * var(--scale-factor));
+      background-color: #f44336;
+      color: white;
+      padding: calc(15px * var(--scale-factor)) calc(20px * var(--scale-factor));
+      border-radius: calc(8px * var(--scale-factor));
+      box-shadow: 0 calc(4px * var(--scale-factor)) calc(12px * var(--scale-factor)) rgba(0,0,0,0.3);
+      max-width: calc(400px * var(--scale-factor));
+      z-index: 9999;
+      font-size: calc(16px * var(--scale-factor));
+      font-weight: bold;
+      cursor: pointer;
+      transform: translateX(calc(420px * var(--scale-factor)));
+      transition: transform 0.3s ease-in-out;
+    }
+
+    .error-popup.show {
+      transform: translateX(0);
+    }
+
+    .error-popup .close-btn {
+      float: right;
+      margin-left: calc(10px * var(--scale-factor));
+      font-size: calc(20px * var(--scale-factor));
+      font-weight: bold;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .error-popup .close-btn:hover {
+      opacity: 1;
     }
   </style>
 </head>
@@ -343,47 +498,126 @@
     <div class="box-bottom">
       <h2>Settings</h2>
       <div class="settings-section">
-      <!-- Recording Speed slider -->
-      <div class="slider-row">
-        <label for="recording_speed">Recording Speed:</label>
-        <input type="range" id="recording_speed" name="recording_speed"
-           min="0" max="2" value="1" step="1"
-           oninput="updateSliderValueRecording(this.value)">
-        <span class="slider-value" id="recording_speed_value">0.5</span>
-      </div>
+        <!-- Recording Speed buttons -->
+        <div class="speed-control-row">
+          <div class="setting-label">Recording Speed:</div>
+          <div class="setting-control">
+            <div class="speed-buttons" id="recording-speed-buttons">
+              <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0)">0.25</button>
+              <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1)">0.5</button>
+              <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2)">1.0</button>
+            </div>
+          </div>
+        </div>
 
-      <script>
-        function updateSliderValueRecording(index) {
-        const speeds = [0.25, 0.5, 1.0];
-        const valueSpan = document.getElementById('recording_speed_value');
-        valueSpan.textContent = speeds[index];
-        }
-        // Initialize with default value from config
-        const defaultRecordingSpeed = 0.5; // Will be set by server template
-        const speeds = [0.25, 0.5, 1.0];
-        const defaultIndex = speeds.indexOf(defaultRecordingSpeed);
-        if (defaultIndex >= 0) {
-            document.getElementById('recording_speed').value = defaultIndex;
-            updateSliderValueRecording(defaultIndex);
-        } else {
-            // Fallback to middle value if config speed not in array
-            updateSliderValueRecording(1);
-        }
-      </script>
-
-        <!-- Playback Speed slider -->
-        <div class="slider-row">
-          <label for="playback_speed">Playback Speed:</label>
-          <!-- We'll treat this slider as an index into a discrete array. -->
-          <input type="range" id="playback_speed" name="playback_speed"
-                 min="0" max="3" value="0" step="1"
-                 oninput="updateSliderValue('playback_speed', this.value)"
-                 data-speeds="[]"  
-          > <!-- We will fill this in at runtime -->
-          <span class="slider-value" id="playback_speed_value">N/A</span>
+        <!-- Playback Speed buttons -->
+        <div class="speed-control-row">
+          <div class="setting-label">Playback Speed:</div>
+          <div class="setting-control">
+            <div class="speed-buttons" id="playback-speed-buttons">
+              <!-- Buttons will be dynamically generated based on recording speed -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+      <script>
+        // Global variables to track selected speeds
+        window.selectedRecordingSpeedIndex = 1; // Default to 0.5x (index 1)
+        window.selectedPlaybackSpeedIndex = 0; // Default to first option
+        
+        function selectRecordingSpeed(index) {
+          const speeds = [0.25, 0.5, 1.0];
+          const buttons = document.querySelectorAll('#recording-speed-buttons .speed-button');
+          
+          // Remove active class from all buttons
+          buttons.forEach(btn => btn.classList.remove('active'));
+          
+          // Add active class to selected button
+          if (buttons[index]) {
+            buttons[index].classList.add('active');
+            window.selectedRecordingSpeedIndex = index;
+            console.log('Recording speed selected:', speeds[index]);
+            
+            // Update playback speed options based on new recording speed
+            setPlaybackSpeedOptions(speeds[index]);
+          }
+        }
+        
+        function selectPlaybackSpeed(index) {
+          const buttons = document.querySelectorAll('#playback-speed-buttons .speed-button');
+          
+          // Remove active class from all buttons
+          buttons.forEach(btn => btn.classList.remove('active'));
+          
+          // Add active class to selected button
+          if (buttons[index]) {
+            buttons[index].classList.add('active');
+            window.selectedPlaybackSpeedIndex = index;
+            
+            const speed = parseFloat(buttons[index].getAttribute('data-speed'));
+            console.log('Playback speed selected:', speed);
+          }
+        }
+
+        function setPlaybackSpeedOptions(recordingSpeed) {
+          let speeds;
+          switch (recordingSpeed) {
+            case 0.25:
+              speeds = [0.5, 1.0, 2.0, 4.0];
+              break;
+            case 0.5:
+              speeds = [0.25, 0.5, 1.0, 2.0];
+              break;
+            case 1.0:
+              speeds = [0.25, 0.5, 0.75, 1.0];
+              break;
+            default:
+              speeds = [0.25, 0.5, 1.0, 2.0];
+              break;
+          }
+
+          const playbackButtonsContainer = document.getElementById('playback-speed-buttons');
+          playbackButtonsContainer.innerHTML = ''; // Clear existing buttons
+
+          // Create buttons for each speed
+          speeds.forEach((speed, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'speed-button';
+            button.setAttribute('data-speed', speed);
+            button.textContent = speed;
+            button.onclick = () => selectPlaybackSpeed(index);
+            playbackButtonsContainer.appendChild(button);
+          });
+
+          // Default to the index of "1.0" if present, else 0
+          let defaultIndex = speeds.indexOf(1.0);
+          if (defaultIndex < 0) {
+            defaultIndex = 0;
+          }
+          
+          // Set the active button
+          selectPlaybackSpeed(defaultIndex);
+        }
+        
+        // Initialize with default recording speed from config
+        const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
+        const recordingSpeeds = [0.25, 0.5, 1.0];
+        const defaultRecordingIndex = recordingSpeeds.indexOf(defaultRecordingSpeed);
+        if (defaultRecordingIndex >= 0) {
+          window.selectedRecordingSpeedIndex = defaultRecordingIndex;
+          // Set default playback speed options
+          setPlaybackSpeedOptions(defaultRecordingSpeed);
+          // Update the active recording speed button
+          selectRecordingSpeed(defaultRecordingIndex);
+        } else {
+          // Fallback to middle value if config speed not in array
+          setPlaybackSpeedOptions(0.5);
+          selectRecordingSpeed(1);
+        }
+      </script>
   </div>
 
 
@@ -519,27 +753,20 @@
     }
 
     /**
-     * For the "Recording Speed" slider, we assume an index of [0, 1, 2]
-     * mapping to [0.25, 0.5, 1.0].
+     * Get the currently selected recording speed from the button interface.
      */
     function getRecordingSpeed() {
-      const slider = document.getElementById('recording_speed');
-      const index = parseInt(slider.value, 10);
       const speeds = [0.25, 0.5, 1.0];
-      return speeds[index]; // e.g. 0.5
+      return speeds[window.selectedRecordingSpeedIndex] || 0.5; // fallback
     }
 
     /**
-     * For the "Playback Speed" slider, we read a dynamic array from data-speeds,
-     * then use the slider's value as an array index.
+     * Get the currently selected playback speed from the button interface.
      */
     function getPlaybackSpeed() {
-      const playbackSlider = document.getElementById('playback_speed');
-      const speeds = JSON.parse(playbackSlider.getAttribute('data-speeds') || "[]");
-      const index = parseInt(playbackSlider.value, 10);
-
-      if (index >= 0 && index < speeds.length) {
-        return speeds[index]; // e.g. 2.0
+      const activeButton = document.querySelector('#playback-speed-buttons .speed-button.active');
+      if (activeButton) {
+        return parseFloat(activeButton.getAttribute('data-speed'));
       }
       return 1.0; // fallback
     }
@@ -645,31 +872,52 @@
                            now.getMinutes().toString().padStart(2, '0') + 
                            now.getSeconds().toString().padStart(2, '0');
         
-        const newName = prompt('Enter new dataset name:', defaultName);
-        if (newName && newName.trim()) {
-          // Remove any existing custom dataset first
-          const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
-          if (existingCustomOption) {
-            existingCustomOption.remove();
+        showCustomPrompt('Enter new dataset name:', defaultName).then(newName => {
+          if (newName && newName.trim()) {
+            // Remove any existing custom dataset first
+            const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
+            if (existingCustomOption) {
+              existingCustomOption.remove();
+            }
+            
+            // Track this locally created dataset
+            window.localDatasets.add(newName.trim());
+            
+            // Create a new option with the entered name
+            const newOpt = document.createElement('option');
+            newOpt.value = newName.trim();
+            newOpt.textContent = newName.trim();
+            // Mark as custom dataset
+            newOpt.setAttribute('data-custom', 'true');
+            // Insert before the "New..." option
+            dropdown.insertBefore(newOpt, dropdown.lastElementChild);
+            dropdown.value = newName.trim();
+            
+            // Clear the models dropdown and fetch models for the new dataset
+            const modelsDropdown = document.getElementById('modelsDropdown');
+            if (modelsDropdown) {
+              modelsDropdown.innerHTML = '<option hidden value="">Select model...</option>';
+              
+              // Only fetch models if this is not a locally created dataset
+              const isLocalDataset = window.localDatasets.has(dropdown.value);
+              if (!isLocalDataset) {
+                // Fetch models for the new dataset
+                fetchModelsInBackground();
+              } else {
+                // For locally created datasets, just add the "New..." option
+                const newOpt = document.createElement('option');
+                newOpt.value = "NEW_MODEL";
+                newOpt.textContent = "New...";
+                modelsDropdown.appendChild(newOpt);
+              }
+            }
+          } else {
+            // Reset to empty if cancelled or empty
+            dropdown.value = "";
+            return;
           }
-          
-          // Track this locally created dataset
-          window.localDatasets.add(newName.trim());
-          
-          // Create a new option with the entered name
-          const newOpt = document.createElement('option');
-          newOpt.value = newName.trim();
-          newOpt.textContent = newName.trim();
-          // Mark as custom dataset
-          newOpt.setAttribute('data-custom', 'true');
-          // Insert before the "New..." option
-          dropdown.insertBefore(newOpt, dropdown.lastElementChild);
-          dropdown.value = newName.trim();
-        } else {
-          // Reset to empty if cancelled or empty
-          dropdown.value = "";
-          return;
-        }
+        });
+        return;
       }
       
       // Clear the models dropdown and fetch models for the new dataset
@@ -860,31 +1108,32 @@
                            now.getMinutes().toString().padStart(2, '0') + 
                            now.getSeconds().toString().padStart(2, '0');
         
-        const newName = prompt('Enter new model name:', defaultName);
-        if (newName && newName.trim()) {
-          // Remove any existing custom model first
-          const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
-          if (existingCustomOption) {
-            existingCustomOption.remove();
+        showCustomPrompt('Enter new model name:', defaultName).then(newName => {
+          if (newName && newName.trim()) {
+            // Remove any existing custom model first
+            const existingCustomOption = dropdown.querySelector('option[data-custom="true"]');
+            if (existingCustomOption) {
+              existingCustomOption.remove();
+            }
+            
+            // Track this locally created model
+            window.localModels.add(newName.trim());
+            
+            // Create a new option with the entered name
+            const newOpt = document.createElement('option');
+            newOpt.value = newName.trim();
+            newOpt.textContent = newName.trim();
+            // Mark as custom model
+            newOpt.setAttribute('data-custom', 'true');
+            // Insert before the "New..." option
+            dropdown.insertBefore(newOpt, dropdown.lastElementChild);
+            dropdown.value = newName.trim();
+          } else {
+            // Reset to empty if cancelled or empty
+            dropdown.value = "";
+            return;
           }
-          
-          // Track this locally created model
-          window.localModels.add(newName.trim());
-          
-          // Create a new option with the entered name
-          const newOpt = document.createElement('option');
-          newOpt.value = newName.trim();
-          newOpt.textContent = newName.trim();
-          // Mark as custom model
-          newOpt.setAttribute('data-custom', 'true');
-          // Insert before the "New..." option
-          dropdown.insertBefore(newOpt, dropdown.lastElementChild);
-          dropdown.value = newName.trim();
-        } else {
-          // Reset to empty if cancelled or empty
-          dropdown.value = "";
-          return;
-        }
+        });
       }
     }
 
@@ -958,10 +1207,11 @@
       }
       
       // Prompt for new name
-      const newName = prompt('Enter new dataset name:', selected);
-      if (newName && newName.trim() && newName.trim() !== selected) {
-        sendRenameDatasetCommand(selected, newName.trim());
-      }
+      showCustomPrompt('Enter new dataset name:', selected).then(newName => {
+        if (newName && newName.trim() && newName.trim() !== selected) {
+          sendRenameDatasetCommand(selected, newName.trim());
+        }
+      });
     }
 
     /**
@@ -1079,10 +1329,11 @@
       }
       
       // Prompt for new name
-      const newName = prompt('Enter new model name:', selected);
-      if (newName && newName.trim() && newName.trim() !== selected) {
-        sendRenameModelCommand(selected, newName.trim());
-      }
+      showCustomPrompt('Enter new model name:', selected).then(newName => {
+        if (newName && newName.trim() && newName.trim() !== selected) {
+          sendRenameModelCommand(selected, newName.trim());
+        }
+      });
     }
 
     /**
@@ -1295,31 +1546,6 @@
 
 
     /**
-     * The generic slider update function:
-     * - If it's the "playback_speed" slider, we treat `newValue` as an array index.
-     * - If it's the "recording_speed" slider, we just print the numeric value for now.
-     */
-    function updateSliderValue(sliderId, newValue) {
-      const sliderValueSpan = document.getElementById(sliderId + '_value');
-      if (!sliderValueSpan) return;
-
-      if (sliderId === "playback_speed") {
-        const slider = document.getElementById(sliderId);
-        // Read the array of discrete speeds
-        const speeds = JSON.parse(slider.getAttribute('data-speeds') || "[]");
-
-        const index = parseInt(newValue, 10);
-        if (index >= 0 && index < speeds.length) {
-          sliderValueSpan.textContent = speeds[index];
-        } else {
-          sliderValueSpan.textContent = 'N/A';
-        }
-      } else {
-        // For the "recording_speed" slider, just show the numeric value [0..100].
-        sliderValueSpan.textContent = newValue;
-      }
-    }
-
     /**
      * Refresh datasets data and update icon visibility
      */
@@ -1440,6 +1666,135 @@
       modelsContainer.addEventListener('mouseenter', function() {
         updateIconVisibility('modelsDropdown', document.getElementById('modelsDropdown').value);
       });
+    });
+
+    // Error message polling and display functionality
+    function checkForErrors() {
+      fetch('/get_error_messages')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.errors && data.errors.length > 0) {
+            data.errors.forEach(error => {
+              showErrorPopup(error.message);
+            });
+          }
+        })
+        .catch(err => {
+          console.error('Error checking for error messages:', err);
+        });
+    }
+
+    function showErrorPopup(message) {
+      // Remove any existing error popup
+      const existingPopup = document.querySelector('.error-popup');
+      if (existingPopup) {
+        existingPopup.remove();
+      }
+
+      // Create new popup
+      const popup = document.createElement('div');
+      popup.className = 'error-popup';
+      popup.innerHTML = `
+        <span class="close-btn" onclick="this.parentElement.remove()">&times;</span>
+        <div>${message}</div>
+      `;
+
+      // Add to body
+      document.body.appendChild(popup);
+
+      // Trigger animation
+      setTimeout(() => {
+        popup.classList.add('show');
+      }, 100);
+
+      // Auto-close after 8 seconds
+      setTimeout(() => {
+        if (popup && popup.parentElement) {
+          popup.classList.remove('show');
+          setTimeout(() => {
+            if (popup && popup.parentElement) {
+              popup.remove();
+            }
+          }, 300);
+        }
+      }, 8000);
+
+      // Allow manual close by clicking the popup
+      popup.addEventListener('click', function() {
+        popup.classList.remove('show');
+        setTimeout(() => {
+          if (popup && popup.parentElement) {
+            popup.remove();
+          }
+        }, 300);
+      });
+    }
+
+    // Start polling for errors every 2 seconds
+    setInterval(checkForErrors, 2000);
+    
+    // Check immediately on load
+    checkForErrors();
+  </script>
+
+  <!-- Custom prompt modal -->
+  <div class="custom-prompt-overlay" id="customPromptOverlay">
+    <div class="custom-prompt-modal">
+      <div class="custom-prompt-title" id="customPromptTitle">Enter name:</div>
+      <input type="text" class="custom-prompt-input" id="customPromptInput" placeholder="Enter name...">
+      <div class="custom-prompt-buttons">
+        <button class="custom-prompt-btn secondary" onclick="closeCustomPrompt()">Cancel</button>
+        <button class="custom-prompt-btn primary" onclick="confirmCustomPrompt()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Custom prompt functionality
+    let customPromptCallback = null;
+
+    function showCustomPrompt(title, defaultValue = '') {
+      return new Promise((resolve) => {
+        customPromptCallback = resolve;
+        document.getElementById('customPromptTitle').textContent = title;
+        document.getElementById('customPromptInput').value = defaultValue;
+        document.getElementById('customPromptOverlay').style.display = 'flex';
+        document.getElementById('customPromptInput').focus();
+        document.getElementById('customPromptInput').select();
+      });
+    }
+
+    function closeCustomPrompt() {
+      document.getElementById('customPromptOverlay').style.display = 'none';
+      if (customPromptCallback) {
+        customPromptCallback(null);
+        customPromptCallback = null;
+      }
+    }
+
+    function confirmCustomPrompt() {
+      const value = document.getElementById('customPromptInput').value;
+      document.getElementById('customPromptOverlay').style.display = 'none';
+      if (customPromptCallback) {
+        customPromptCallback(value);
+        customPromptCallback = null;
+      }
+    }
+
+    // Handle Enter key in prompt input
+    document.getElementById('customPromptInput').addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        confirmCustomPrompt();
+      } else if (event.key === 'Escape') {
+        closeCustomPrompt();
+      }
+    });
+
+    // Close prompt when clicking overlay
+    document.getElementById('customPromptOverlay').addEventListener('click', function(event) {
+      if (event.target === this) {
+        closeCustomPrompt();
+      }
     });
   </script>
 </body>
