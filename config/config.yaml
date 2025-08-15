@@ -1,23 +1,27 @@
 # config.yaml
 
-
+setup: "setup_1"  # Default setup to load, can be overridden during installation
 
 general:
   # Application
-  # application: 'AI_robot_controller'
-  application: 'Teachbot_controller'
-  customer: 'BR'
+  application: 'AI_robot_controller'
+  # application: 'Teachbot_controller'
+  customer: ''
+
 
   # Robot controller settings
   # start_position: [0, -20, -50, 0, 30, 50, 0]  # 6 joints + gripper state
-  start_position: [0, 0, 0, 180, 180, 90, 0]  # Default start position: 6 robot joints + gripper state 
+  start_position: [0, 0, 0, 0, 0, 0, 0]  # Default start position: 6 robot joints + gripper state 
   start_joint_tolerance: 10
   joint_synchronization: False
   default_recording_speed: 0.5
   gripper_delay: 0.3 # In seconds on robot speed 1
   gripper_treshold: 0.5
-  action_buffer_length: 1
+  action_buffer_length: 3
   j4_locked: True
+
+  # End Effector settings
+  EE_type: "integrated" # or "external" 
 
   # Directories
   app_directory: "."
@@ -43,72 +47,65 @@ general:
   robot_interface_priority_value: -10  # Nice value (-20 to 19, lower = higher priority)
 
 
+
+
+
+
+
 # --------------------------------------HARDWARE CONFIGURATION--------------------------------
 
 hardware:
-  active_setups: ['setup_1']  # List of active setups to load
+  # active_setups: ['setup_1']  # List of active setups to load
+  active_setups: ['setup_1', 'setup_2']  # Uncomment to enable multiple setups
 
   setup_1:
     setup_id: 1
+    tos_ui_host: True
+    ip_address: "192.168.1.201"
 
   # --------------------------------------Robot Configuration--------------------------------
-
     robot:
-      # Robot settings
-      brand: "Techman"
-      control_dt : 0.01
+      # Dummy robot settings (same as FANUC but without actual communication)
+      brand: "dummy"
+      model: "Dummy Robot"
+      control_dt : 0.004
+      utool_no: 1 #not used yet
+      uframe_no: 1 #not used yet
+      payload_weight: 2
+      max_payload: 7
+      j3_limit: 59
+      j3_interaction: True
       dof: 6
-      dof_ee: 2
-      server_adress:
-        - "192.168.10.3"
-        - 8001
-      robot_adress: 
-        - "192.168.10.2"
-        - 5890
-      robot_recv_address: 
-        - "192.168.10.3"  # Local machine IP to receive data from robot
-        - 5891
-      # Techman TMSCT Position command parameters
-      move_to_start_params:
-        accel_time: 2000        # Time interval to accelerate to top speed (ms), range: 150-2000
-        motion_gain: 1          # Motion Control Gain value, range: 1-100, larger is faster response to new value
-        protection_time: 100     # Control value protection time interval (ms), min: 20
-      
-      continuous_mode_params:
-        accel_time: 600        # Time interval to accelerate to top speed (ms), range: 150-2000  
-        motion_gain: 80          # Motion Control Gain value, range: 1-100
-        protection_time: 100     # Control value protection time interval (ms), min: 20
-
-      velocity_limits: [120, 120, 180, 180, 180, 180]  # Max velocity for each joint in degrees/sec
-      limit_safety_factor: 0.1  # Safety factor for limits (0.0 to 1.0)
-
-      # End Effector settings
-      EE_type: "external" # or "integrated"
-      
-      # MQTT configuration for external EE communication (B&R PLC)
-      mqtt:
-        broker_host: "localhost"      # MQTT broker host (where mosquitto is running)
-        broker_port: 1883             # MQTT broker port
-        topic: "TOS/ee"               # MQTT topic for end effector data
-        client_id: "TechmanRobot"     # MQTT client ID (must be unique)
-      
-      # End Effector configuration
-      ee_config:
-        select: true                  # Select value from config (M103 in PLC)
-        # Note: eedof1 (setpoint) comes from potentiometer (0.0-1.0) -> scaled to 0-4095
-        # Note: eedof2 (grind) comes from action (0.0/1.0) -> converted to boolean
-      
-      # Legacy PLC configuration (kept for compatibility)
-      plc:                           
-        address: "192.168.10.40"     # PLC IP address
-        port: 1883                   # PLC port
-        select_toggle: true          # Enable select toggle for PLC
-
-
+      dof_ee: 1
+      server_address: 
+        - "127.0.0.1"  # Localhost for dummy
+        - 8001  # IP and port of the cpp connects to  port + 1
+      robot_address: 
+        - "127.0.0.1"  # Localhost for dummy
+        - 60015
+      rmi_port: 16001
+      upper_limits: [165, 140, 208, 185, 120, 355]
+      lower_limits: [-165, -95, -65, -185, -120, -355]
+      velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
 
 
     # --------------------------------------Teachbot Configuration--------------------------------
 
+    # teachbot:
+    #   # Teachbot settings
+    #   brand: "dummy"
+    #   model: "_"
+    #   joint_target_period: 0.004
+    #   j6_min_angle: -140
+    #   j6_max_angle: 220
+    #   j6_multiplier: 1
+    #   gripper_treshold: 1085
+    #   gripper_min: 91.14
+    #   gripper_max: 102.65
+    #   dof: 6
+    #   dof_ee: 2
 
     teachbot:
       # TOS encoder settings for teachbot
@@ -118,7 +115,7 @@ hardware:
       j6_min_angle: -140
       j6_max_angle: 220
       j6_multiplier: 1
-      local_ip: "192.168.10.3"
+      local_ip: "192.168.1.201"
       start_port: 5006
       dof: 6
       dof_ee: 2
@@ -132,7 +129,6 @@ hardware:
         3: 2  # Joint 3 (Encoder 4) -> port 5008 (start_port + 2)
         4: 4  # Joint 4 (Encoder 5) -> port 5010 (start_port + 4)
         5: 0  # Joint 5 (Encoder 6) -> port 5006 (start_port + 0)
-
 
       # When action is EE_dof_n, this is parsed as dof_ee to the robot controller
       grippers:
@@ -154,16 +150,139 @@ hardware:
           action: "EE_dof_2"  # Action to perform when button 2 is pressed
 
 
+    # teachbot:
+    #   # Teachbot settings
+    #   brand: "Interbotix"
+    #   model: "WX250S"
+    #   j6_min_angle: -140
+    #   j6_max_angle: 220
+    #   j6_multiplier: 1
+    #   gripper_min: 91.14
+    #   gripper_max: 102.65
 
 
 
+
+
+  # --------------------------------------Camera Configuration--------------------------------
+
+
+    camera:
+      # Camera settings
+      brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
+      info:
+        - name: "cam_1"
+          serial_number: "DUMMY_001"
+          fps: 90
+          color_width: 424
+          color_height: 240
+          depth_width: 424
+          depth_height: 240
+
+    # camera:
+    #   # Camera settings
+    #   brand: "inteld405" 
+    #   info:
+    #     - name: "cam_1"
+    #       serial_number: "218622271425"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+    #     - name: "cam_2"
+    #       serial_number: "218622271391"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+    #     - name: "cam_3"
+    #       serial_number: "130322272626"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+    #     - name: "cam_4"
+    #       serial_number: "218622271529"
+    #       fps: 90
+    #       color_width: 424
+    #       color_height: 240
+    #       depth_width: 424
+    #       depth_height: 240
+
+
+
+
+
+  setup_2:
+    setup_id: 2
+    tos_ui_host: False
+    ip_address: "192.168.1.203"
+
+  # --------------------------------------Robot Configuration--------------------------------
+    robot:
+      # FANUC robot settings (comment out dummy config above and uncomment this for real robot)
+      number: 2
+      brand: "fanuc"
+      model: "LRMate 200iD 7l"
+      control_dt : 0.004
+      utool_no: 1 #not used yet
+      uframe_no: 1 #not used yet
+      payload_weight: 2
+      max_payload: 7
+      j3_limit: 59
+      j3_interaction: True
+      dof: 6
+      dof_ee: 1
+      server_address: 
+        - "192.168.1.203"  # IP of setup_2 (robot controller host)
+        - 8001  # IP and port of the cpp connects to  port + 1
+      robot_address: 
+        - "192.168.1.202"  # IP of FANUC robot
+        - 60015
+      rmi_port: 16001
+      upper_limits: [165, 140, 208, 185, 120, 355]
+      lower_limits: [-165, -95, -65, -185, -120, -355]
+      velocity_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      acceleration_factors: {1: 1.0, 2: 1.0, 3: 0.9, 4: 1.0, 5: 0.8, 6: 0.9}
+      jerk_factors: {1: 0.4, 2: 0.5, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8}
+    
+    # --------------------------------------Teachbot Configuration 2--------------------------------
+
+    teachbot:
+      # Teachbot settings
+      brand: "dummy"
+      model: "_"
+      joint_target_period: 0.004
+      j6_min_angle: -140
+      j6_max_angle: 220
+      j6_multiplier: 1
+      gripper_treshold: 1085
+
+  # --------------------------------------Camera Configuration 2--------------------------------
+
+    camera:
+      # Camera settings
+      brand: "dummy"  # Change to "inteld405" for real cameras, "dummy" for random noise cameras
+      info:
+        - name: "cam_1"
+          serial_number: "DUMMY_006"
+          fps: 90
+          color_width: 424
+          color_height: 240
+          depth_width: 424
+          depth_height: 240
 
 
 
 
 
 # --------------------------------------GENERAL CONFIGURATION--------------------------------
-
 
 logging:
   log_level: "DEBUG"
@@ -209,8 +328,6 @@ application:
   open_terminal_default: true
   # Whether to automatically open browser window for TOS UI
   open_browser_default: true
-  # UI scaling factor - adjusts the size of all interface elements proportionally
-  ui_scale_factor: 1.0  # 1.0 = normal size, 1.3 = 30% larger (like teachbot_BR), 0.8 = 20% smaller
 
 
 
@@ -240,9 +357,9 @@ rabbitmq:
     response_routing_key: "robot_controller.{setup_id}.response.{action}"
 
   # Connection defaults
-  host: "localhost"
-  user: "guest"
-  pass: "guest"
+  host: "auto"  # Will resolve to UI host IP (192.168.1.201) automatically
+  user: "admin"
+  pass: "admin"
   heartbeat: 30
   blocked_connection_timeout: 2
   max_retries: 0     # 0 means infinite retry
@@ -255,3 +372,31 @@ rabbitmq:
   product: "MyRabbitApp"
   information: "A robust RabbitMQ client using Pika"
 
+
+cpp:
+  # Shared memory configuration for C++ interface
+  shared_memory:
+    # For save interface (recording)
+    shm_joint_data1:
+      shm_name: "shm_cpp_joint_data1"
+      slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
+      header_format: "=IIII"
+    # For policy interface (real-time control)
+    shm_joint_data2:
+      shm_name: "shm_cpp_joint_data2"
+      capacity: 100
+      slot_format_template: "=8d8d8d??Idd"  # kMaxDof=8 for each position array
+      header_format: "=IIII" 
+
+
+policy:
+  name: "ACT"
+  # Temporal ensemble configuration
+  temporal_ensemble:
+    enabled: true
+    overlap_weight: 0.5  # Weight for overlapping actions (0.0 to 1.0)
+  # Shared memory configuration for policy interface
+  shared_memory:
+    shm_name: "shm_target_pos2"
+    capacity: 500  # Number of sequence entries - should match policy_sequence_buffer_length
+    entry_format_template: "=I{dof}d"  # sequence_id (I) + dof joint positions (d each)

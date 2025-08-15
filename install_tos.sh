@@ -111,6 +111,270 @@ find_tos_root() {
     return 1
 }
 
+# Read and validate TOS configuration
+read_tos_config() {
+    log_info "Reading TOS configuration..."
+    
+    # Get the absolute path to the TOS application root
+    local tos_root
+    if ! tos_root=$(find_tos_root); then
+        log_error "Cannot find TOS application root directory!"
+        log_error "Current directory: $(pwd)"
+        log_error "Please ensure you're running this script from within the TOS application directory tree."
+        exit 1
+    fi
+    
+    export TOS_ROOT="$tos_root"
+    export CONFIG_FILE="$tos_root/config/config.yaml"
+    
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_error "Configuration file not found: $CONFIG_FILE"
+        exit 1
+    fi
+    
+    log_success "Found TOS root: $TOS_ROOT"
+    log_success "Using config file: $CONFIG_FILE"
+}
+
+# Parse YAML configuration using Python
+parse_config() {
+    log_info "Parsing configuration file..."
+    
+    # Create a temporary Python script to parse YAML
+    local parse_script="/tmp/parse_tos_config.py"
+    cat > "$parse_script" << 'EOF'
+import yaml
+import sys
+import json
+
+def parse_config(config_file):
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Extract relevant information
+        result = {
+            'active_setups': config.get('hardware', {}).get('active_setups', []),
+            'setups': {},
+            'current_setup': config.get('setup', 'setup_1'),
+            'rabbitmq_host': config.get('rabbitmq', {}).get('host', 'auto')
+        }
+        
+        # Extract setup information
+        hardware = config.get('hardware', {})
+        for setup_name in result['active_setups']:
+            if setup_name in hardware:
+                setup_data = hardware[setup_name]
+                result['setups'][setup_name] = {
+                    'setup_id': setup_data.get('setup_id'),
+                    'tos_ui_host': setup_data.get('tos_ui_host', False),
+                    'ip_address': setup_data.get('ip_address', 'localhost')
+                }
+        
+        return result
+    except Exception as e:
+        print(f"Error parsing config: {e}", file=sys.stderr)
+        return None
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Usage: python parse_config.py <config_file>", file=sys.stderr)
+        sys.exit(1)
+    
+    result = parse_config(sys.argv[1])
+    if result:
+        print(json.dumps(result, indent=2))
+    else:
+        sys.exit(1)
+EOF
+    
+    # Parse the configuration using system Python (should have PyYAML)
+    local config_json
+    if ! config_json=$(python3 "$parse_script" "$CONFIG_FILE" 2>/dev/null); then
+        log_warning "Failed to parse configuration file. Installing PyYAML and retrying..."
+        
+        # Try to install PyYAML with pip3
+        if command -v pip3 &> /dev/null; then
+            pip3 install --user PyYAML || {
+                log_error "Failed to install PyYAML. Please install it manually: pip3 install PyYAML"
+                exit 1
+            }
+            
+            # Retry parsing
+            if ! config_json=$(python3 "$parse_script" "$CONFIG_FILE"); then
+                log_error "Failed to parse configuration file even after installing PyYAML"
+                exit 1
+            fi
+        else
+            log_error "Python3 or pip3 not found. Cannot parse YAML configuration."
+            exit 1
+        fi
+    fi
+    
+    # Store the parsed configuration
+    echo "$config_json" > /tmp/tos_config.json
+    
+    rm "$parse_script"
+    log_success "Configuration parsed successfully"
+}
+
+# Validate configuration and determine installation type
+validate_config() {
+    log_info "Validating configuration..."
+    
+    local config_json="/tmp/tos_config.json"
+    
+    # Read parsed configuration
+    local active_setups=$(jq -r '.active_setups[]' "$config_json" 2>/dev/null)
+    local setup_count=$(jq -r '.active_setups | length' "$config_json" 2>/dev/null)
+    
+    if [[ -z "$active_setups" ]] || [[ "$setup_count" == "0" ]]; then
+        log_error "No active setups found in configuration"
+        log_error "Please ensure 'hardware.active_setups' is properly configured"
+        exit 1
+    fi
+    
+    log_info "Found $setup_count active setup(s): $(echo $active_setups | tr '\n' ' ')"
+    
+    # Check for UI hosts
+    local ui_hosts=()
+    for setup in $active_setups; do
+        local is_ui_host=$(jq -r ".setups[\"$setup\"].tos_ui_host" "$config_json")
+        if [[ "$is_ui_host" == "true" ]]; then
+            ui_hosts+=("$setup")
+        fi
+    done
+    
+    if [[ ${#ui_hosts[@]} -eq 0 ]]; then
+        log_error "No UI host found! At least one setup must have 'tos_ui_host: True'"
+        log_error "Please configure at least one setup as the UI host in the config"
+        exit 1
+    elif [[ ${#ui_hosts[@]} -gt 1 ]]; then
+        log_error "Multiple UI hosts found: ${ui_hosts[*]}"
+        log_error "Only one setup should have 'tos_ui_host: True'"
+        log_error "Please fix the configuration before proceeding"
+        exit 1
+    fi
+    
+    export UI_HOST_SETUP="${ui_hosts[0]}"
+    export SETUP_COUNT="$setup_count"
+    
+    log_success "Configuration validation passed"
+    log_info "UI Host Setup: $UI_HOST_SETUP"
+}
+
+# Let user choose which setup this installation represents
+choose_setup() {
+    log_info "Determining setup selection..."
+    
+    local config_json="/tmp/tos_config.json"
+    local active_setups=$(jq -r '.active_setups[]' "$config_json")
+    
+    if [[ "$SETUP_COUNT" == "1" ]]; then
+        # Only one setup, use it automatically
+        local single_setup=$(echo "$active_setups" | head -n1)
+        export SELECTED_SETUP="$single_setup"
+        log_info "Single setup configuration detected, using: $SELECTED_SETUP"
+    else
+        # Multiple setups, let user choose
+        echo ""
+        log_info "Multiple setups detected. Please choose which setup this PC represents:"
+        echo ""
+        
+        local setup_array=()
+        local counter=1
+        
+        for setup in $active_setups; do
+            local setup_id=$(jq -r ".setups[\"$setup\"].setup_id" "$config_json")
+            local ip_address=$(jq -r ".setups[\"$setup\"].ip_address" "$config_json")
+            local is_ui_host=$(jq -r ".setups[\"$setup\"].tos_ui_host" "$config_json")
+            local role="Robot Controller"
+            
+            if [[ "$is_ui_host" == "true" ]]; then
+                role="UI Host + Robot Controller"
+            fi
+            
+            setup_array+=("$setup")
+            echo "$counter) $setup (ID: $setup_id, IP: $ip_address, Role: $role)"
+            ((counter++))
+        done
+        
+        echo ""
+        while true; do
+            read -p "Choose setup (1-${#setup_array[@]}): " choice
+            
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#setup_array[@]}" ]]; then
+                export SELECTED_SETUP="${setup_array[$((choice-1))]}"
+                break
+            else
+                log_error "Invalid choice. Please enter a number between 1 and ${#setup_array[@]}"
+            fi
+        done
+    fi
+    
+    # Determine if this setup is the UI host
+    local is_ui_host=$(jq -r ".setups[\"$SELECTED_SETUP\"].tos_ui_host" "$config_json")
+    export IS_UI_HOST="$is_ui_host"
+    
+    # Get RabbitMQ host (IP of the UI host setup)
+    local rabbitmq_host_ip=$(jq -r ".setups[\"$UI_HOST_SETUP\"].ip_address" "$config_json")
+    export RABBITMQ_HOST_IP="$rabbitmq_host_ip"
+    
+    log_success "Setup selection complete"
+    log_info "Selected Setup: $SELECTED_SETUP"
+    log_info "Is UI Host: $IS_UI_HOST"
+    log_info "RabbitMQ Host IP: $RABBITMQ_HOST_IP"
+}
+
+# Update configuration file with selected setup
+update_config_file() {
+    log_info "Updating configuration file with selected setup..."
+    
+    # Create a Python script to update the YAML file
+    local update_script="/tmp/update_tos_config.py"
+    cat > "$update_script" << EOF
+import yaml
+import sys
+
+def update_config(config_file, selected_setup):
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Update the main setup field
+        config['setup'] = selected_setup
+        
+        # Write back to file
+        with open(config_file, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        
+        print("Configuration updated successfully")
+        return True
+    except Exception as e:
+        print(f"Error updating config: {e}", file=sys.stderr)
+        return False
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print("Usage: python update_config.py <config_file> <selected_setup>", file=sys.stderr)
+        sys.exit(1)
+    
+    success = update_config(sys.argv[1], sys.argv[2])
+    if not success:
+        sys.exit(1)
+EOF
+    
+    # Update the configuration
+    if python3 "$update_script" "$CONFIG_FILE" "$SELECTED_SETUP"; then
+        log_success "Configuration file updated with setup: $SELECTED_SETUP"
+    else
+        log_error "Failed to update configuration file"
+        exit 1
+    fi
+    
+    rm "$update_script"
+}
+
 # Check if running as root
 check_root() {
     if [[ $EUID -eq 0 ]]; then
@@ -165,6 +429,8 @@ install_system_deps() {
         "libusb-1.0-0-dev"  # USB development headers (hardware access)
         "libudev-dev"     # Device management headers (hardware access)
         "v4l-utils"       # Video4Linux utilities (camera access)
+        "jq"              # JSON parsing utility
+        "python3-yaml"    # Python YAML library for config parsing
     )
     
     if command -v apt-get &> /dev/null; then
@@ -551,43 +817,148 @@ install_ruckig() {
     log_success "Ruckig installed in conda environment"
 }
 
-# Install RabbitMQ system-wide
+# Install RabbitMQ system-wide (only for UI hosts)
 install_rabbitmq() {
-    log_info "Installing RabbitMQ system-wide..."
-    
-    # Check if RabbitMQ is already installed
-    if command -v rabbitmq-server &> /dev/null; then
-        log_info "RabbitMQ is already installed system-wide"
+    if [[ "$IS_UI_HOST" != "true" ]]; then
+        log_info "Robot-only setup detected - checking for local RabbitMQ to avoid interference..."
         
-        # Check if it's running
-        if sudo systemctl is-active --quiet rabbitmq-server; then
-            log_success "RabbitMQ service is already running"
+        # Check if RabbitMQ is installed locally
+        if command -v rabbitmq-server &> /dev/null; then
+            log_warning "Local RabbitMQ installation found on robot-only setup!"
+            log_warning "This can interfere with connection to remote RabbitMQ at: $RABBITMQ_HOST_IP"
+            
+            echo "Options:"
+            echo "1) Remove local RabbitMQ (recommended - prevents interference)"
+            echo "2) Stop local RabbitMQ service but keep installed"
+            echo "3) Keep local RabbitMQ running (may cause conflicts)"
+            read -p "Choose option (1/2/3): " -n 1 -r
+            echo
+            
+            case $REPLY in
+                1)
+                    log_info "Removing local RabbitMQ to prevent interference..."
+                    
+                    # Stop the service
+                    sudo systemctl stop rabbitmq-server 2>/dev/null || true
+                    sudo systemctl disable rabbitmq-server 2>/dev/null || true
+                    
+                    # Remove RabbitMQ package and all configurations
+                    if command -v apt-get &> /dev/null; then
+                        sudo apt-get remove --purge -y rabbitmq-server
+                        sudo apt-get autoremove -y
+                    elif command -v yum &> /dev/null; then
+                        sudo yum remove -y rabbitmq-server
+                    elif command -v dnf &> /dev/null; then
+                        sudo dnf remove -y rabbitmq-server
+                    fi
+                    
+                    # Remove data directories
+                    sudo rm -rf /var/lib/rabbitmq/
+                    sudo rm -rf /etc/rabbitmq/
+                    sudo rm -rf /var/log/rabbitmq/
+                    
+                    log_success "Local RabbitMQ removed - will connect to remote at: $RABBITMQ_HOST_IP"
+                    ;;
+                2)
+                    log_info "Stopping local RabbitMQ service..."
+                    sudo systemctl stop rabbitmq-server 2>/dev/null || true
+                    sudo systemctl disable rabbitmq-server 2>/dev/null || true
+                    log_success "Local RabbitMQ stopped - will connect to remote at: $RABBITMQ_HOST_IP"
+                    ;;
+                3)
+                    log_warning "Keeping local RabbitMQ running - this may cause port conflicts!"
+                    log_warning "Make sure your application connects to: $RABBITMQ_HOST_IP"
+                    ;;
+                *)
+                    log_error "Invalid option. Stopping local RabbitMQ as safety measure."
+                    sudo systemctl stop rabbitmq-server 2>/dev/null || true
+                    sudo systemctl disable rabbitmq-server 2>/dev/null || true
+                    ;;
+            esac
         else
-            log_info "Starting RabbitMQ service..."
-            sudo systemctl start rabbitmq-server
-            sudo systemctl enable rabbitmq-server
+            log_success "No local RabbitMQ found - will connect to remote at: $RABBITMQ_HOST_IP"
         fi
         
-        # Enable management plugin
-        log_info "Enabling RabbitMQ management plugin..."
-        sudo rabbitmq-plugins enable rabbitmq_management
-        
-        # Create a user for TOS application
-        log_info "Setting up RabbitMQ user for TOS..."
-        # Remove user if exists (ignore errors)
-        sudo rabbitmqctl delete_user admin 2>/dev/null || true
-        # Create new user
-        sudo rabbitmqctl add_user admin admin
-        sudo rabbitmqctl set_user_tags admin administrator
-        sudo rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
-        
-        log_success "RabbitMQ installed and configured system-wide"
-        log_info "RabbitMQ Management UI available at: http://localhost:15672"
-        log_info "TOS credentials: admin/admin"
-        log_info "Admin credentials: Use system default or create via management UI"
-        log_info "Service control: sudo systemctl start/stop/restart rabbitmq-server"
-        log_info "Check status: sudo systemctl status rabbitmq-server"
         return 0
+    fi
+    
+    log_info "Installing RabbitMQ system-wide (UI host setup)..."
+    
+    # Check if RabbitMQ is already installed and potentially clean it up
+    if command -v rabbitmq-server &> /dev/null; then
+        log_warning "RabbitMQ is already installed system-wide"
+        
+        echo "Options:"
+        echo "1) Clean reinstall RabbitMQ (removes all data and configurations)"
+        echo "2) Keep existing installation and reconfigure for TOS"
+        echo "3) Skip RabbitMQ installation"
+        read -p "Choose option (1/2/3): " -n 1 -r
+        echo
+        
+        case $REPLY in
+            1)
+                log_info "Performing clean RabbitMQ reinstall..."
+                
+                # Stop the service
+                sudo systemctl stop rabbitmq-server 2>/dev/null || true
+                sudo systemctl disable rabbitmq-server 2>/dev/null || true
+                
+                # Remove RabbitMQ package and all configurations
+                if command -v apt-get &> /dev/null; then
+                    sudo apt-get remove --purge -y rabbitmq-server
+                    sudo apt-get autoremove -y
+                elif command -v yum &> /dev/null; then
+                    sudo yum remove -y rabbitmq-server
+                elif command -v dnf &> /dev/null; then
+                    sudo dnf remove -y rabbitmq-server
+                fi
+                
+                # Remove data directories
+                sudo rm -rf /var/lib/rabbitmq/
+                sudo rm -rf /etc/rabbitmq/
+                sudo rm -rf /var/log/rabbitmq/
+                
+                log_success "RabbitMQ completely removed"
+                ;;
+            2)
+                log_info "Keeping existing RabbitMQ installation, reconfiguring for TOS..."
+                
+                # Ensure it's running
+                if ! sudo systemctl is-active --quiet rabbitmq-server; then
+                    log_info "Starting RabbitMQ service..."
+                    sudo systemctl start rabbitmq-server
+                    sudo systemctl enable rabbitmq-server
+                fi
+                
+                # Enable management plugin
+                log_info "Enabling RabbitMQ management plugin..."
+                sudo rabbitmq-plugins enable rabbitmq_management
+                
+                # Create a user for TOS application
+                log_info "Setting up RabbitMQ user for TOS..."
+                # Remove user if exists (ignore errors)
+                sudo rabbitmqctl delete_user admin 2>/dev/null || true
+                # Create new user
+                sudo rabbitmqctl add_user admin admin
+                sudo rabbitmqctl set_user_tags admin administrator
+                sudo rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+                
+                log_success "RabbitMQ reconfigured for TOS"
+                log_info "RabbitMQ Management UI available at: http://localhost:15672"
+                log_info "TOS credentials: admin/admin"
+                log_info "Service control: sudo systemctl start/stop/restart rabbitmq-server"
+                return 0
+                ;;
+            3)
+                log_info "Skipping RabbitMQ installation as requested"
+                log_warning "Make sure RabbitMQ is properly configured for TOS manually"
+                return 0
+                ;;
+            *)
+                log_error "Invalid option. Skipping RabbitMQ installation."
+                return 1
+                ;;
+        esac
     fi
     
     # Install RabbitMQ system-wide
@@ -828,33 +1199,59 @@ setup_tos_config() {
 
 # Setup systemd services (optional)
 setup_systemd_services() {
-    read -p "Do you want to setup systemd services for TOS? The services starts the robot controller automatically and is unrecommended for development purposes (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        return
+    local setup_id="${SELECTED_SETUP#setup_}"
+    
+    # Customize the prompt based on the role
+    if [[ "$IS_UI_HOST" == "true" ]]; then
+        echo ""
+        log_info "Setup $setup_id is configured as a UI Host"
+        log_info "UI Hosts typically start the robot controller manually from the web interface"
+        read -p "Do you still want to setup systemd auto-start service? (y/N): " -n 1 -r
+    else
+        echo ""
+        log_info "Setup $setup_id is configured as a Robot Controller Only"
+        log_info "Robot-only setups typically use systemd for automatic startup"
+        read -p "Do you want to setup systemd services for auto-start? (Y/n): " -n 1 -r
     fi
     
-    log_info "Setting up systemd services..."
+    echo
+    
+    # Check the response based on the role
+    if [[ "$IS_UI_HOST" == "true" ]]; then
+        # For UI hosts, default is No, so only proceed if explicitly Yes
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Skipping systemd service setup - you can start the robot controller manually"
+            return
+        fi
+    else
+        # For robot-only hosts, default is Yes, so proceed unless explicitly No
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            log_info "Skipping systemd service setup - you can start the robot controller manually"
+            return
+        fi
+    fi
+    
+    log_info "Setting up systemd services for setup $setup_id..."
     
     # Get the current working directory (TOS root)
     local tos_root="$(pwd)"
     
     # Create TOS service file
-    cat > /tmp/tos-app.service << EOF
+    cat > /tmp/tos-robot-controller.service << EOF
 [Unit]
-Description=TOS Robotic Application
-After=network.target rabbitmq-server.service
-Requires=rabbitmq-server.service
+Description=TOS Robot Controller (Setup $setup_id)
+After=network.target
+Wants=network.target
 
 [Service]
 Type=simple
 User=$USER
 Group=$USER
 WorkingDirectory=$tos_root
-Environment=PATH=$CONDA_BASE_PATH/envs/TOS_new/bin:$PATH
+Environment=PATH=$CONDA_BASE_PATH/envs/TOS/bin:$PATH
 Environment=RABBITMQ_DEFAULT_USER=admin
 Environment=RABBITMQ_DEFAULT_PASS=admin
-ExecStart=$CONDA_BASE_PATH/envs/TOS/bin/python applications/robot_controller/main.py
+ExecStart=$CONDA_BASE_PATH/envs/TOS/bin/python applications/robot_controller/main.py --setup $setup_id
 Restart=always
 RestartSec=10
 
@@ -862,13 +1259,13 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
     
-    sudo mv /tmp/tos-app.service /etc/systemd/system/
+    sudo mv /tmp/tos-robot-controller.service /etc/systemd/system/
     sudo systemctl daemon-reload
-    sudo systemctl enable tos-app.service
+    sudo systemctl enable tos-robot-controller.service
     
-    log_success "Systemd service created and enabled"
-    log_info "Start with: sudo systemctl start tos-app"
-    log_info "Check status with: sudo systemctl status tos-app"
+    log_success "Systemd service created and enabled for setup $setup_id"
+    log_info "Start with: sudo systemctl start tos-robot-controller"
+    log_info "Check status with: sudo systemctl status tos-robot-controller"
 }
 
 # Create desktop launcher
@@ -987,57 +1384,6 @@ EOF
 }
 
 # Create requirements.txt for future reference
-create_requirements_file() {
-    log_info "Creating requirements.txt file..."
-    
-    cat > requirements.txt << 'EOF'
-# TOS Application Python Dependencies
-# Install with: pip install -r requirements.txt
-
-# Core dependencies
-numpy>=1.21.0
-scipy>=1.7.0
-matplotlib>=3.4.0
-pandas>=1.3.0
-scikit-learn>=1.0.0
-
-# Configuration and data
-PyYAML>=6.0
-h5py>=3.6.0
-
-# Computer vision
-opencv-python>=4.5.0
-Pillow>=8.3.0
-
-# Intel RealSense
-pyrealsense2>=2.50.0
-
-# PyTorch (adjust for GPU if needed)
-torch>=1.11.0
-torchvision>=0.12.0
-torchaudio>=0.11.0
-
-# Message queue
-pika>=1.2.0
-
-# Web framework
-Flask>=2.0.0
-Flask-CORS>=3.0.0
-
-# Utilities
-tqdm>=4.62.0
-psutil>=5.8.0
-requests>=2.26.0
-websocket-client>=1.2.0
-ipython>=8.0.0
-
-# Trajectory generation
-ruckig>=0.9.0
-EOF
-    
-    log_success "Requirements file created: requirements.txt"
-}
-
 # Verify installation
 verify_installation() {
     log_info "Verifying installation..."
@@ -1093,9 +1439,7 @@ EOF
 
 # Set capabilities on Python executable for process priority control
 set_python_capabilities() {
-    log_info "Setting Python capabilities for process priority control...
-    sudo setcap cap_sys_nice+ep /home/teun/miniconda3/envs/TOS_new/bin/python3.8
-    verify: getcap /home/teun/miniconda3/envs/TOS_new/bin/python3.8"
+    log_info "Setting Python capabilities for process priority control..."
     
     # Activate conda environment to get the correct Python executable
     source "$CONDA_PROFILE_PATH"
@@ -1204,6 +1548,21 @@ main() {
     log_info "Checking Linux distribution..."
     check_linux_distro
     
+    # Configuration phase
+    log_info "=== CONFIGURATION PHASE ==="
+    read_tos_config
+    parse_config
+    validate_config
+    choose_setup
+    update_config_file
+    
+    echo ""
+    log_info "=== INSTALLATION PHASE ==="
+    echo "Installing for setup: $SELECTED_SETUP"
+    echo "Role: $([ "$IS_UI_HOST" == "true" ] && echo "UI Host + Robot Controller" || echo "Robot Controller Only")"
+    echo "RabbitMQ Host: $RABBITMQ_HOST_IP"
+    echo ""
+    
     # Main installation steps
     log_info "Running update system..."
     update_system
@@ -1217,7 +1576,7 @@ main() {
     install_python_packages
     log_info "Installing Ruckig trajectory generation library..."
     install_ruckig
-    log_info "Installing RabbitMQ..."
+    log_info "Installing RabbitMQ (conditional)..."
     install_rabbitmq
     log_info "Installing Intel RealSense SDK..."
     install_realsense_sdk
@@ -1226,7 +1585,7 @@ main() {
     log_info "Setting up TOS application configuration..."
     setup_tos_config
     
-    # Optional steps
+    # Role-specific setup
     log_info "Setting up systemd services..."
     setup_systemd_services
     create_desktop_launcher
@@ -1253,38 +1612,44 @@ main() {
     fi
     
     echo ""
-    log_info "=== POST-INSTALLATION NOTES ==="
+    log_info "=== POST-INSTALLATION SUMMARY ==="
     echo ""
-    log_info "✓ Conda base environment auto-activation has been DISABLED"
-    log_info "✓ New terminal sessions will NOT automatically activate (base)"
+    log_info "Setup Configuration:"
+    echo "  Selected Setup: $SELECTED_SETUP"
+    echo "  Role: $([ "$IS_UI_HOST" == "true" ] && echo "UI Host + Robot Controller" || echo "Robot Controller Only")"
+    echo "  RabbitMQ Host: $RABBITMQ_HOST_IP"
+    echo "  Auto-start Controller: $([ "$IS_UI_HOST" != "true" ] && echo "Yes (via systemd)" || echo "No (manual start)")"
     echo ""
-    log_info "To use TOS in the future:"
-    echo "  conda activate TOS"
-    echo "  python -m applications.tos_ui.main"
-    echo ""
-    log_info "To manually activate conda base environment if needed:"
-    echo "  conda activate base"
-    echo ""
-    log_info "If you want to re-enable auto-activation of base (not recommended):"
-    echo "  conda config --set auto_activate_base true"
+    
+    if [[ "$IS_UI_HOST" == "true" ]]; then
+        log_info "UI Host Setup - Available Components:"
+        echo "  ✓ TOS UI Web Interface"
+        echo "  ✓ RabbitMQ Message Broker"
+        echo "  ✓ Robot Controller"
+        echo "  ✓ Desktop Launcher"
+        echo ""
+        echo "Next steps:"
+        echo "1. Launch TOS UI from your desktop menu (Engineering category)"
+        echo "2. Or manually: python applications/tos_ui/main.py"
+        echo "3. Access RabbitMQ Management: http://localhost:15672 (admin/admin)"
+    else
+        log_info "Robot Controller Setup - Available Components:"
+        echo "  ✓ Robot Controller (auto-started via systemd)"
+        echo "  ✓ Connects to RabbitMQ at: $RABBITMQ_HOST_IP"
+        echo ""
+        echo "Next steps:"
+        echo "1. Robot controller should be running automatically"
+        echo "2. Check status: sudo systemctl status tos-robot-controller"
+        echo "3. View logs: journalctl -u tos-robot-controller -f"
+        echo "4. Manual start: python applications/robot_controller/main.py"
+    fi
+    
     echo ""
     echo "==============================================="
     echo ""
     echo "Conda Installation: $CONDA_TYPE at $CONDA_BASE_PATH"
-    echo "Environment Isolation: Most dependencies installed in conda environment"
-    echo "  - Development tools (cmake, make, etc.): $CONDA_BASE_PATH/envs/TOS/bin/"
-    echo "  - Libraries and headers: $CONDA_BASE_PATH/envs/TOS/lib/ and $CONDA_BASE_PATH/envs/TOS/include/"
-    echo "  - Minimal system dependencies for hardware access only"
-    echo ""
-    echo "Next steps:"
-    echo "1. Source your shell configuration: source ~/.bashrc"
-    echo "2. Edit config/config.yaml for your setup"
-    echo "3. Launch TOS UI from your desktop menu (Engineering category)"
-    echo "   - No manual activation needed! The desktop launcher handles everything."
-    echo ""
-    echo "Alternative command line usage:"
-    echo "   - Direct robot controller: python applications/robot_controller/main.py"
-    echo "   - Direct TOS UI: python applications/tos_ui/main.py"
+    echo "Environment: $ENV_NAME"
+    echo "Config File Updated: $CONFIG_FILE"
     echo ""
     echo "Python Capabilities:"
     echo "   - Process priority control capabilities have been set on Python executables"
