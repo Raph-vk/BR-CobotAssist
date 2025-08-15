@@ -61,7 +61,7 @@ hardware:
   setup_1:
     setup_id: 1
     tos_ui_host: True
-    ip_address: "192.168.1.201"
+    ip_address: "192.168.100.101"  # General communication subnet - UI Host PC
 
   # --------------------------------------Robot Configuration--------------------------------
     robot:
@@ -115,7 +115,7 @@ hardware:
       j6_min_angle: -140
       j6_max_angle: 220
       j6_multiplier: 1
-      local_ip: "192.168.1.201"
+      local_ip: "192.168.100.101"  # General communication subnet - TOS Teachbot IP
       start_port: 5006
       dof: 6
       dof_ee: 2
@@ -222,7 +222,7 @@ hardware:
   setup_2:
     setup_id: 2
     tos_ui_host: False
-    ip_address: "192.168.1.203"
+    ip_address: "192.168.100.102"  # General communication subnet - Setup 2 PC
 
   # --------------------------------------Robot Configuration--------------------------------
     robot:
@@ -240,10 +240,10 @@ hardware:
       dof: 6
       dof_ee: 1
       server_address: 
-        - "192.168.1.203"  # IP of setup_2 (robot controller host)
+        - "192.168.150.101"  # General comm subnet - Setup 2 PC (robot controller host)
         - 8001  # IP and port of the cpp connects to  port + 1
       robot_address: 
-        - "192.168.1.202"  # IP of FANUC robot
+        - "192.168.150.151"  # Robot control subnet - FANUC LR Mate 200iD 7L
         - 60015
       rmi_port: 16001
       upper_limits: [165, 140, 208, 185, 120, 355]
@@ -357,7 +357,7 @@ rabbitmq:
     response_routing_key: "robot_controller.{setup_id}.response.{action}"
 
   # Connection defaults
-  host: "auto"  # Will resolve to UI host IP (192.168.1.201) automatically
+  host: "auto"  # Will resolve to UI host IP (192.168.100.101) automatically
   user: "admin"
   pass: "admin"
   heartbeat: 30
