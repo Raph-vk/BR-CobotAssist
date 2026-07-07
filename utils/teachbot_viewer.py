@@ -5,7 +5,9 @@ Unified GUI for AksIM‑2 encoders **plus** the RS‑485 trigger/2‑button inte
 * **Encoders** – six UDP streams with 17‑bit single‑turn frames
   (3‑byte packets). Each encoder has its own mechanical/electrical offset so
   that *0 °* in the GUI equals real‑world zero.
-* **Trigger & Buttons** – one UDP stream on port 5004 with 5‑byte frames:
+* **Trigger & Buttons** – one UDP stream on port 5004    ENCODERS = [
+        {"port": 5006, "label": "Encoder 6 (P5006)", "offset": 80169},  # 99800 - 19631 (54 degrees worth of counts)
+        {"port": 5010, "label": "Encoder 5 (P5010)", "offset": 2900},th 5‑byte frames:
   `[0xAA, LSB, MSB, BTN, CRC]`, where CRC = sum(first 4 bytes) & 0xFF.
   The 10‑bit potentiometer value (0‑1023) is visualised, and two button
   states are shown as LEDs.
@@ -360,15 +362,15 @@ class DeviceGUI:
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     ENCODERS = [
-        {"port": 5006, "label": "Encoder 6 (P5006)", "offset": 99800},
+        {"port": 5006, "label": "Encoder 6 (P5006)", "offset": 99800+19631+32718}, # sum is thus 119431 
         {"port": 5010, "label": "Encoder 5 (P5010)", "offset": 2900},
-        {"port": 5008, "label": "Encoder 4 (P5008)", "offset": 103200},
+        {"port": 5008, "label": "Encoder 4 (P5008)", "offset": (103200+8750)},
         {"port": 5009, "label": "Encoder 3 (P5009)", "offset": 63100},
         {"port": 5011, "label": "Encoder 2 (P5011)", "offset": 10200},
         {"port": 5007, "label": "Encoder 1 (P5007)", "offset": 71100},
     ]
 
-    LOCAL_IP = "192.168.1.201"  # Adapt to your NIC
+    LOCAL_IP = "192.168.10.3"  # Adapt to your NIC
 
     root = tk.Tk()
     DeviceGUI(root, local_ip=LOCAL_IP, encoders=ENCODERS, rs485_port=5004)

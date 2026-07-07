@@ -1,8 +1,0 @@
-cd
-cd tos_app/modules/robot/fanuc/cpp
-rm -rf build
-delete -r build
-mkdir build
-cd build
-cmake -DPython3_EXECUTABLE=$(which python) ..
-make -j4

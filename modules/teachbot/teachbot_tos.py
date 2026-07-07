@@ -7,8 +7,6 @@ import socket
 from threading import Thread
 from collections import deque
 
-from .teachbot_0interface import TeachbotInterface
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from utils.utils import setup_logging, load_config
 
@@ -57,7 +55,7 @@ def send_response(logger_ti, teachbot_interface_commup, payload, error="None", *
 # The TosTeachbot class
 #################################################################
 
-class TosTeachbot(TeachbotInterface):
+class TosTeachbot():
 
     def __init__(self, teachbot_interface_commup, teachbot_interface_commdown, shm_target_pos1, logger_ti, config, component_tag):
         self.teachbot_interface_commup = teachbot_interface_commup

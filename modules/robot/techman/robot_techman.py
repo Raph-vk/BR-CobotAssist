@@ -828,7 +828,33 @@ class TechmanRobot():
                     # Create intermediate positions
                     for j in range(1, interpolation_factor):
                         alpha = j / interpolation_factor
-                        interpolated_pos = current_pos + alpha * (next_pos - current_pos)
+                        # Initialize interpolated position array
+                        interpolated_pos = np.zeros_like(current_pos)
+                        
+                        # Interpolate each joint angle with wraparound handling
+                        for joint_idx in range(len(current_pos)):
+                            # Get the two angles
+                            angle1 = current_pos[joint_idx]
+                            angle2 = next_pos[joint_idx]
+                            
+                            # Calculate shortest angular distance with wraparound
+                            diff = angle2 - angle1
+                            # Normalize to [-180, 180]
+                            if diff > 180:
+                                diff -= 360
+                            elif diff < -180:
+                                diff += 360
+                                
+                            # Calculate interpolated angle
+                            interpolated_angle = angle1 + alpha * diff
+                            # Normalize result to [-180, 180]
+                            if interpolated_angle > 180:
+                                interpolated_angle -= 360
+                            elif interpolated_angle < -180:
+                                interpolated_angle += 360
+                                
+                            interpolated_pos[joint_idx] = interpolated_angle
+                            
                         adjusted_positions.append(interpolated_pos.tolist())
             
             self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (increase: {((len(adjusted_positions) - original_count) / original_count * 100):.1f}%)")
@@ -851,8 +877,6 @@ class TechmanRobot():
         while self.receive_target_pos:
             try:
                 target_pos = self.shm_target_pos1.get(timeout=0.1)
-                # TODO: rove when joint 6 works again ==============================================================================================================
-                target_pos[5] = 90.0  # Reset the 6th element (index 5) to 0.0
                 self.target_pos_received = target_pos
 
             except Exception as e:
@@ -1308,7 +1332,7 @@ class TechmanRobot():
             # robot_position is in teachbot coordinates - translate to Techman coordinates
             teachbot_position = robot_position.copy()
             translated_position = action_master_TM_translation(teachbot_position, self.logger_ri)
-            
+
             script_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*translated_position)
                   
             # Send command to robot
@@ -1347,6 +1371,9 @@ class TechmanRobot():
         time.sleep(0.01)
         
         self.logger_ri.info("Opening ceremony: waiting for target position within tolerance")
+
+        count = 0
+        freq = int(1/self.control_dt)
         
         while self.robot_running:
             if not ready_for_teleoperation:
@@ -1354,16 +1381,20 @@ class TechmanRobot():
                     target_pos_received = self.target_pos_received[:self.dof]
                     start_position = self.start_position[:self.dof]
                     
-                    # Calculate angular differences accounting for circular nature of rotational joints
-                    diffs = []
-                    for c, s in zip(target_pos_received, start_position):
-                        # Calculate the shortest angular distance between two angles
-                        diff = abs(c - s)
-                        # Handle wraparound for rotational joints (0-360° or -180° to 180°)
-                        if diff > 180:
-                            diff = 360 - diff
-                        diffs.append(diff)
+                diffs = []
+                for c, s in zip(target_pos_received, start_position):
+                    # Calculate the shortest angular distance between two angles
+                    diff = abs(c - s)
+                    # Handle wraparound for rotational joints (0-360° or -180° to 180°)
+                    if diff > 180:
+                        diff = 360 - diff
+                    diffs.append(diff)
+  
+                count += 1
+                if count % freq == 0:
+                    self.logger_ri.info(f"Angular diffs to start position: {diffs}")
                     
+
                     if all(d < self.start_joint_tolerance for d in diffs):
                         ready_for_teleoperation = True
                         self.logger_ri.info("Opening ceremony: position within tolerance, starting teleoperation")
@@ -1538,7 +1569,7 @@ class TechmanRobot():
         
         move_time = 5
         time_now = 0
-        
+
         while time_now < move_time:
             pos_cmd = "Position({:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f})".format(*position)
             

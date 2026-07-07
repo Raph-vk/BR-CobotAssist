@@ -17,7 +17,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 import pika
 from pika.exceptions import AMQPConnectionError, AMQPChannelError
 from utils.utils import RingBufferReader, get_data_path
-from modules.camera.cam_utils import CameraRingBufferManager
 
 
 ################################################################################
@@ -1159,6 +1158,7 @@ class RobotController:
             self.depth_buffers1 = None
             self.color_buffers2 = None
             self.depth_buffers2 = None
+            CameraRingBufferManager = None
             return
             
         try:
@@ -1171,6 +1171,7 @@ class RobotController:
         # Initialize ring buffer manager and create buffers for each camera
         self.logger_tc.info("Initializing camera ring buffers.")
         
+        from modules.camera.cam_utils import CameraRingBufferManager
         self.camera_ring_buffer_manager = CameraRingBufferManager(setup_id=str(self.setup_id))
         buffers_info = self.camera_ring_buffer_manager.create_buffers(
             self.camera_cfgs, 
@@ -1748,6 +1749,7 @@ class RobotController:
 
         # Recreate ring buffers if they don't exist or were unlinked
         try:
+            from modules.camera.cam_utils import CameraRingBufferManager
             # Check if ring buffers still exist by trying to access them
             for camera in self.camera_cfgs:
                 camera_name = camera["name"]
