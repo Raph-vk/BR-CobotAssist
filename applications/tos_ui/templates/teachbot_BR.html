@@ -290,7 +290,7 @@
 
     /* Fixed sanding pressure controls.
        The UI shows a process-friendly 0-100% sanding force value, while the
-       backend receives the normalized VPPE balance setpoint (0.5-0.9). */
+       backend receives the normalized VPPE balance setpoint (0.5-1.0). */
     .fixed-pressure-row {
       display: contents; /* Use grid layout from parent */
     }
@@ -647,7 +647,7 @@
         <div class="setting-control">
           <div class="fixed-pressure-control">
             <input type="range" id="fixed-pressure-slider" min="0" max="100" step="1" value="50" oninput="updateFixedPressureDisplay()">
-            <span id="fixed-pressure-value" class="fixed-pressure-value">50% / 0.70</span>
+            <span id="fixed-pressure-value" class="fixed-pressure-value">50% / 0.75</span>
           </div>
         </div>
       </div>
@@ -674,10 +674,10 @@
 
         // Fixed pressure mapping:
         // 0% sanding force means neutral VPPE balance (0.5).
-        // 100% sanding force means a strong plate-side bias (0.9).
+        // 100% sanding force means maximum plate-side bias (1.0).
         // The trigger/pot decides when this value is applied during record/playback.
         window.fixedPressureNeutral = 0.5;
-        window.fixedPressureMaxOffset = 0.4;
+        window.fixedPressureMaxOffset = 0.5;
         window.fixedPressureTriggerThreshold = 0.2;
         
         function selectPressurePosition(mode) {

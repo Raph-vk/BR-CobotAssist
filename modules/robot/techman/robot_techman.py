@@ -240,6 +240,10 @@ class TechmanRobot():
         self.gripper_on = False
         self.gripper_off = False
         self.teachbot_positions = deque()
+        # Per-waypoint pressure zones loaded from recordings.  Keep these
+        # separate from the recorded EE setpoint so playback can apply a newly
+        # selected pressure magnitude without losing the original on/off timing.
+        self.fixed_pressure_playback_apply = deque()
         self.ee_dof_states = [0.0] * self.dof_ee  # Track all EE DOF states
 
         # Fixed sanding pressure state.
@@ -553,7 +557,7 @@ class TechmanRobot():
             self.fixed_pressure_ui_percent,
         )
 
-    def apply_fixed_pressure_override(self):
+    def apply_fixed_pressure_override(self, playback_pressure_apply=None):
         """
         Override EE_dof_1 when fixed sanding pressure is enabled.
 
@@ -562,9 +566,10 @@ class TechmanRobot():
         - live pot <= threshold: neutral pressure balance, e.g. 0.5
         - live pot > threshold: fixed sanding pressure, e.g. 0.72
 
-        During playback, the recorded EE_dof_1 value contains the pressure zone
-        from the recording (neutral or active). This allows the operator to
-        replay the same sanding zones while fine-tuning the fixed pressure value.
+        During playback, the recorded fixed_pressure_apply flag supplies the
+        pressure zone (neutral or active). This allows the operator to replay
+        the same sanding zones while fine-tuning the fixed pressure value. Older
+        recordings without that flag fall back to their recorded EE_dof_1 value.
         """
         if self.dof_ee < 1:
             return
@@ -578,10 +583,17 @@ class TechmanRobot():
             return
 
         if self.play_recording_active:
-            # For playback, the recorded EE_dof_1 has already been reduced to
-            # a pressure zone. Anything above neutral means "apply sanding force".
-            pressure_apply = live_pressure_input > (self.fixed_pressure_neutral + 0.001)
-            self.fixed_pressure_source = "playback_zone"
+            if playback_pressure_apply is not None:
+                # New recordings store the pressure decision explicitly.  The
+                # recorded setpoint may equal neutral (for example, a recording
+                # made at 0%), so it cannot reliably encode this decision.
+                pressure_apply = self._as_bool(playback_pressure_apply)
+                self.fixed_pressure_source = "playback_flag"
+            else:
+                # Backward compatibility for recordings made before the explicit
+                # fixed_pressure_apply field was introduced.
+                pressure_apply = live_pressure_input > (self.fixed_pressure_neutral + 0.001)
+                self.fixed_pressure_source = "playback_zone_legacy"
         else:
             # For recording, the live pot/trigger decides when the fixed pressure
             # is applied. The actual pressure magnitude comes from the UI slider.
@@ -882,8 +894,16 @@ class TechmanRobot():
                     self.logger_ri.error(f"_load_recording_data, invalid playback speed: {playback_speed}")
                     self.playback_speed_ratio = 1.0
 
-            # Load positions
-            self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
+            # Load the robot path and the pressure-active zones independently.
+            # The path contains the pressure value used while recording, whereas
+            # fixed_pressure_apply records only when pressure was active.  Keeping
+            # both queues aligned lets every playback use the current UI slider.
+            self.teachbot_positions = deque(
+                [s["teachbot_position"] for s in data["samples"]]
+            )
+            self.fixed_pressure_playback_apply = deque(
+                [s.get("fixed_pressure_apply") for s in data["samples"]]
+            )
             
             # Adjust waypoints based on speed ratio
             self._adjust_teachbot_positions_for_playback_speed()
@@ -926,11 +946,18 @@ class TechmanRobot():
             
         original_count = len(self.teachbot_positions)
         original_positions = list(self.teachbot_positions)
+        original_pressure_apply = list(self.fixed_pressure_playback_apply)
+
+        # Older or externally generated recordings may not provide a matching
+        # pressure queue.  None activates the legacy setpoint-based fallback.
+        if len(original_pressure_apply) != original_count:
+            original_pressure_apply = [None] * original_count
         
         if self.playback_speed_ratio > 1.0:
             # Skip waypoints - use every Nth waypoint where N = ratio
             skip_factor = int(round(self.playback_speed_ratio))
             adjusted_positions = original_positions[::skip_factor]
+            adjusted_pressure_apply = original_pressure_apply[::skip_factor]
             
             self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} > 1.0, skipping waypoints with factor {skip_factor}")
             self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (reduction: {((original_count - len(adjusted_positions)) / original_count * 100):.1f}%)")
@@ -939,11 +966,13 @@ class TechmanRobot():
             # Interpolate additional waypoints
             interpolation_factor = int(round(1.0 / self.playback_speed_ratio))
             adjusted_positions = []
+            adjusted_pressure_apply = []
             
             self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} < 1.0, interpolating waypoints with factor {interpolation_factor}")
             
             for i in range(len(original_positions)):
                 adjusted_positions.append(original_positions[i])
+                adjusted_pressure_apply.append(original_pressure_apply[i])
                 
                 # Interpolate between current and next position (if next exists)
                 if i < len(original_positions) - 1:
@@ -981,11 +1010,15 @@ class TechmanRobot():
                             interpolated_pos[joint_idx] = interpolated_angle
                             
                         adjusted_positions.append(interpolated_pos.tolist())
+                        # Hold the current sample's discrete pressure state until
+                        # the next original waypoint; never interpolate booleans.
+                        adjusted_pressure_apply.append(original_pressure_apply[i])
             
             self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (increase: {((len(adjusted_positions) - original_count) / original_count * 100):.1f}%)")
         
         # Replace the original positions with adjusted ones
         self.teachbot_positions = deque(adjusted_positions)
+        self.fixed_pressure_playback_apply = deque(adjusted_pressure_apply)
         self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, waypoint adjustment completed")
 
     def _receive_target_pos_loop(self):
@@ -1134,9 +1167,12 @@ class TechmanRobot():
             last_received_js = self.start_position
 
             # Get next action
+            playback_pressure_apply = None
             if self.play_recording_active:
                 if self.teachbot_positions:
                     action_master = self.teachbot_positions.popleft()
+                    if self.fixed_pressure_playback_apply:
+                        playback_pressure_apply = self.fixed_pressure_playback_apply.popleft()
                 else:
                     self.logger_ri.info("control_loop, recording playback completed")
                     break
@@ -1157,7 +1193,7 @@ class TechmanRobot():
             # Fixed pressure is applied after reading EE_dof_1 and before sending
             # MQTT/PLC data. This keeps the robot trajectory unchanged while making
             # sanding pressure reproducible during record/playback.
-            self.apply_fixed_pressure_override()
+            self.apply_fixed_pressure_override(playback_pressure_apply)
             
             # Trajectory calculation with joint speed limiting (robot joints only)
             self.update_input(action_master, inp, previous_action_master)
