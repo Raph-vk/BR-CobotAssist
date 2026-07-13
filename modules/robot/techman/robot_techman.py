@@ -242,6 +242,18 @@ class TechmanRobot():
         self.teachbot_positions = deque()
         self.ee_dof_states = [0.0] * self.dof_ee  # Track all EE DOF states
 
+        # Fixed sanding pressure state.
+        # This is disabled by default so normal teleoperation keeps using the
+        # live potentiometer value. Recording/playback commands can enable it.
+        self.fixed_pressure_enabled = False
+        self.fixed_pressure_value = 0.5
+        self.fixed_pressure_neutral = 0.5
+        self.fixed_pressure_trigger_threshold = 0.2
+        self.fixed_pressure_ui_percent = 0.0
+        self.fixed_pressure_live_input = 0.0
+        self.fixed_pressure_apply_active = False
+        self.fixed_pressure_source = "live"
+
         # Connection elements
         self.sock = None
         self.recv_sock = None
@@ -470,6 +482,117 @@ class TechmanRobot():
         else:
             self.logger_ri.debug("No extra_function1 parameter found in command, keeping current select_value")
 
+    def _as_bool(self, value):
+        """
+        Parse booleans coming from Flask/JSON consistently.
+        Flask normally sends real bools after parsing, but this also handles
+        older callers that might still send strings.
+        """
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "on")
+        return bool(value)
+
+    def _clamp_unit_interval(self, value, default):
+        """
+        Convert a numeric value to float and clamp it to 0.0..1.0.
+        The VPPE setpoint path expects normalized values before MQTT scaling.
+        """
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            numeric_value = float(default)
+        return max(0.0, min(1.0, numeric_value))
+
+    def configure_fixed_pressure_from_command(self, full_message):
+        """
+        Load fixed sanding pressure settings from a record/playback command.
+
+        The fixed pressure feature intentionally applies only to:
+        - start_teleoperation_record
+        - play_recording
+
+        Normal start_teleoperation keeps the original live potentiometer behavior
+        so the operator can still manually feel and tune the system.
+        """
+        message = (full_message or {}).get("message", "")
+        supported_command = message in ("start_teleoperation_record", "play_recording")
+
+        if not supported_command:
+            self.fixed_pressure_enabled = False
+            self.fixed_pressure_apply_active = False
+            self.fixed_pressure_source = "live"
+            return
+
+        self.fixed_pressure_enabled = self._as_bool(
+            full_message.get("fixed_pressure_enabled", False)
+        )
+        self.fixed_pressure_value = self._clamp_unit_interval(
+            full_message.get("fixed_pressure_value", 0.5), 0.5
+        )
+        self.fixed_pressure_neutral = self._clamp_unit_interval(
+            full_message.get("fixed_pressure_neutral", 0.5), 0.5
+        )
+        self.fixed_pressure_trigger_threshold = self._clamp_unit_interval(
+            full_message.get("fixed_pressure_trigger_threshold", 0.2), 0.2
+        )
+        try:
+            self.fixed_pressure_ui_percent = float(full_message.get("fixed_pressure_ui_percent", 0.0))
+        except (TypeError, ValueError):
+            self.fixed_pressure_ui_percent = 0.0
+
+        self.fixed_pressure_apply_active = False
+        self.fixed_pressure_source = "fixed" if self.fixed_pressure_enabled else "live"
+        self.logger_ri.info(
+            "Fixed pressure config: enabled=%s value=%.3f neutral=%.3f trigger_threshold=%.3f ui_percent=%.1f",
+            self.fixed_pressure_enabled,
+            self.fixed_pressure_value,
+            self.fixed_pressure_neutral,
+            self.fixed_pressure_trigger_threshold,
+            self.fixed_pressure_ui_percent,
+        )
+
+    def apply_fixed_pressure_override(self):
+        """
+        Override EE_dof_1 when fixed sanding pressure is enabled.
+
+        EE_dof_1 is still read from the teachbot/potmeter first. In recording,
+        that live value is used only as an on/off trigger:
+        - live pot <= threshold: neutral pressure balance, e.g. 0.5
+        - live pot > threshold: fixed sanding pressure, e.g. 0.72
+
+        During playback, the recorded EE_dof_1 value contains the pressure zone
+        from the recording (neutral or active). This allows the operator to
+        replay the same sanding zones while fine-tuning the fixed pressure value.
+        """
+        if self.dof_ee < 1:
+            return
+
+        live_pressure_input = self._clamp_unit_interval(self.ee_dof_states[0], 0.0)
+        self.fixed_pressure_live_input = live_pressure_input
+
+        if not self.fixed_pressure_enabled:
+            self.fixed_pressure_apply_active = False
+            self.fixed_pressure_source = "live"
+            return
+
+        if self.play_recording_active:
+            # For playback, the recorded EE_dof_1 has already been reduced to
+            # a pressure zone. Anything above neutral means "apply sanding force".
+            pressure_apply = live_pressure_input > (self.fixed_pressure_neutral + 0.001)
+            self.fixed_pressure_source = "playback_zone"
+        else:
+            # For recording, the live pot/trigger decides when the fixed pressure
+            # is applied. The actual pressure magnitude comes from the UI slider.
+            pressure_apply = live_pressure_input > self.fixed_pressure_trigger_threshold
+            self.fixed_pressure_source = "trigger"
+
+        self.fixed_pressure_apply_active = pressure_apply
+        self.ee_dof_states[0] = (
+            self.fixed_pressure_value if pressure_apply else self.fixed_pressure_neutral
+        )
+
     ################################################################
     # 1) COMMANDS
     ################################################################
@@ -482,6 +605,7 @@ class TechmanRobot():
         """
         # Update select value based on extra_function1 parameter
         self.update_select_value_from_command(full_message)
+        self.configure_fixed_pressure_from_command(full_message)
         
         self.robot_running = True
         self.receive_target_pos = True
@@ -583,6 +707,7 @@ class TechmanRobot():
             
         # Update select value based on extra_function1 parameter
         self.update_select_value_from_command(full_message)
+        self.configure_fixed_pressure_from_command(full_message)
             
         self.robot_running = True
         self.play_recording_active = True
@@ -1028,6 +1153,11 @@ class TechmanRobot():
 
             # Extract EE DOF values from action_master
             self.ee_dof_states = self.extract_ee_dof_values(action_master)
+
+            # Fixed pressure is applied after reading EE_dof_1 and before sending
+            # MQTT/PLC data. This keeps the robot trajectory unchanged while making
+            # sanding pressure reproducible during record/playback.
+            self.apply_fixed_pressure_override()
             
             # Trajectory calculation with joint speed limiting (robot joints only)
             self.update_input(action_master, inp, previous_action_master)
@@ -1086,6 +1216,16 @@ class TechmanRobot():
                         "robot_position": last_received_list,  # Already includes EE states
                         "robot_position_timestamp": last_received_time,
                         "seq_id": getattr(self, 'seq_id', 0),
+                        # Store the fixed-pressure decision per sample. Playback can
+                        # use the saved neutral/active zones while the pressure value
+                        # itself remains tunable from the UI.
+                        "fixed_pressure_enabled": self.fixed_pressure_enabled,
+                        "fixed_pressure_apply": self.fixed_pressure_apply_active,
+                        "fixed_pressure_value": self.fixed_pressure_value,
+                        "fixed_pressure_neutral": self.fixed_pressure_neutral,
+                        "fixed_pressure_live_input": self.fixed_pressure_live_input,
+                        "fixed_pressure_sent_setpoint": self.ee_dof_states[0] if self.dof_ee > 0 else None,
+                        "fixed_pressure_source": self.fixed_pressure_source,
                     }
                     self.shm_joint_data1.put(joint_data)
                 except Exception as e:

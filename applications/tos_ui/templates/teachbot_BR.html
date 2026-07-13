@@ -288,6 +288,49 @@
       border-color: rgba(217, 27, 17, 0.7) !important;
     }
 
+    /* Fixed sanding pressure controls.
+       The UI shows a process-friendly 0-100% sanding force value, while the
+       backend receives the normalized VPPE balance setpoint (0.5-0.9). */
+    .fixed-pressure-row {
+      display: contents; /* Use grid layout from parent */
+    }
+
+    .fixed-pressure-toggle {
+      display: flex;
+      align-items: center;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor));
+      justify-content: center;
+      color: #4a5a8a;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: bold;
+    }
+
+    .fixed-pressure-toggle input[type="checkbox"] {
+      width: calc(22px * var(--scale-factor));
+      height: calc(22px * var(--scale-factor));
+      accent-color: var(--color-red);
+    }
+
+    .fixed-pressure-control {
+      display: flex;
+      align-items: center;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor));
+    }
+
+    .fixed-pressure-control input[type="range"] {
+      flex: 1;
+    }
+
+    .fixed-pressure-value {
+      min-width: calc(110px * var(--scale-factor));
+      text-align: right;
+      color: var(--color-blue);
+      font-size: calc(1.1rem * var(--scale-factor));
+      font-weight: bold;
+    }
+
     /* Align all labels consistently */
     .slider-row {
       display: contents; /* Use grid layout from parent */
@@ -586,6 +629,29 @@
         </div>
       </div>
       
+      <!-- Fixed sanding pressure.
+           When enabled, recording/playback use this fixed value while the
+           trigger/pot only decides whether sanding pressure is applied. -->
+      <div class="fixed-pressure-row">
+        <div class="setting-label">Fixed Pressure:</div>
+        <div class="setting-control">
+          <label class="fixed-pressure-toggle">
+            <input type="checkbox" id="fixed-pressure-enabled" onchange="updateFixedPressureDisplay()">
+            Enable
+          </label>
+        </div>
+      </div>
+
+      <div class="fixed-pressure-row">
+        <div class="setting-label">Sanding Force:</div>
+        <div class="setting-control">
+          <div class="fixed-pressure-control">
+            <input type="range" id="fixed-pressure-slider" min="0" max="100" step="1" value="50" oninput="updateFixedPressureDisplay()">
+            <span id="fixed-pressure-value" class="fixed-pressure-value">50% / 0.70</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Recording Speed buttons -->
       <div class="speed-control-row">
         <div class="setting-label">Recording Speed:</div>
@@ -605,6 +671,14 @@
         // Global variables to track selected speeds
         window.selectedRecordingSpeedIndex = 1; // Default to 0.5x (index 1)
         window.selectedPlaybackSpeedIndex = 0; // Default to first option
+
+        // Fixed pressure mapping:
+        // 0% sanding force means neutral VPPE balance (0.5).
+        // 100% sanding force means a strong plate-side bias (0.9).
+        // The trigger/pot decides when this value is applied during record/playback.
+        window.fixedPressureNeutral = 0.5;
+        window.fixedPressureMaxOffset = 0.4;
+        window.fixedPressureTriggerThreshold = 0.2;
         
         function selectPressurePosition(mode) {
           const pressureBtn = document.getElementById('pressure-btn');
@@ -625,6 +699,41 @@
             console.log('Position mode selected - extra_function1:', window.extra_function1);
           }
         }
+
+        function getFixedPressurePercent() {
+          const slider = document.getElementById('fixed-pressure-slider');
+          return slider ? parseFloat(slider.value) : 50.0;
+        }
+
+        function getFixedPressureSetpoint() {
+          const percent = getFixedPressurePercent();
+          const normalized = window.fixedPressureNeutral + (percent / 100.0) * window.fixedPressureMaxOffset;
+          return Math.max(0.0, Math.min(1.0, normalized));
+        }
+
+        function updateFixedPressureDisplay() {
+          const valueLabel = document.getElementById('fixed-pressure-value');
+          if (!valueLabel) return;
+
+          const percent = getFixedPressurePercent();
+          const setpoint = getFixedPressureSetpoint();
+          valueLabel.textContent = `${percent.toFixed(0)}% / ${setpoint.toFixed(2)}`;
+        }
+
+        function appendFixedPressureParams(params) {
+          const checkbox = document.getElementById('fixed-pressure-enabled');
+          const enabled = checkbox ? checkbox.checked : false;
+
+          // These fields are intentionally generic normalized values. The PLC still
+          // performs the final VPPE split: D0012 = setpoint, D0010 = 4095 - setpoint.
+          params.append('fixed_pressure_enabled', enabled);
+          params.append('fixed_pressure_value', getFixedPressureSetpoint());
+          params.append('fixed_pressure_ui_percent', getFixedPressurePercent());
+          params.append('fixed_pressure_neutral', window.fixedPressureNeutral);
+          params.append('fixed_pressure_trigger_threshold', window.fixedPressureTriggerThreshold);
+        }
+
+        window.addEventListener('DOMContentLoaded', updateFixedPressureDisplay);
         
         function selectRecordingSpeed(index) {
           const speeds = [0.25, 0.5, 1.0];
@@ -1168,6 +1277,12 @@
       if (cmd === 'start_teleoperation' || cmd === 'start_teleoperation_record' || cmd === 'play_recording') {
         params.append('extra_function1', window.extra_function1);
         console.log(`Adding extra_function1: ${window.extra_function1} to command: ${cmd}`);
+      }
+
+      // Fixed sanding pressure is only implemented for recording and playback.
+      // Normal start_teleoperation keeps the live potmeter behavior for manual testing.
+      if (cmd === 'start_teleoperation_record' || cmd === 'play_recording') {
+        appendFixedPressureParams(params);
       }
 
       // Teachbot mode: automatically use the single active setup

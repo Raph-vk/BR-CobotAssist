@@ -119,6 +119,11 @@ class SaveInterface:
         # Get the recording filename and ensure proper path handling
         filename = full_message["recording_name"]
         recording_speed = full_message.get("recording_speed", self.default_recording_speed)
+        fixed_pressure_enabled = bool(full_message.get("fixed_pressure_enabled", False))
+        fixed_pressure_value = full_message.get("fixed_pressure_value", 0.5)
+        fixed_pressure_ui_percent = full_message.get("fixed_pressure_ui_percent", 0.0)
+        fixed_pressure_neutral = full_message.get("fixed_pressure_neutral", 0.5)
+        fixed_pressure_trigger_threshold = full_message.get("fixed_pressure_trigger_threshold", 0.2)
         
         # For teleoperation recording, we want to save a single file, not create a directory
         # So we get the data directory path and append the filename
@@ -143,7 +148,15 @@ class SaveInterface:
                 "dof_ee": self.config["hardware"]["robot"]["dof_ee"],
                 "total_dof": self.dof,
                 "control_dt": self.control_dt,
-                "control_loop_language": self.control_loop_language
+                "control_loop_language": self.control_loop_language,
+                # Fixed pressure is process metadata, not part of the robot path.
+                # Samples still store the per-timestep neutral/active decision.
+                "fixed_pressure_enabled": fixed_pressure_enabled,
+                "fixed_pressure_value": fixed_pressure_value,
+                "fixed_pressure_ui_percent": fixed_pressure_ui_percent,
+                "fixed_pressure_neutral": fixed_pressure_neutral,
+                "fixed_pressure_trigger_threshold": fixed_pressure_trigger_threshold,
+                "fixed_pressure_mapping": "ui_percent 0..100 maps to normalized setpoint 0.5..0.9"
             },
             "samples": []
         }
@@ -290,6 +303,21 @@ class SaveInterface:
                     "robot_position_timestamp": robot_position_timestamp,
                     "seq_id": seq_id
                 }
+
+                # Copy optional fixed-pressure diagnostics from the robot loop.
+                # These fields make recordings readable: you can see when pressure
+                # was applied and which fixed setpoint was sent to the PLC path.
+                for optional_key in (
+                    "fixed_pressure_enabled",
+                    "fixed_pressure_apply",
+                    "fixed_pressure_value",
+                    "fixed_pressure_neutral",
+                    "fixed_pressure_live_input",
+                    "fixed_pressure_sent_setpoint",
+                    "fixed_pressure_source",
+                ):
+                    if optional_key in data_item:
+                        sample[optional_key] = data_item[optional_key]
 
                 self.recorded_data["samples"].append(sample)
                 

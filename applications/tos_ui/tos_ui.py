@@ -212,6 +212,22 @@ class TOSUIApplication:
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
             extra_function1 = request.form.get("extra_function1", "false").lower() == "true"  # Convert string to boolean
+
+            # Fixed sanding pressure is only applied by the robot interface for
+            # start_teleoperation_record and play_recording. The UI sends a normalized
+            # VPPE balance setpoint: neutral=0.5, stronger plate-side force >0.5.
+            def parse_float_form(name, default):
+                try:
+                    return float(request.form.get(name, default))
+                except (TypeError, ValueError):
+                    self.ui_logger.warning("Invalid float for %s; using default %s", name, default)
+                    return float(default)
+
+            fixed_pressure_enabled = request.form.get("fixed_pressure_enabled", "false").lower() == "true"
+            fixed_pressure_value = parse_float_form("fixed_pressure_value", 0.5)
+            fixed_pressure_ui_percent = parse_float_form("fixed_pressure_ui_percent", 0.0)
+            fixed_pressure_neutral = parse_float_form("fixed_pressure_neutral", 0.5)
+            fixed_pressure_trigger_threshold = parse_float_form("fixed_pressure_trigger_threshold", 0.2)
             
             # Handle multiple robot setups (comma-separated) or single setup_id for backward compatibility
             robot_setups_str = request.form.get("robot_setups", "")
@@ -224,7 +240,7 @@ class TOSUIApplication:
                 # Fall back to single setup_id for backward compatibility
                 target_setups = [setup_id]
 
-            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}, extra_function1: {extra_function1}")
+            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}, extra_function1: {extra_function1}, fixed_pressure_enabled: {fixed_pressure_enabled}, fixed_pressure_value: {fixed_pressure_value}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
@@ -234,10 +250,22 @@ class TOSUIApplication:
 
             # Build a dict for the message, with the message and optional recording_name
             msg = {"type": "CMD", "message": message}
+
+            # Keep all fixed-pressure fields together so recording and playback receive
+            # the same process parameters. Other commands intentionally ignore them.
+            fixed_pressure_payload = {
+                "fixed_pressure_enabled": fixed_pressure_enabled,
+                "fixed_pressure_value": fixed_pressure_value,
+                "fixed_pressure_ui_percent": fixed_pressure_ui_percent,
+                "fixed_pressure_neutral": fixed_pressure_neutral,
+                "fixed_pressure_trigger_threshold": fixed_pressure_trigger_threshold,
+            }
+
             if message == "play_recording":
                 msg["recording_name"] = recording_name
                 msg["playback_speed"] = playback_speed
                 msg["extra_function1"] = extra_function1
+                msg.update(fixed_pressure_payload)
             elif message == "delete_recording":
                 msg["recording_name"] = recording_name
             elif message == "rename_recording":
@@ -267,6 +295,7 @@ class TOSUIApplication:
                 msg["recording_name"] = recording_name
                 msg["recording_speed"] = recording_speed
                 msg["extra_function1"] = extra_function1
+                msg.update(fixed_pressure_payload)
 
             elif message == "record_episodes":
                 # If no dataset name is selected, create a new one based on timestamp
