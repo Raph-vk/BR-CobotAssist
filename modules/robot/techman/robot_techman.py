@@ -262,6 +262,9 @@ class TechmanRobot():
         self.sock = None
         self.recv_sock = None
         self.connected = False
+        # Timestamp of the newest UDP feedback packet.  The connection badge
+        # uses this to distinguish a live TCP link from stale robot feedback.
+        self.last_feedback_time = None
         self.play_recording_active = False
 
         # Threads & flags
@@ -586,13 +589,13 @@ class TechmanRobot():
             if playback_pressure_apply is not None:
                 # New recordings store the pressure decision explicitly.  The
                 # recorded setpoint may equal neutral (for example, a recording
-                # made at 0%), so it cannot reliably encode this decision.
+                # made at 50%), so it cannot reliably encode this decision.
                 pressure_apply = self._as_bool(playback_pressure_apply)
                 self.fixed_pressure_source = "playback_flag"
             else:
                 # Backward compatibility for recordings made before the explicit
                 # fixed_pressure_apply field was introduced.
-                pressure_apply = live_pressure_input > (self.fixed_pressure_neutral + 0.001)
+                pressure_apply = abs(live_pressure_input - self.fixed_pressure_neutral) > 0.001
                 self.fixed_pressure_source = "playback_zone_legacy"
         else:
             # For recording, the live pot/trigger decides when the fixed pressure
@@ -1848,6 +1851,7 @@ class TechmanRobot():
                 try:
                     data, addr = self.recv_sock.recvfrom(4096)
                     if data:
+                        self.last_feedback_time = time.time()
                         self.logger_ri.info(f"Received {len(data)} bytes from {addr}: {data.decode(errors='ignore')[:200]}...")
                         # Reset timeout counter when we receive data
                         timeout_counter = 0
@@ -2310,6 +2314,39 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                             logger_ri.error("play_recording unsuccessful, Could not play recording")
                             send_response(logger_ri, robot_interface_commup, full_message,
                                           error="Could not play recording")
+
+                elif message == "report_connection_status":
+                    # This read-only command follows the existing response queue;
+                    # it does not alter robot motion or any selected setting.
+                    if not robot.connected:
+                        robot.connect()  # Retry naturally when the robot comes online.
+
+                    feedback_recent = None
+                    if robot.listener_running:
+                        feedback_recent = bool(
+                            robot.last_feedback_time
+                            and time.time() - robot.last_feedback_time < 2.0
+                        )
+
+                    if robot.play_recording_active:
+                        operation = "Playing"
+                    elif robot.recording:
+                        operation = "Recording"
+                    elif robot.robot_running:
+                        operation = "Teleoperation"
+                    else:
+                        operation = "Ready"
+
+                    send_response(
+                        logger_ri,
+                        robot_interface_commup,
+                        full_message,
+                        error="None",
+                        connected=bool(robot.connected),
+                        feedback_recent=feedback_recent,
+                        plc_connected=bool(getattr(robot, "plc_connected", False)),
+                        operation=operation,
+                    )
 
                 elif message == "run_policy":
                     if robot.robot_running:

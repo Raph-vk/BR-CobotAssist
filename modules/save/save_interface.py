@@ -156,7 +156,7 @@ class SaveInterface:
                 "fixed_pressure_ui_percent": fixed_pressure_ui_percent,
                 "fixed_pressure_neutral": fixed_pressure_neutral,
                 "fixed_pressure_trigger_threshold": fixed_pressure_trigger_threshold,
-                "fixed_pressure_mapping": "ui_percent 0..100 maps to normalized setpoint 0.5..1.0"
+                "fixed_pressure_mapping": "ui_percent 0..100 maps linearly to normalized setpoint 0.0..1.0"
             },
             "samples": []
         }

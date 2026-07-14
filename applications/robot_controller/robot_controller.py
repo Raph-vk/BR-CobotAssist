@@ -166,6 +166,31 @@ class RobotController:
             error=error_msg,
         )
 
+    def report_connection_status(self, payload):
+        """Return live robot/tool status through the existing response path."""
+        try:
+            # Reuse the normal interface startup so status checks and robot
+            # commands always observe the same connection.
+            self.connect_robot_interface()
+            if self.robot_interface_process is None:
+                raise RuntimeError("Robot interface is unavailable")
+
+            status_cmd = dict(payload)
+            status_cmd.update({
+                "type": "CMD",
+                "interface": self.get_interface_name("ROBOT_INTERFACE"),
+            })
+            self.send_command(status_cmd)
+        except Exception as exc:
+            self.logger_tc.warning("Connection status unavailable: %s", exc)
+            self.send_response(
+                payload,
+                error=str(exc),
+                connected=False,
+                plc_connected=False,
+                operation="Unavailable",
+            )
+
     def report_recording_names(self, payload):
         """
         Gather the list of recorded files and send them as a response,
@@ -1979,6 +2004,10 @@ class RobotController:
                         self.success = True
                         self.robot_interface_occupied = False
                         self.logger_tc.info("ROBOT_INTERFACE message: %s, completed. success = %s", msg_message, self.success)
+                        # Status requests are the only successful interface
+                        # responses that must also reach the browser.
+                        if msg_message == "report_connection_status":
+                            self.send_response(payload, error="None")
                     else:
                         self.logger_tc.info("Untracked ROBOT_INTERFACE response: %s", msg_message)
 
