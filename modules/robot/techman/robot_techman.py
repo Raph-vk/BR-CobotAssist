@@ -240,12 +240,31 @@ class TechmanRobot():
         self.gripper_on = False
         self.gripper_off = False
         self.teachbot_positions = deque()
+        # Per-waypoint pressure zones loaded from recordings.  Keep these
+        # separate from the recorded EE setpoint so playback can apply a newly
+        # selected pressure magnitude without losing the original on/off timing.
+        self.fixed_pressure_playback_apply = deque()
         self.ee_dof_states = [0.0] * self.dof_ee  # Track all EE DOF states
+
+        # Fixed sanding pressure state.
+        # This is disabled by default so normal teleoperation keeps using the
+        # live potentiometer value. Recording/playback commands can enable it.
+        self.fixed_pressure_enabled = False
+        self.fixed_pressure_value = 0.5
+        self.fixed_pressure_neutral = 0.5
+        self.fixed_pressure_trigger_threshold = 0.2
+        self.fixed_pressure_ui_percent = 0.0
+        self.fixed_pressure_live_input = 0.0
+        self.fixed_pressure_apply_active = False
+        self.fixed_pressure_source = "live"
 
         # Connection elements
         self.sock = None
         self.recv_sock = None
         self.connected = False
+        # Timestamp of the newest UDP feedback packet.  The connection badge
+        # uses this to distinguish a live TCP link from stale robot feedback.
+        self.last_feedback_time = None
         self.play_recording_active = False
 
         # Threads & flags
@@ -470,6 +489,125 @@ class TechmanRobot():
         else:
             self.logger_ri.debug("No extra_function1 parameter found in command, keeping current select_value")
 
+    def _as_bool(self, value):
+        """
+        Parse booleans coming from Flask/JSON consistently.
+        Flask normally sends real bools after parsing, but this also handles
+        older callers that might still send strings.
+        """
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "on")
+        return bool(value)
+
+    def _clamp_unit_interval(self, value, default):
+        """
+        Convert a numeric value to float and clamp it to 0.0..1.0.
+        The VPPE setpoint path expects normalized values before MQTT scaling.
+        """
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            numeric_value = float(default)
+        return max(0.0, min(1.0, numeric_value))
+
+    def configure_fixed_pressure_from_command(self, full_message):
+        """
+        Load fixed sanding pressure settings from a record/playback command.
+
+        The fixed pressure feature intentionally applies only to:
+        - start_teleoperation_record
+        - play_recording
+
+        Normal start_teleoperation keeps the original live potentiometer behavior
+        so the operator can still manually feel and tune the system.
+        """
+        message = (full_message or {}).get("message", "")
+        supported_command = message in ("start_teleoperation_record", "play_recording")
+
+        if not supported_command:
+            self.fixed_pressure_enabled = False
+            self.fixed_pressure_apply_active = False
+            self.fixed_pressure_source = "live"
+            return
+
+        self.fixed_pressure_enabled = self._as_bool(
+            full_message.get("fixed_pressure_enabled", False)
+        )
+        self.fixed_pressure_value = self._clamp_unit_interval(
+            full_message.get("fixed_pressure_value", 0.5), 0.5
+        )
+        self.fixed_pressure_neutral = self._clamp_unit_interval(
+            full_message.get("fixed_pressure_neutral", 0.5), 0.5
+        )
+        self.fixed_pressure_trigger_threshold = self._clamp_unit_interval(
+            full_message.get("fixed_pressure_trigger_threshold", 0.2), 0.2
+        )
+        try:
+            self.fixed_pressure_ui_percent = float(full_message.get("fixed_pressure_ui_percent", 0.0))
+        except (TypeError, ValueError):
+            self.fixed_pressure_ui_percent = 0.0
+
+        self.fixed_pressure_apply_active = False
+        self.fixed_pressure_source = "fixed" if self.fixed_pressure_enabled else "live"
+        self.logger_ri.info(
+            "Fixed pressure config: enabled=%s value=%.3f neutral=%.3f trigger_threshold=%.3f ui_percent=%.1f",
+            self.fixed_pressure_enabled,
+            self.fixed_pressure_value,
+            self.fixed_pressure_neutral,
+            self.fixed_pressure_trigger_threshold,
+            self.fixed_pressure_ui_percent,
+        )
+
+    def apply_fixed_pressure_override(self, playback_pressure_apply=None):
+        """
+        Override EE_dof_1 when fixed sanding pressure is enabled.
+
+        EE_dof_1 is still read from the teachbot/potmeter first. In recording,
+        that live value is used only as an on/off trigger:
+        - live pot <= threshold: neutral pressure balance, e.g. 0.5
+        - live pot > threshold: fixed sanding pressure, e.g. 0.72
+
+        During playback, the recorded fixed_pressure_apply flag supplies the
+        pressure zone (neutral or active). This allows the operator to replay
+        the same sanding zones while fine-tuning the fixed pressure value. Older
+        recordings without that flag fall back to their recorded EE_dof_1 value.
+        """
+        if self.dof_ee < 1:
+            return
+
+        live_pressure_input = self._clamp_unit_interval(self.ee_dof_states[0], 0.0)
+        self.fixed_pressure_live_input = live_pressure_input
+
+        if not self.fixed_pressure_enabled:
+            self.fixed_pressure_apply_active = False
+            self.fixed_pressure_source = "live"
+            return
+
+        if self.play_recording_active:
+            if playback_pressure_apply is not None:
+                # New recordings store the pressure decision explicitly.  The
+                # recorded setpoint may equal neutral (for example, a recording
+                # made at 50%), so it cannot reliably encode this decision.
+                pressure_apply = self._as_bool(playback_pressure_apply)
+                self.fixed_pressure_source = "playback_flag"
+            else:
+                # Backward compatibility for recordings made before the explicit
+                # fixed_pressure_apply field was introduced.
+                pressure_apply = abs(live_pressure_input - self.fixed_pressure_neutral) > 0.001
+                self.fixed_pressure_source = "playback_zone_legacy"
+        else:
+            # For recording, the live pot/trigger decides when the fixed pressure
+            # is applied. The actual pressure magnitude comes from the UI slider.
+            pressure_apply = live_pressure_input > self.fixed_pressure_trigger_threshold
+            self.fixed_pressure_source = "trigger"
+
+        self.fixed_pressure_apply_active = pressure_apply
+        self.ee_dof_states[0] = (
+            self.fixed_pressure_value if pressure_apply else self.fixed_pressure_neutral
+        )
+
     ################################################################
     # 1) COMMANDS
     ################################################################
@@ -482,6 +620,7 @@ class TechmanRobot():
         """
         # Update select value based on extra_function1 parameter
         self.update_select_value_from_command(full_message)
+        self.configure_fixed_pressure_from_command(full_message)
         
         self.robot_running = True
         self.receive_target_pos = True
@@ -583,6 +722,7 @@ class TechmanRobot():
             
         # Update select value based on extra_function1 parameter
         self.update_select_value_from_command(full_message)
+        self.configure_fixed_pressure_from_command(full_message)
             
         self.robot_running = True
         self.play_recording_active = True
@@ -757,8 +897,16 @@ class TechmanRobot():
                     self.logger_ri.error(f"_load_recording_data, invalid playback speed: {playback_speed}")
                     self.playback_speed_ratio = 1.0
 
-            # Load positions
-            self.teachbot_positions = deque([s["teachbot_position"] for s in data["samples"]])
+            # Load the robot path and the pressure-active zones independently.
+            # The path contains the pressure value used while recording, whereas
+            # fixed_pressure_apply records only when pressure was active.  Keeping
+            # both queues aligned lets every playback use the current UI slider.
+            self.teachbot_positions = deque(
+                [s["teachbot_position"] for s in data["samples"]]
+            )
+            self.fixed_pressure_playback_apply = deque(
+                [s.get("fixed_pressure_apply") for s in data["samples"]]
+            )
             
             # Adjust waypoints based on speed ratio
             self._adjust_teachbot_positions_for_playback_speed()
@@ -801,11 +949,18 @@ class TechmanRobot():
             
         original_count = len(self.teachbot_positions)
         original_positions = list(self.teachbot_positions)
+        original_pressure_apply = list(self.fixed_pressure_playback_apply)
+
+        # Older or externally generated recordings may not provide a matching
+        # pressure queue.  None activates the legacy setpoint-based fallback.
+        if len(original_pressure_apply) != original_count:
+            original_pressure_apply = [None] * original_count
         
         if self.playback_speed_ratio > 1.0:
             # Skip waypoints - use every Nth waypoint where N = ratio
             skip_factor = int(round(self.playback_speed_ratio))
             adjusted_positions = original_positions[::skip_factor]
+            adjusted_pressure_apply = original_pressure_apply[::skip_factor]
             
             self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} > 1.0, skipping waypoints with factor {skip_factor}")
             self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (reduction: {((original_count - len(adjusted_positions)) / original_count * 100):.1f}%)")
@@ -814,11 +969,13 @@ class TechmanRobot():
             # Interpolate additional waypoints
             interpolation_factor = int(round(1.0 / self.playback_speed_ratio))
             adjusted_positions = []
+            adjusted_pressure_apply = []
             
             self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, ratio {self.playback_speed_ratio:.2f} < 1.0, interpolating waypoints with factor {interpolation_factor}")
             
             for i in range(len(original_positions)):
                 adjusted_positions.append(original_positions[i])
+                adjusted_pressure_apply.append(original_pressure_apply[i])
                 
                 # Interpolate between current and next position (if next exists)
                 if i < len(original_positions) - 1:
@@ -856,11 +1013,15 @@ class TechmanRobot():
                             interpolated_pos[joint_idx] = interpolated_angle
                             
                         adjusted_positions.append(interpolated_pos.tolist())
+                        # Hold the current sample's discrete pressure state until
+                        # the next original waypoint; never interpolate booleans.
+                        adjusted_pressure_apply.append(original_pressure_apply[i])
             
             self.logger_ri.info(f"Waypoint count: {original_count} -> {len(adjusted_positions)} (increase: {((len(adjusted_positions) - original_count) / original_count * 100):.1f}%)")
         
         # Replace the original positions with adjusted ones
         self.teachbot_positions = deque(adjusted_positions)
+        self.fixed_pressure_playback_apply = deque(adjusted_pressure_apply)
         self.logger_ri.info(f"_adjust_teachbot_positions_for_playback_speed, waypoint adjustment completed")
 
     def _receive_target_pos_loop(self):
@@ -1009,9 +1170,12 @@ class TechmanRobot():
             last_received_js = self.start_position
 
             # Get next action
+            playback_pressure_apply = None
             if self.play_recording_active:
                 if self.teachbot_positions:
                     action_master = self.teachbot_positions.popleft()
+                    if self.fixed_pressure_playback_apply:
+                        playback_pressure_apply = self.fixed_pressure_playback_apply.popleft()
                 else:
                     self.logger_ri.info("control_loop, recording playback completed")
                     break
@@ -1028,6 +1192,11 @@ class TechmanRobot():
 
             # Extract EE DOF values from action_master
             self.ee_dof_states = self.extract_ee_dof_values(action_master)
+
+            # Fixed pressure is applied after reading EE_dof_1 and before sending
+            # MQTT/PLC data. This keeps the robot trajectory unchanged while making
+            # sanding pressure reproducible during record/playback.
+            self.apply_fixed_pressure_override(playback_pressure_apply)
             
             # Trajectory calculation with joint speed limiting (robot joints only)
             self.update_input(action_master, inp, previous_action_master)
@@ -1086,6 +1255,16 @@ class TechmanRobot():
                         "robot_position": last_received_list,  # Already includes EE states
                         "robot_position_timestamp": last_received_time,
                         "seq_id": getattr(self, 'seq_id', 0),
+                        # Store the fixed-pressure decision per sample. Playback can
+                        # use the saved neutral/active zones while the pressure value
+                        # itself remains tunable from the UI.
+                        "fixed_pressure_enabled": self.fixed_pressure_enabled,
+                        "fixed_pressure_apply": self.fixed_pressure_apply_active,
+                        "fixed_pressure_value": self.fixed_pressure_value,
+                        "fixed_pressure_neutral": self.fixed_pressure_neutral,
+                        "fixed_pressure_live_input": self.fixed_pressure_live_input,
+                        "fixed_pressure_sent_setpoint": self.ee_dof_states[0] if self.dof_ee > 0 else None,
+                        "fixed_pressure_source": self.fixed_pressure_source,
                     }
                     self.shm_joint_data1.put(joint_data)
                 except Exception as e:
@@ -1672,6 +1851,7 @@ class TechmanRobot():
                 try:
                     data, addr = self.recv_sock.recvfrom(4096)
                     if data:
+                        self.last_feedback_time = time.time()
                         self.logger_ri.info(f"Received {len(data)} bytes from {addr}: {data.decode(errors='ignore')[:200]}...")
                         # Reset timeout counter when we receive data
                         timeout_counter = 0
@@ -2134,6 +2314,39 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                             logger_ri.error("play_recording unsuccessful, Could not play recording")
                             send_response(logger_ri, robot_interface_commup, full_message,
                                           error="Could not play recording")
+
+                elif message == "report_connection_status":
+                    # This read-only command follows the existing response queue;
+                    # it does not alter robot motion or any selected setting.
+                    if not robot.connected:
+                        robot.connect()  # Retry naturally when the robot comes online.
+
+                    feedback_recent = None
+                    if robot.listener_running:
+                        feedback_recent = bool(
+                            robot.last_feedback_time
+                            and time.time() - robot.last_feedback_time < 2.0
+                        )
+
+                    if robot.play_recording_active:
+                        operation = "Playing"
+                    elif robot.recording:
+                        operation = "Recording"
+                    elif robot.robot_running:
+                        operation = "Teleoperation"
+                    else:
+                        operation = "Ready"
+
+                    send_response(
+                        logger_ri,
+                        robot_interface_commup,
+                        full_message,
+                        error="None",
+                        connected=bool(robot.connected),
+                        feedback_recent=feedback_recent,
+                        plc_connected=bool(getattr(robot, "plc_connected", False)),
+                        operation=operation,
+                    )
 
                 elif message == "run_policy":
                     if robot.robot_running:

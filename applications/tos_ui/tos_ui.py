@@ -39,6 +39,11 @@ class TOSUIApplication:
         self.recv_dataset_names_status = False
         self.model_names = None  # For model names if needed later
         self.recv_model_names_status = False
+
+        # A single event is enough for the Teachbot UI: only one status request
+        # is active at a time and the normal RabbitMQ consumer fills the result.
+        self.connection_status = None
+        self.connection_status_event = threading.Event()
         
         # Error message queue for frontend notifications
         self.error_messages = []
@@ -212,6 +217,22 @@ class TOSUIApplication:
             recording_speed = float(request.form.get("recording_speed", "")) if request.form.get("recording_speed") else 0.0
             playback_speed = float(request.form.get("playback_speed", "")) if request.form.get("playback_speed") else 0.0
             extra_function1 = request.form.get("extra_function1", "false").lower() == "true"  # Convert string to boolean
+
+            # Fixed sanding pressure is only applied by the robot interface for
+            # start_teleoperation_record and play_recording. The UI sends a normalized
+            # VPPE balance setpoint: neutral=0.5, with force in either direction.
+            def parse_float_form(name, default):
+                try:
+                    return float(request.form.get(name, default))
+                except (TypeError, ValueError):
+                    self.ui_logger.warning("Invalid float for %s; using default %s", name, default)
+                    return float(default)
+
+            fixed_pressure_enabled = request.form.get("fixed_pressure_enabled", "false").lower() == "true"
+            fixed_pressure_value = parse_float_form("fixed_pressure_value", 0.5)
+            fixed_pressure_ui_percent = parse_float_form("fixed_pressure_ui_percent", 0.0)
+            fixed_pressure_neutral = parse_float_form("fixed_pressure_neutral", 0.5)
+            fixed_pressure_trigger_threshold = parse_float_form("fixed_pressure_trigger_threshold", 0.2)
             
             # Handle multiple robot setups (comma-separated) or single setup_id for backward compatibility
             robot_setups_str = request.form.get("robot_setups", "")
@@ -224,7 +245,7 @@ class TOSUIApplication:
                 # Fall back to single setup_id for backward compatibility
                 target_setups = [setup_id]
 
-            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}, extra_function1: {extra_function1}")
+            self.ui_logger.info(f"Received form data - message: '{message}', target_setups: {target_setups}, dataset_name: '{dataset_name}', recording_name: '{recording_name}', old_recording_name: '{old_recording_name}', new_recording_name: '{new_recording_name}', old_dataset_name: '{old_dataset_name}', new_dataset_name: '{new_dataset_name}', old_model_name: '{old_model_name}', new_model_name: '{new_model_name}', model_name: '{model_name}', recording_speed: {recording_speed}, playback_speed: {playback_speed}, extra_function1: {extra_function1}, fixed_pressure_enabled: {fixed_pressure_enabled}, fixed_pressure_value: {fixed_pressure_value}")
 
             if not message:
                 return jsonify({"status": "error", "message": "No message specified"}), 400
@@ -234,10 +255,22 @@ class TOSUIApplication:
 
             # Build a dict for the message, with the message and optional recording_name
             msg = {"type": "CMD", "message": message}
+
+            # Keep all fixed-pressure fields together so recording and playback receive
+            # the same process parameters. Other commands intentionally ignore them.
+            fixed_pressure_payload = {
+                "fixed_pressure_enabled": fixed_pressure_enabled,
+                "fixed_pressure_value": fixed_pressure_value,
+                "fixed_pressure_ui_percent": fixed_pressure_ui_percent,
+                "fixed_pressure_neutral": fixed_pressure_neutral,
+                "fixed_pressure_trigger_threshold": fixed_pressure_trigger_threshold,
+            }
+
             if message == "play_recording":
                 msg["recording_name"] = recording_name
                 msg["playback_speed"] = playback_speed
                 msg["extra_function1"] = extra_function1
+                msg.update(fixed_pressure_payload)
             elif message == "delete_recording":
                 msg["recording_name"] = recording_name
             elif message == "rename_recording":
@@ -267,6 +300,7 @@ class TOSUIApplication:
                 msg["recording_name"] = recording_name
                 msg["recording_speed"] = recording_speed
                 msg["extra_function1"] = extra_function1
+                msg.update(fixed_pressure_payload)
 
             elif message == "record_episodes":
                 # If no dataset name is selected, create a new one based on timestamp
@@ -347,6 +381,31 @@ class TOSUIApplication:
             result = self.recording_names or []
             self.ui_logger.info(f"Returning {len(result)} recording names from all setups")
             return jsonify(result)
+
+        @self.app.route("/request_connection_status", methods=["POST"])
+        def request_connection_status():
+            """Request robot status without changing the existing command API."""
+            self.connection_status = None
+            self.connection_status_event.clear()
+
+            setup_ids = self.get_available_setup_ids()
+            if not setup_ids:
+                return jsonify({"connected": False, "operation": "Unavailable"})
+
+            try:
+                self.send_command(
+                    {"type": "CMD", "message": "report_connection_status"},
+                    setup_id=setup_ids[0],
+                )
+                self.connection_status_event.wait(timeout=3.0)
+            except Exception as exc:
+                self.ui_logger.warning("Connection status request failed: %s", exc)
+
+            return jsonify(self.connection_status or {
+                "connected": False,
+                "plc_connected": False,
+                "operation": "Unavailable",
+            })
 
         @self.app.route("/request_datasets", methods=["POST"])
         def request_datasets():
@@ -503,7 +562,8 @@ class TOSUIApplication:
         if "error" in data:
             err_val = data["error"]
             # We only treat it as an error if it's not None, empty string, or the literal string "None"
-            if err_val and err_val not in ("None", ""):
+            if (err_val and err_val not in ("None", "")
+                    and data.get("message") != "report_connection_status"):
                 self.ui_logger.error("Response error: %s", err_val)
                 # Add error to the queue for frontend notification
                 self._add_error_message(err_val)
@@ -513,8 +573,17 @@ class TOSUIApplication:
 
         # Check if it's indeed a "RESP"
         if msg_type == "RESP":
+            if message_cmd == "report_connection_status":
+                # Keep only the small, stable contract consumed by the badge.
+                self.connection_status = {
+                    "connected": bool(data.get("connected", False)),
+                    "feedback_recent": data.get("feedback_recent"),
+                    "plc_connected": bool(data.get("plc_connected", False)),
+                    "operation": data.get("operation", "Unavailable"),
+                }
+                self.connection_status_event.set()
             # For "report_recording_names" if the controller sends that
-            if message_cmd == "report_recording_names":
+            elif message_cmd == "report_recording_names":
                 # The new format includes "files": [ {...}, {...} ]
                 files_list = data.get("files", [])
                 if isinstance(files_list, list):

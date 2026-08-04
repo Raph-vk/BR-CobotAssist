@@ -50,7 +50,7 @@
     .two-sections {
       position: relative;    
       width: calc(1200px * var(--scale-factor));         
-      height: calc(840px * var(--scale-factor));         /* Increased from 800px to accommodate taller bottom box */
+      height: calc(1050px * var(--scale-factor));        /* Includes both settings phases */
       margin: calc(2rem * var(--scale-factor)) auto;     
       background-color: #f2f2f2;
     }
@@ -61,7 +61,7 @@
       top: 0;
       left: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(555px * var(--scale-factor)); /* Increased from 430px */
+      height: calc(365px * var(--scale-factor));
       background-color: var(--color-red);
     }
     .line-top-bottom {
@@ -69,25 +69,25 @@
       left: 0;
       width: 100%;
       height: calc(5px * var(--scale-factor));
-      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
+      top: calc(360px * var(--scale-factor));
       background-color: var(--color-red);
     }
     .line-bottom-right {
       position: absolute;
-      top: calc(550px * var(--scale-factor)); /* Moved down from 430px */
+      top: calc(360px * var(--scale-factor));
       right: calc(-5px * var(--scale-factor));
       width: calc(5px * var(--scale-factor));
-      height: calc(400px * var(--scale-factor)); /* Increased to match new bottom box height */
+      height: calc(690px * var(--scale-factor)); /* Match the full settings workflow */
       background-color: var(--color-red);
     }
 
-    /* Top box: increased height for larger content */
+    /* Top box: two compact command rows */
     .box-top {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: calc(550px * var(--scale-factor)); /* Increased from 430px */
+      height: calc(360px * var(--scale-factor));
       background-color: #fff;
       border-radius: calc(6px * var(--scale-factor));
       box-shadow: 0 calc(2px * var(--scale-factor)) calc(4px * var(--scale-factor)) rgba(0,0,0,0.1);
@@ -98,7 +98,7 @@
     /* Box-bottom positioning */
     .box-bottom {
       position: absolute;
-      top: calc(560px * var(--scale-factor)); /* Position below the box-top (550px height + 10px margin) */
+      top: calc(370px * var(--scale-factor)); /* Position below the compact command box */
       left: 0;
       width: 100%;
       text-align: center;
@@ -126,8 +126,24 @@
 
     /* Buttons row(s) */
     .button-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(1rem * var(--scale-factor));
       margin-top: calc(1rem * var(--scale-factor));
     }
+
+    .control-row .btn,
+    .control-row #recordingsDropdown {
+      margin: 0;
+    }
+
+    .control-row .btn {
+      width: calc(360px * var(--scale-factor));
+      padding: calc(1.35rem * var(--scale-factor)) calc(1.7rem * var(--scale-factor));
+      font-size: calc(1.5rem * var(--scale-factor));
+    }
+
     .btn {
       display: inline-block;
       width: calc(280px * var(--scale-factor));  /* Increased from 220px for larger text */
@@ -146,6 +162,61 @@
     }
     .btn:hover {
       background-color: var(--color-red);
+    }
+
+    /* Compact live status; colors are paired with text for accessibility. */
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(0.55rem * var(--scale-factor));
+      min-height: calc(36px * var(--scale-factor));
+      padding: calc(0.4rem * var(--scale-factor)) calc(0.9rem * var(--scale-factor));
+      border: calc(1px * var(--scale-factor)) solid #d0d5dd;
+      border-radius: calc(20px * var(--scale-factor));
+      background: #f8fafc;
+      color: #475467;
+      font-size: calc(1rem * var(--scale-factor));
+      font-weight: 600;
+    }
+
+    .connection-status-dot {
+      width: calc(11px * var(--scale-factor));
+      height: calc(11px * var(--scale-factor));
+      border-radius: 50%;
+      background: #98a2b3;
+      box-shadow: 0 0 0 calc(3px * var(--scale-factor)) rgba(152, 162, 179, 0.18);
+    }
+
+    .connection-status.online {
+      border-color: #86d4a3;
+      background: #ecfdf3;
+      color: #16713a;
+    }
+
+    .connection-status.online .connection-status-dot {
+      background: #22a35a;
+      box-shadow: 0 0 0 calc(3px * var(--scale-factor)) rgba(34, 163, 90, 0.18);
+    }
+
+    .connection-status.warning {
+      border-color: #f0c36a;
+      background: #fffaeb;
+      color: #8a5b00;
+    }
+
+    .connection-status.warning .connection-status-dot {
+      background: #e7a20b;
+    }
+
+    .connection-status.offline {
+      border-color: #f1a6a0;
+      background: #fff1f0;
+      color: #a51d16;
+    }
+
+    .connection-status.offline .connection-status-dot {
+      background: var(--color-red);
+      box-shadow: 0 0 0 calc(3px * var(--scale-factor)) rgba(217, 27, 17, 0.16);
     }
 
     /* Fixed-width dropdown */
@@ -191,16 +262,106 @@
       font-size: calc(1.3rem * var(--scale-factor));
     }
 
-    /* Settings section with two-column layout */
+    /* Settings workflow: shared tool control, recording setup and playback fine-tuning */
     .settings-section {
       display: grid;
-      grid-template-columns: calc(250px * var(--scale-factor)) 1fr; /* Restored to 250px to prevent text wrapping */
-      gap: calc(0.5rem * var(--scale-factor)); /* Reduced from 1rem for tighter spacing */
-      row-gap: calc(2rem * var(--scale-factor)); /* Added vertical spacing between rows */
+      grid-template-columns: minmax(0, 1fr) calc(2px * var(--scale-factor)) minmax(0, 1fr);
+      gap: calc(1.5rem * var(--scale-factor));
+      align-items: stretch;
+      max-width: calc(1120px * var(--scale-factor));
+      margin: 0 auto;
+      text-align: left;
+    }
+
+    .tool-control-mode {
+      grid-column: 1 / -1;
+      display: flex;
       align-items: center;
-      max-width: calc(600px * var(--scale-factor)); /* Reduced max-width for better centering */
-      margin: 0 auto; /* Center the settings section */
-      justify-self: center; /* Additional centering */
+      justify-content: center;
+      gap: calc(1.5rem * var(--scale-factor));
+      padding: calc(0.9rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+      border: calc(1px * var(--scale-factor)) solid #d8ddea;
+      border-radius: calc(10px * var(--scale-factor));
+      background: #f7f8fc;
+    }
+
+    .tool-control-mode-copy {
+      text-align: right;
+    }
+
+    .tool-control-mode-title {
+      color: var(--color-blue);
+      font-size: calc(1.3rem * var(--scale-factor));
+      font-weight: bold;
+    }
+
+    .tool-control-mode-description {
+      margin-top: calc(0.2rem * var(--scale-factor));
+      color: #667085;
+      font-size: calc(0.9rem * var(--scale-factor));
+    }
+
+    .settings-phase {
+      display: grid;
+      grid-template-columns: calc(210px * var(--scale-factor)) 1fr;
+      column-gap: calc(0.75rem * var(--scale-factor));
+      row-gap: calc(1.35rem * var(--scale-factor));
+      align-content: start;
+      align-items: center;
+      min-width: 0;
+      padding: calc(0.5rem * var(--scale-factor)) calc(1rem * var(--scale-factor));
+    }
+
+    .settings-phase-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: calc(0.8rem * var(--scale-factor));
+      min-height: calc(64px * var(--scale-factor));
+      margin-bottom: calc(0.25rem * var(--scale-factor));
+    }
+
+    .settings-phase-number {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      width: calc(40px * var(--scale-factor));
+      height: calc(40px * var(--scale-factor));
+      border-radius: 50%;
+      background: var(--color-blue);
+      color: white;
+      font-size: calc(1.15rem * var(--scale-factor));
+      font-weight: bold;
+    }
+
+    .playback-settings .settings-phase-number {
+      background: var(--color-red);
+    }
+
+    .settings-phase-title {
+      color: var(--color-blue);
+      font-size: calc(1.35rem * var(--scale-factor));
+      font-weight: bold;
+      line-height: 1.15;
+    }
+
+    .settings-phase-description {
+      margin-top: calc(0.25rem * var(--scale-factor));
+      color: #667085;
+      font-size: calc(0.95rem * var(--scale-factor));
+      line-height: 1.3;
+    }
+
+    .settings-divider {
+      width: calc(2px * var(--scale-factor));
+      min-height: calc(300px * var(--scale-factor));
+      border-radius: calc(2px * var(--scale-factor));
+      background: linear-gradient(to bottom, transparent, #c8cddd 10%, #c8cddd 90%, transparent);
+    }
+
+    .playback-settings {
+      align-content: start;
     }
 
     /* Left column: labels */
@@ -286,6 +447,71 @@
       background-color: rgba(217, 27, 17, 0.7) !important; /* Red selected state */
       color: white !important;
       border-color: rgba(217, 27, 17, 0.7) !important;
+    }
+
+    /* Tool setpoint controls. Pressure mode shows 0-100% force; position mode
+       shows the same slider as 0-50 mm. Both use the existing normalized
+       setpoint contract (0.0-1.0) towards the backend. */
+    .fixed-pressure-row {
+      display: contents; /* Use grid layout from parent */
+    }
+
+    .fixed-pressure-toggle {
+      display: flex;
+      align-items: center;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor));
+      justify-content: center;
+      color: #4a5a8a;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: bold;
+    }
+
+    .fixed-pressure-enable {
+      display: flex;
+      align-items: center;
+      gap: calc(0.5rem * var(--scale-factor));
+    }
+
+    .fixed-pressure-toggle input[type="checkbox"] {
+      width: calc(22px * var(--scale-factor));
+      height: calc(22px * var(--scale-factor));
+      accent-color: var(--color-red);
+    }
+
+    .fixed-pressure-control {
+      display: flex;
+      align-items: center;
+      gap: calc(0.5rem * var(--scale-factor));
+      width: calc(280px * var(--scale-factor));
+    }
+
+    .tool-setpoint-slider {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .tool-setpoint-slider input[type="range"] {
+      width: 100%;
+      margin: 0;
+    }
+
+    .tool-setpoint-axis {
+      display: flex;
+      justify-content: space-between;
+      margin-top: calc(0.15rem * var(--scale-factor));
+      color: #667085;
+      font-size: calc(0.75rem * var(--scale-factor));
+    }
+
+    .fixed-pressure-value {
+      min-width: calc(110px * var(--scale-factor));
+      text-align: right;
+      color: var(--color-blue);
+      font-size: calc(1.1rem * var(--scale-factor));
+      font-weight: bold;
     }
 
     /* Align all labels consistently */
@@ -501,9 +727,451 @@
     .custom-prompt-btn.secondary:hover {
       background-color: #e0e0e0;
     }
+
+    /* Touchscreen layout for the 215 x 135 mm HMI. Existing controls and
+       backend values are unchanged; these rules only change presentation. */
+    :root {
+      --touch-height: calc(58px * var(--scale-factor));
+      --touch-radius: calc(16px * var(--scale-factor));
+      --touch-gap: calc(14px * var(--scale-factor));
+    }
+
+    .btn,
+    .recording-picker-button,
+    .settings-tab,
+    .selector-button,
+    .speed-button,
+    .library-action {
+      min-height: var(--touch-height);
+      border-radius: var(--touch-radius);
+      touch-action: manipulation;
+    }
+
+    .btn:active,
+    .recording-picker-button:active,
+    .settings-tab:active,
+    .selector-button:active,
+    .speed-button:active,
+    .recording-card:active,
+    .library-action:active {
+      transform: scale(0.97);
+    }
+
+    #recordingsDropdown {
+      display: none;
+    }
+
+    .recording-picker {
+      width: calc(360px * var(--scale-factor));
+    }
+
+    .recording-picker-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(12px * var(--scale-factor));
+      padding: calc(12px * var(--scale-factor)) calc(18px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #ccd3e3;
+      background: white;
+      color: #23335f;
+      cursor: pointer;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .recording-picker-button .recording-picker-copy {
+      min-width: 0;
+    }
+
+    .recording-picker-label {
+      display: block;
+      color: #667085;
+      font-size: calc(0.75rem * var(--scale-factor));
+      font-weight: 600;
+    }
+
+    #selected-recording-name {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .recording-picker-arrow {
+      flex: 0 0 auto;
+      font-size: calc(1.6rem * var(--scale-factor));
+    }
+
+    .settings-tabs {
+      display: flex;
+      justify-content: center;
+      gap: var(--touch-gap);
+      margin: 0 auto calc(18px * var(--scale-factor));
+    }
+
+    .settings-tab {
+      min-width: calc(230px * var(--scale-factor));
+      padding: calc(10px * var(--scale-factor)) calc(24px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid var(--color-blue);
+      background: white;
+      color: var(--color-blue);
+      cursor: pointer;
+      font-size: calc(1.2rem * var(--scale-factor));
+      font-weight: 700;
+    }
+
+    .settings-tab.active {
+      background: var(--color-blue);
+      color: white;
+    }
+
+    .settings-section {
+      display: block;
+      max-width: calc(900px * var(--scale-factor));
+    }
+
+    .tool-control-mode {
+      display: flex;
+      margin-bottom: calc(16px * var(--scale-factor));
+    }
+
+    .settings-phase {
+      grid-template-columns: calc(230px * var(--scale-factor)) minmax(0, 1fr);
+      max-width: calc(760px * var(--scale-factor));
+      margin: 0 auto;
+      padding: calc(10px * var(--scale-factor)) calc(20px * var(--scale-factor));
+      border-radius: var(--touch-radius);
+      background: #fff;
+    }
+
+    .settings-phase[hidden],
+    .settings-divider {
+      display: none;
+    }
+
+    .selector-buttons,
+    .speed-buttons,
+    .fixed-pressure-toggle,
+    .fixed-pressure-control {
+      width: calc(360px * var(--scale-factor));
+    }
+
+    .fixed-pressure-toggle input[type="checkbox"] {
+      width: calc(34px * var(--scale-factor));
+      height: calc(34px * var(--scale-factor));
+    }
+
+    input[type="range"] {
+      min-height: calc(34px * var(--scale-factor));
+      accent-color: var(--color-blue);
+    }
+
+    /* Playback fine-tuning needs larger touch targets than the compact
+       recording controls: a longer force/position slider and wider speeds. */
+    #playback-settings-panel {
+      max-width: calc(860px * var(--scale-factor));
+    }
+
+    #playback-settings-panel .fixed-pressure-control,
+    #playback-settings-panel .speed-buttons {
+      width: calc(500px * var(--scale-factor));
+    }
+
+    #fixed-pressure-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      min-height: calc(52px * var(--scale-factor));
+      background: transparent;
+      cursor: pointer;
+    }
+
+    #fixed-pressure-slider::-moz-range-track {
+      height: calc(12px * var(--scale-factor));
+      border-radius: calc(6px * var(--scale-factor));
+      background: #c9d1e2;
+    }
+
+    #fixed-pressure-slider::-moz-range-progress {
+      height: calc(12px * var(--scale-factor));
+      border-radius: calc(6px * var(--scale-factor));
+      background: var(--color-blue);
+    }
+
+    #fixed-pressure-slider::-moz-range-thumb {
+      width: calc(36px * var(--scale-factor));
+      height: calc(36px * var(--scale-factor));
+      border: calc(3px * var(--scale-factor)) solid white;
+      border-radius: 50%;
+      background: var(--color-blue);
+      box-shadow: 0 0 0 calc(2px * var(--scale-factor)) #203d91;
+    }
+
+    #fixed-pressure-slider::-webkit-slider-runnable-track {
+      height: calc(12px * var(--scale-factor));
+      border-radius: calc(6px * var(--scale-factor));
+      background: #c9d1e2;
+    }
+
+    #fixed-pressure-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: calc(36px * var(--scale-factor));
+      height: calc(36px * var(--scale-factor));
+      margin-top: calc(-12px * var(--scale-factor));
+      border: calc(3px * var(--scale-factor)) solid white;
+      border-radius: 50%;
+      background: var(--color-blue);
+      box-shadow: 0 0 0 calc(2px * var(--scale-factor)) #203d91;
+    }
+
+    #playback-speed-buttons .speed-button {
+      min-height: calc(68px * var(--scale-factor));
+      padding: calc(1rem * var(--scale-factor));
+      font-size: calc(1.3rem * var(--scale-factor));
+    }
+
+    .recording-library-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      padding: calc(18px * var(--scale-factor));
+      background: rgba(22, 31, 55, 0.58);
+    }
+
+    .recording-library-overlay.open {
+      display: flex;
+    }
+
+    .recording-library {
+      width: min(calc(1050px * var(--scale-factor)), 96vw);
+      height: min(calc(720px * var(--scale-factor)), 94vh);
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: calc(22px * var(--scale-factor));
+      background: #f4f6fa;
+      box-shadow: 0 calc(14px * var(--scale-factor)) calc(45px * var(--scale-factor)) rgba(0,0,0,.3);
+    }
+
+    .recording-grid-scroll-shell {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .recording-library-header,
+    .recording-library-footer {
+      display: flex;
+      align-items: center;
+      gap: var(--touch-gap);
+      padding: calc(16px * var(--scale-factor)) calc(20px * var(--scale-factor));
+      background: white;
+    }
+
+    .recording-library-title {
+      margin-right: auto;
+      color: var(--color-blue);
+      font-size: calc(1.8rem * var(--scale-factor));
+    }
+
+    .recording-search {
+      width: calc(330px * var(--scale-factor));
+      min-height: var(--touch-height);
+      padding: 0 calc(18px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #ccd3e3;
+      border-radius: var(--touch-radius);
+      font-size: calc(1.05rem * var(--scale-factor));
+    }
+
+    .recording-library-close {
+      width: var(--touch-height);
+      min-width: var(--touch-height);
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: #edf0f6;
+      color: #344054;
+      cursor: pointer;
+      font-size: calc(1.7rem * var(--scale-factor));
+    }
+
+    .recording-grid {
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-content: start;
+      gap: var(--touch-gap);
+      padding: calc(18px * var(--scale-factor)) calc(64px * var(--scale-factor)) calc(18px * var(--scale-factor)) calc(18px * var(--scale-factor));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Wide custom scrollbars for the touchscreen. Firefox cannot make its
+       native scrollbar wider through CSS, so these controls mirror the real
+       page/program scroll positions and support dragging or track tapping. */
+    .touch-scrollbar {
+      width: calc(42px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #bcc5d8;
+      border-radius: calc(21px * var(--scale-factor));
+      background: rgba(220, 225, 237, 0.96);
+      box-shadow: 0 calc(2px * var(--scale-factor)) calc(8px * var(--scale-factor)) rgba(30, 45, 80, 0.2);
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .touch-scrollbar[hidden] {
+      display: none;
+    }
+
+    .page-touch-scrollbar {
+      position: fixed;
+      top: calc(12px * var(--scale-factor));
+      right: calc(8px * var(--scale-factor));
+      bottom: calc(12px * var(--scale-factor));
+      z-index: 4000;
+    }
+
+    body.recording-library-open .page-touch-scrollbar {
+      display: none;
+    }
+
+    .programs-touch-scrollbar {
+      position: absolute;
+      top: calc(10px * var(--scale-factor));
+      right: calc(8px * var(--scale-factor));
+      bottom: calc(10px * var(--scale-factor));
+      z-index: 2;
+    }
+
+    .touch-scrollbar-thumb {
+      position: absolute;
+      top: 0;
+      left: calc(4px * var(--scale-factor));
+      right: calc(4px * var(--scale-factor));
+      min-height: calc(78px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #203d91;
+      border-radius: calc(17px * var(--scale-factor));
+      background: var(--color-blue);
+      box-shadow: inset 0 0 0 calc(2px * var(--scale-factor)) rgba(255,255,255,.22);
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .touch-scrollbar-thumb:active {
+      cursor: grabbing;
+      background: #203d91;
+    }
+
+    .touch-scrollbar:focus-visible {
+      outline: calc(4px * var(--scale-factor)) solid rgba(217, 27, 17, .55);
+      outline-offset: calc(3px * var(--scale-factor));
+    }
+
+    html.touch-scrollbars-ready {
+      scrollbar-width: none;
+    }
+
+    html.touch-scrollbars-ready .recording-grid {
+      scrollbar-width: none;
+    }
+
+    html.touch-scrollbars-ready::-webkit-scrollbar,
+    html.touch-scrollbars-ready body::-webkit-scrollbar,
+    html.touch-scrollbars-ready .recording-grid::-webkit-scrollbar {
+      display: none;
+    }
+
+    .recording-card {
+      min-height: calc(112px * var(--scale-factor));
+      display: flex;
+      align-items: center;
+      gap: calc(15px * var(--scale-factor));
+      padding: calc(18px * var(--scale-factor));
+      border: calc(3px * var(--scale-factor)) solid transparent;
+      border-radius: calc(18px * var(--scale-factor));
+      background: white;
+      box-shadow: 0 calc(2px * var(--scale-factor)) calc(8px * var(--scale-factor)) rgba(30,45,80,.08);
+      cursor: pointer;
+      color: #25304b;
+      text-align: left;
+    }
+
+    .recording-card.selected {
+      border-color: var(--color-blue);
+      background: #eef3ff;
+    }
+
+    .recording-card-icon {
+      font-size: calc(2rem * var(--scale-factor));
+    }
+
+    .recording-card-name {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: calc(1.25rem * var(--scale-factor));
+      font-weight: 750;
+    }
+
+    .recording-card-meta {
+      display: block;
+      margin-top: calc(5px * var(--scale-factor));
+      color: #667085;
+      font-size: calc(.9rem * var(--scale-factor));
+    }
+
+    .recording-empty {
+      grid-column: 1 / -1;
+      padding: calc(50px * var(--scale-factor));
+      color: #667085;
+      text-align: center;
+    }
+
+    .recording-library-footer {
+      justify-content: flex-end;
+      border-top: 1px solid #dfe3ec;
+    }
+
+    .library-action {
+      min-width: calc(145px * var(--scale-factor));
+      padding: calc(10px * var(--scale-factor)) calc(20px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #ccd3e3;
+      background: white;
+      color: #344054;
+      cursor: pointer;
+      font-size: calc(1rem * var(--scale-factor));
+      font-weight: 700;
+    }
+
+    .library-action.primary {
+      border-color: var(--color-blue);
+      background: var(--color-blue);
+      color: white;
+    }
+
+    .library-action.danger {
+      border-color: #efb1ad;
+      color: #b42318;
+    }
+
+    .library-action:disabled {
+      opacity: .42;
+      cursor: default;
+    }
+
+    @media (max-width: 900px) {
+      .recording-grid { grid-template-columns: 1fr; }
+      .recording-search { width: min(42vw, calc(330px * var(--scale-factor))); }
+    }
   </style>
 </head>
-<body>
+<body id="control-ui-page">
   <!-- Header with logos -->
   <div class="header">
     <img class="logo-tos" src="{{ url_for('static', filename='tos_logo.jpg') }}" alt="TOS Logo">
@@ -520,6 +1188,11 @@
     <!-- Top Box -->
     <div class="box-top">
       <h2>TOS UI Controls</h2>
+
+      <div id="connection-status" class="connection-status" role="status" aria-live="polite">
+        <span class="connection-status-dot" aria-hidden="true"></span>
+        <span id="connection-status-text">Checking connections...</span>
+      </div>
       
       <!-- Teachbot mode: Show setup info only when multiple setups are defined -->
       {% if total_setups >= 2 %}
@@ -530,40 +1203,34 @@
       </div>
       {% endif %}
 
-      <div class="button-row">
+      <div class="button-row control-row">
         <button class="btn" onclick="sendCommand('start_teleoperation')">
           Start Teleop
         </button>
+        <button class="btn" onclick="sendCommand('stop')">
+          Stop
+        </button>
       </div>
 
-
-      <div class="button-row">
-        <div class="dropdown-with-icons">
-          <select id="recordingsDropdown"
-                  onmouseover="fetchRecordingsInBackground()" 
-                  onfocus="fetchRecordingsInBackground()"
-                  onchange="onRecordingSelected()">
-            <option hidden value="">Select name...</option>
-          </select>
-          <div class="dropdown-option-icons">
-            <span class="icon icon-rename" onclick="renameSelectedRecording()" data-tooltip="Rename recording">✏️</span>
-            <span class="icon icon-delete" onclick="deleteSelectedRecording()" data-tooltip="Delete recording">🗑️</span>
-          </div>
-        </div>
-
-      </div>
-      <div class="button-row">
+      <div class="button-row control-row program-control-row">
         <button class="btn" onclick="sendCommand('start_teleoperation_record')">
           Start Teleop &amp; Record
         </button>
-          <button class="btn" onclick="playSelectedRecording()">
+        <div class="recording-picker">
+          <!-- Hidden compatibility layer for the existing command functions. -->
+          <select id="recordingsDropdown" onchange="onRecordingSelected()" aria-hidden="true" tabindex="-1">
+            <option hidden value="">Select recording...</option>
+          </select>
+          <button type="button" class="recording-picker-button" onclick="openRecordingLibrary()">
+            <span class="recording-picker-copy">
+              <span class="recording-picker-label">Recording</span>
+              <span id="selected-recording-name">Select recording</span>
+            </span>
+            <span class="recording-picker-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+        <button class="btn" onclick="playSelectedRecording()">
           Play Recording
-        </button>
-      </div>
-
-      <div class="button-row">
-        <button class="btn" onclick="sendCommand('stop')">
-          Stop
         </button>
       </div>
     </div>
@@ -573,29 +1240,96 @@
     <!-- Bottom Box -->
     <div class="box-bottom">
       <h2>Settings</h2>
-      <div class="settings-section">
-      
-      <!-- Pressure/Position Selector -->
-      <div class="pressure-position-selector">
-        <div class="setting-label">Control Mode:</div>
-        <div class="setting-control">
-          <div class="selector-buttons">
-            <button type="button" class="selector-button selected" id="pressure-btn" onclick="selectPressurePosition('pressure')">Pressure</button>
-            <button type="button" class="selector-button" id="position-btn" onclick="selectPressurePosition('position')">Position</button>
-          </div>
-        </div>
+      <div class="settings-tabs" role="tablist" aria-label="Settings phase">
+        <button type="button" id="recording-settings-tab" class="settings-tab active" role="tab" aria-selected="true" aria-controls="recording-settings-panel" onclick="showSettingsTab('recording')">Recording</button>
+        <button type="button" id="playback-settings-tab" class="settings-tab" role="tab" aria-selected="false" aria-controls="playback-settings-panel" onclick="showSettingsTab('playback')">Playback</button>
       </div>
-      
-      <!-- Recording Speed buttons -->
-      <div class="speed-control-row">
-        <div class="setting-label">Recording Speed:</div>
-        <div class="setting-control">
-          <div class="speed-buttons" id="recording-speed-buttons">
-            <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0)">0.25</button>
-            <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1)">0.5</button>
-            <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2)">1.0</button>
+      <div class="settings-section">
+
+        <section class="tool-control-mode" aria-labelledby="tool-control-mode-title">
+          <div class="tool-control-mode-copy">
+            <div class="tool-control-mode-title" id="tool-control-mode-title">Tool Control Mode</div>
+            <div class="tool-control-mode-description">Used during recording and playback.</div>
           </div>
-        </div>
+          <div class="selector-buttons" role="group" aria-label="Tool Control Mode">
+            <button type="button" class="selector-button selected" id="pressure-btn" aria-pressed="true" onclick="selectPressurePosition('pressure')">Pressure</button>
+            <button type="button" class="selector-button" id="position-btn" aria-pressed="false" onclick="selectPressurePosition('position')">Position</button>
+          </div>
+        </section>
+
+        <section class="settings-phase recording-settings" id="recording-settings-panel" role="tabpanel" aria-labelledby="recording-settings-tab">
+          <div class="settings-phase-header">
+            <span class="settings-phase-number" aria-hidden="true">1</span>
+            <div>
+              <div class="settings-phase-title" id="recording-settings-title">Before recording</div>
+              <div class="settings-phase-description">Set these options before starting a recording.</div>
+            </div>
+          </div>
+
+          <!-- Recording Speed buttons -->
+          <div class="speed-control-row">
+            <div class="setting-label">Recording Speed:</div>
+            <div class="setting-control">
+              <div class="speed-buttons" id="recording-speed-buttons">
+                <button type="button" class="speed-button" data-speed="0.25" onclick="selectRecordingSpeed(0)">0.25</button>
+                <button type="button" class="speed-button active" data-speed="0.5" onclick="selectRecordingSpeed(1)">0.5</button>
+                <button type="button" class="speed-button" data-speed="1.0" onclick="selectRecordingSpeed(2)">1.0</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="settings-divider" role="separator" aria-orientation="vertical"></div>
+
+        <section class="settings-phase playback-settings" id="playback-settings-panel" role="tabpanel" aria-labelledby="playback-settings-tab" hidden>
+          <div class="settings-phase-header">
+            <span class="settings-phase-number" aria-hidden="true">2</span>
+            <div>
+              <div class="settings-phase-title" id="playback-settings-title">Playback fine-tuning</div>
+              <div class="settings-phase-description">Adjust this after recording, before playback.</div>
+            </div>
+          </div>
+
+          <!-- Playback tool fine-tuning. The existing backend field names remain
+               unchanged until the position control implementation is completed. -->
+          <div class="fixed-pressure-row">
+            <div class="setting-label" id="fixed-tool-toggle-label">Fixed Pressure:</div>
+            <div class="setting-control">
+              <div class="fixed-pressure-toggle">
+                <label class="fixed-pressure-enable">
+                  <input type="checkbox" id="fixed-pressure-enabled" onchange="updateFixedPressureDisplay()">
+                  Enable
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="fixed-pressure-row">
+            <div class="setting-label" id="tool-setpoint-label">Tool Force:</div>
+            <div class="setting-control">
+              <div class="fixed-pressure-control">
+                <div class="tool-setpoint-slider">
+                  <input type="range" id="fixed-pressure-slider" min="0" max="100" step="1" value="50" aria-label="Tool force" oninput="updateFixedPressureDisplay()">
+                  <div class="tool-setpoint-axis" aria-hidden="true">
+                    <span id="tool-setpoint-min">0%</span>
+                    <span id="tool-setpoint-max">100%</span>
+                  </div>
+                </div>
+                <span id="fixed-pressure-value" class="fixed-pressure-value">50%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Playback Speed buttons -->
+          <div class="speed-control-row">
+            <div class="setting-label">Playback Speed:</div>
+            <div class="setting-control">
+              <div class="speed-buttons" id="playback-speed-buttons">
+                <!-- Buttons will be dynamically generated based on recording speed -->
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <script>
@@ -605,6 +1339,18 @@
         // Global variables to track selected speeds
         window.selectedRecordingSpeedIndex = 1; // Default to 0.5x (index 1)
         window.selectedPlaybackSpeedIndex = 0; // Default to first option
+
+        // Fixed pressure mapping:
+        // 0-100% tool force maps linearly to the complete normalized 0.0-1.0
+        // setpoint range. Neutral remains 0.5 when fixed pressure is inactive.
+        // The trigger/pot decides when this value is applied during record/playback.
+        window.fixedPressureNeutral = 0.5;
+        window.fixedPressureTriggerThreshold = 0.2;
+        window.toolStrokeMillimeters = 50.0;
+
+        function isPositionMode() {
+          return window.extra_function1 === false;
+        }
         
         function selectPressurePosition(mode) {
           const pressureBtn = document.getElementById('pressure-btn');
@@ -624,7 +1370,69 @@
             window.extra_function1 = false;
             console.log('Position mode selected - extra_function1:', window.extra_function1);
           }
+
+          pressureBtn.setAttribute('aria-pressed', String(window.extra_function1));
+          positionBtn.setAttribute('aria-pressed', String(!window.extra_function1));
+          updateFixedPressureDisplay();
         }
+
+        function getFixedPressurePercent() {
+          const slider = document.getElementById('fixed-pressure-slider');
+          return slider ? parseFloat(slider.value) : 50.0;
+        }
+
+        function getFixedPressureSetpoint() {
+          const percent = getFixedPressurePercent();
+          // Both visual modes share the existing normalized setpoint contract.
+          // Position control itself will be implemented and tested later.
+          return Math.max(0.0, Math.min(1.0, percent / 100.0));
+        }
+
+        function updateFixedPressureDisplay() {
+          const valueLabel = document.getElementById('fixed-pressure-value');
+          if (!valueLabel) return;
+
+          const percent = getFixedPressurePercent();
+          const toggleLabel = document.getElementById('fixed-tool-toggle-label');
+          const setpointLabel = document.getElementById('tool-setpoint-label');
+          const slider = document.getElementById('fixed-pressure-slider');
+          const sliderMinimum = document.getElementById('tool-setpoint-min');
+          const sliderMaximum = document.getElementById('tool-setpoint-max');
+
+          if (isPositionMode()) {
+            const positionMillimeters = (percent / 100.0) * window.toolStrokeMillimeters;
+            toggleLabel.textContent = 'Fixed Position:';
+            setpointLabel.textContent = 'Tool Position:';
+            slider.setAttribute('aria-label', 'Tool position');
+            slider.setAttribute('aria-valuetext', `${positionMillimeters.toFixed(1)} millimeters`);
+            sliderMinimum.textContent = '0 mm';
+            sliderMaximum.textContent = '50 mm';
+            valueLabel.textContent = `${positionMillimeters.toFixed(1)} mm`;
+          } else {
+            toggleLabel.textContent = 'Fixed Pressure:';
+            setpointLabel.textContent = 'Tool Force:';
+            slider.setAttribute('aria-label', 'Tool force');
+            slider.setAttribute('aria-valuetext', `${percent.toFixed(0)} percent`);
+            sliderMinimum.textContent = '0%';
+            sliderMaximum.textContent = '100%';
+            valueLabel.textContent = `${percent.toFixed(0)}%`;
+          }
+        }
+
+        function appendFixedPressureParams(params) {
+          const checkbox = document.getElementById('fixed-pressure-enabled');
+          const enabled = checkbox ? checkbox.checked : false;
+
+          // These fields are intentionally generic normalized values. The PLC still
+          // performs the final VPPE split: D0012 = setpoint, D0010 = 4095 - setpoint.
+          params.append('fixed_pressure_enabled', enabled);
+          params.append('fixed_pressure_value', getFixedPressureSetpoint());
+          params.append('fixed_pressure_ui_percent', getFixedPressurePercent());
+          params.append('fixed_pressure_neutral', window.fixedPressureNeutral);
+          params.append('fixed_pressure_trigger_threshold', window.fixedPressureTriggerThreshold);
+        }
+
+        window.addEventListener('DOMContentLoaded', updateFixedPressureDisplay);
         
         function selectRecordingSpeed(index) {
           const speeds = [0.25, 0.5, 1.0];
@@ -660,50 +1468,307 @@
           }
         }
         
-        // Initialize with default recording speed from config
-        const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
-        const recordingSpeeds = [0.25, 0.5, 1.0];
-        const defaultRecordingIndex = recordingSpeeds.indexOf(defaultRecordingSpeed);
-        if (defaultRecordingIndex >= 0) {
-          window.selectedRecordingSpeedIndex = defaultRecordingIndex;
-          // Set default playback speed options
-          setPlaybackSpeedOptions(defaultRecordingSpeed);
-        } else {
-          // Fallback to middle value if config speed not in array
-          window.selectedRecordingSpeedIndex = 1;
-          setPlaybackSpeedOptions(0.5);
-        }
+        // Initialize after all scripts have loaded; setPlaybackSpeedOptions is
+        // declared in the main page script below this settings panel.
+        window.addEventListener('DOMContentLoaded', () => {
+          const defaultRecordingSpeed = parseFloat('{{ default_recording_speed|default(0.5) }}');
+          const recordingSpeeds = [0.25, 0.5, 1.0];
+          const defaultRecordingIndex = recordingSpeeds.indexOf(defaultRecordingSpeed);
+          selectRecordingSpeed(defaultRecordingIndex >= 0 ? defaultRecordingIndex : 1);
+        });
       </script>
-
-        <!-- Playback Speed buttons -->
-        <div class="speed-control-row">
-          <div class="setting-label">Playback Speed:</div>
-          <div class="setting-control">
-            <div class="speed-buttons" id="playback-speed-buttons">
-              <!-- Buttons will be dynamically generated based on recording speed -->
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
 
+  <div id="recording-library-overlay" class="recording-library-overlay" role="dialog" aria-modal="true" aria-labelledby="recording-library-title">
+    <div class="recording-library">
+      <div class="recording-library-header">
+        <h2 class="recording-library-title" id="recording-library-title">Recordings</h2>
+        <input id="recording-search" class="recording-search" type="search" placeholder="Search recordings..." aria-label="Search recordings" oninput="renderRecordingLibrary()">
+        <button type="button" class="recording-library-close" aria-label="Close recording library" onclick="closeRecordingLibrary()">×</button>
+      </div>
+      <div class="recording-grid-scroll-shell">
+        <div id="recording-grid" class="recording-grid" role="listbox" aria-label="Available recordings"></div>
+        <div id="programs-touch-scrollbar" class="touch-scrollbar programs-touch-scrollbar" role="scrollbar" aria-label="Scroll programs" aria-controls="recording-grid" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0" hidden>
+          <div class="touch-scrollbar-thumb"></div>
+        </div>
+      </div>
+      <div class="recording-library-footer">
+        <button type="button" class="library-action" onclick="createNewRecording()">New recording</button>
+        <button type="button" id="recording-rename-button" class="library-action" onclick="usePendingRecording(); renameSelectedRecording()">Rename</button>
+        <button type="button" id="recording-delete-button" class="library-action danger" onclick="usePendingRecording(); deleteSelectedRecording()">Delete</button>
+        <button type="button" id="recording-use-button" class="library-action primary" onclick="usePendingRecording(true)">Use recording</button>
+      </div>
+    </div>
+  </div>
 
-
-
-
-
-
-
-
-
+  <div id="page-touch-scrollbar" class="touch-scrollbar page-touch-scrollbar" role="scrollbar" aria-label="Scroll Control UI" aria-controls="control-ui-page" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0" hidden>
+    <div class="touch-scrollbar-thumb"></div>
+  </div>
 
   <script>
     /**
      * Global: We'll store the latest array of {file_name, recording_speed} objects here.
      */
     window.recordings = [];
+
+    function setupTouchScrollbar(scrollTarget, scrollbar, isPage = false) {
+      const thumb = scrollbar.querySelector('.touch-scrollbar-thumb');
+      const scrollEventTarget = isPage ? window : scrollTarget;
+      let metrics = null;
+      let dragStartY = 0;
+      let dragStartScroll = 0;
+
+      function getScrollTop() {
+        return isPage ? window.scrollY : scrollTarget.scrollTop;
+      }
+
+      function setScrollTop(value) {
+        const clampedValue = Math.max(0, Math.min(metrics ? metrics.maxScroll : 0, value));
+        if (isPage) {
+          window.scrollTo(0, clampedValue);
+        } else {
+          scrollTarget.scrollTop = clampedValue;
+        }
+      }
+
+      function update() {
+        // Unhide temporarily so a scrollbar inside a newly opened dialog can
+        // be measured after previously having zero dimensions.
+        scrollbar.hidden = false;
+
+        const viewportSize = isPage ? window.innerHeight : scrollTarget.clientHeight;
+        const scrollSize = scrollTarget.scrollHeight;
+        const trackSize = scrollbar.clientHeight;
+        const maxScroll = Math.max(0, scrollSize - viewportSize);
+
+        if (maxScroll <= 1 || trackSize <= 0) {
+          scrollbar.hidden = true;
+          metrics = null;
+          return;
+        }
+
+        const minimumThumbSize = parseFloat(getComputedStyle(thumb).minHeight) || 78;
+        const thumbSize = Math.min(trackSize, Math.max(minimumThumbSize, trackSize * viewportSize / scrollSize));
+        const maxThumbTravel = Math.max(0, trackSize - thumbSize);
+        const scrollTop = getScrollTop();
+        const thumbTop = maxScroll > 0 ? (scrollTop / maxScroll) * maxThumbTravel : 0;
+
+        metrics = { viewportSize, maxScroll, maxThumbTravel, thumbSize };
+        thumb.style.height = `${thumbSize}px`;
+        thumb.style.transform = `translateY(${thumbTop}px)`;
+
+        const percentage = Math.round((scrollTop / maxScroll) * 100);
+        scrollbar.setAttribute('aria-valuenow', String(percentage));
+        scrollbar.setAttribute('aria-valuetext', `${percentage}% scrolled`);
+      }
+
+      thumb.addEventListener('pointerdown', event => {
+        if (!metrics) return;
+        event.preventDefault();
+        event.stopPropagation();
+        dragStartY = event.clientY;
+        dragStartScroll = getScrollTop();
+        thumb.setPointerCapture(event.pointerId);
+      });
+
+      thumb.addEventListener('pointermove', event => {
+        if (!thumb.hasPointerCapture(event.pointerId) || !metrics || metrics.maxThumbTravel <= 0) return;
+        event.preventDefault();
+        const scrollDelta = (event.clientY - dragStartY) * metrics.maxScroll / metrics.maxThumbTravel;
+        setScrollTop(dragStartScroll + scrollDelta);
+      });
+
+      scrollbar.addEventListener('pointerdown', event => {
+        if (event.target === thumb || !metrics || metrics.maxThumbTravel <= 0) return;
+        event.preventDefault();
+        const trackRect = scrollbar.getBoundingClientRect();
+        const targetThumbTop = event.clientY - trackRect.top - metrics.thumbSize / 2;
+        const targetRatio = Math.max(0, Math.min(1, targetThumbTop / metrics.maxThumbTravel));
+        setScrollTop(targetRatio * metrics.maxScroll);
+      });
+
+      scrollbar.addEventListener('keydown', event => {
+        if (!metrics) return;
+        let targetScroll = getScrollTop();
+
+        if (event.key === 'ArrowUp') targetScroll -= 80;
+        else if (event.key === 'ArrowDown') targetScroll += 80;
+        else if (event.key === 'PageUp') targetScroll -= metrics.viewportSize * 0.8;
+        else if (event.key === 'PageDown') targetScroll += metrics.viewportSize * 0.8;
+        else if (event.key === 'Home') targetScroll = 0;
+        else if (event.key === 'End') targetScroll = metrics.maxScroll;
+        else return;
+
+        event.preventDefault();
+        setScrollTop(targetScroll);
+      });
+
+      scrollEventTarget.addEventListener('scroll', update, { passive: true });
+      return update;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const pageUpdate = setupTouchScrollbar(
+        document.scrollingElement,
+        document.getElementById('page-touch-scrollbar'),
+        true
+      );
+      const programsUpdate = setupTouchScrollbar(
+        document.getElementById('recording-grid'),
+        document.getElementById('programs-touch-scrollbar')
+      );
+
+      window.updateTouchScrollbars = () => {
+        pageUpdate();
+        programsUpdate();
+      };
+
+      document.documentElement.classList.add('touch-scrollbars-ready');
+      window.addEventListener('resize', window.updateTouchScrollbars);
+      new MutationObserver(window.updateTouchScrollbars).observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+      window.updateTouchScrollbars();
+    });
+
+    // The visible recording library mirrors the hidden select so all existing
+    // command and parameter handling continues to use the same values.
+    window.pendingRecordingSelection = '';
+
+    function displayRecordingName(fileName) {
+      return fileName && fileName.endsWith('.json') ? fileName.slice(0, -5) : fileName;
+    }
+
+    function updateRecordingPickerLabel() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const label = document.getElementById('selected-recording-name');
+      const value = dropdown ? dropdown.value : '';
+      label.textContent = value && value !== 'NEW_RECORDING'
+        ? displayRecordingName(value)
+        : 'Select recording';
+    }
+
+    function openRecordingLibrary() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      window.pendingRecordingSelection = dropdown.value;
+      document.getElementById('recording-search').value = '';
+      document.getElementById('recording-library-overlay').classList.add('open');
+      document.body.classList.add('recording-library-open');
+      document.body.style.overflow = 'hidden';
+      renderRecordingLibrary();
+      fetchRecordingsInBackground();
+      requestAnimationFrame(() => window.updateTouchScrollbars?.());
+    }
+
+    function closeRecordingLibrary() {
+      document.getElementById('recording-library-overlay').classList.remove('open');
+      document.body.classList.remove('recording-library-open');
+      document.body.style.overflow = '';
+      requestAnimationFrame(() => window.updateTouchScrollbars?.());
+    }
+
+    function chooseRecordingCard(fileName) {
+      window.pendingRecordingSelection = fileName;
+      renderRecordingLibrary();
+    }
+
+    function usePendingRecording(closeAfterSelection = false) {
+      const dropdown = document.getElementById('recordingsDropdown');
+      const selected = window.pendingRecordingSelection;
+      const optionExists = Array.from(dropdown.options).some(option => option.value === selected);
+      if (!selected || !optionExists) return false;
+      dropdown.value = selected;
+      dropdown.dispatchEvent(new Event('change'));
+      updateRecordingPickerLabel();
+      updateRecordingLibraryActions();
+      if (closeAfterSelection) closeRecordingLibrary();
+      return true;
+    }
+
+    function createNewRecording() {
+      const dropdown = document.getElementById('recordingsDropdown');
+      dropdown.value = 'NEW_RECORDING';
+      closeRecordingLibrary();
+      dropdown.dispatchEvent(new Event('change'));
+    }
+
+    function updateRecordingLibraryActions() {
+      const selected = window.pendingRecordingSelection;
+      const dropdown = document.getElementById('recordingsDropdown');
+      const isAvailable = Boolean(selected && Array.from(dropdown.options).some(option => option.value === selected));
+      const isExisting = Boolean(selected && window.recordings.some(rec => rec.file_name === selected));
+      document.getElementById('recording-use-button').disabled = !isAvailable;
+      document.getElementById('recording-rename-button').disabled = !isExisting;
+      document.getElementById('recording-delete-button').disabled = !isExisting;
+    }
+
+    function renderRecordingLibrary() {
+      const grid = document.getElementById('recording-grid');
+      if (!grid) return;
+      const query = document.getElementById('recording-search').value.trim().toLowerCase();
+      const dropdown = document.getElementById('recordingsDropdown');
+      const customOption = dropdown.querySelector('option[data-custom="true"]');
+      const libraryRecordings = [...window.recordings];
+      if (customOption && !libraryRecordings.some(rec => rec.file_name === customOption.value)) {
+        libraryRecordings.unshift({ file_name: customOption.value, recording_speed: 1, pending: true });
+      }
+      const visibleRecordings = libraryRecordings.filter(rec =>
+        displayRecordingName(rec.file_name).toLowerCase().includes(query)
+      );
+      grid.innerHTML = '';
+
+      if (!visibleRecordings.length) {
+        const empty = document.createElement('div');
+        empty.className = 'recording-empty';
+        empty.textContent = query ? 'No recordings match your search.' : 'No recordings available yet.';
+        grid.appendChild(empty);
+      }
+
+      visibleRecordings.forEach(rec => {
+        const card = document.createElement('button');
+        const selected = rec.file_name === window.pendingRecordingSelection;
+        card.type = 'button';
+        card.className = `recording-card${selected ? ' selected' : ''}`;
+        card.setAttribute('role', 'option');
+        card.setAttribute('aria-selected', selected ? 'true' : 'false');
+        card.onclick = () => chooseRecordingCard(rec.file_name);
+
+        const icon = document.createElement('span');
+        icon.className = 'recording-card-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = selected ? '✓' : '▶';
+
+        const copy = document.createElement('span');
+        const name = document.createElement('span');
+        name.className = 'recording-card-name';
+        name.textContent = displayRecordingName(rec.file_name);
+        const meta = document.createElement('span');
+        meta.className = 'recording-card-meta';
+        meta.textContent = rec.pending
+          ? 'New recording — ready to record'
+          : `Recorded at ${rec.recording_speed || 1}× speed`;
+        copy.append(name, meta);
+        card.append(icon, copy);
+        grid.appendChild(card);
+      });
+
+      updateRecordingLibraryActions();
+    }
+
+    function showSettingsTab(tabName) {
+      const recordingActive = tabName === 'recording';
+      const recordingTab = document.getElementById('recording-settings-tab');
+      const playbackTab = document.getElementById('playback-settings-tab');
+      document.getElementById('recording-settings-panel').hidden = !recordingActive;
+      document.getElementById('playback-settings-panel').hidden = recordingActive;
+      recordingTab.classList.toggle('active', recordingActive);
+      playbackTab.classList.toggle('active', !recordingActive);
+      recordingTab.setAttribute('aria-selected', recordingActive ? 'true' : 'false');
+      playbackTab.setAttribute('aria-selected', recordingActive ? 'false' : 'true');
+    }
     
     /**
      * Track custom recordings that are pending (created but not yet used for recording)
@@ -722,6 +1787,7 @@
     function onRecordingSelected() {
       const dropdown = document.getElementById('recordingsDropdown');
       const selectedFile = dropdown.value;
+      updateRecordingPickerLabel();
       
       // Update icon visibility based on valid selection
       updateIconVisibility('recordingsDropdown', selectedFile);
@@ -758,12 +1824,16 @@
           // Insert before the "New..." option
           dropdown.insertBefore(newOpt, dropdown.lastElementChild);
           dropdown.value = nameWithExtension;
+          window.pendingRecordingSelection = nameWithExtension;
+          updateRecordingPickerLabel();
           
           // Set default playback speed options for new recording
           setPlaybackSpeedOptions(1.0); // Default recording speed
           } else {
             // Reset to empty if cancelled or empty
             dropdown.value = "";
+            window.pendingRecordingSelection = '';
+            updateRecordingPickerLabel();
             return;
           }
         });
@@ -893,6 +1963,9 @@
           // Clear the dropdown selection
           const dropdown = document.getElementById('recordingsDropdown');
           dropdown.value = '';
+          window.pendingRecordingSelection = '';
+          updateRecordingPickerLabel();
+          renderRecordingLibrary();
           
           // Refresh recordings from server after a short delay
           setTimeout(() => {
@@ -1110,6 +2183,9 @@
         
         // Keep this option selected
         dropdown.value = newName;
+        window.pendingRecordingSelection = newName;
+        updateRecordingPickerLabel();
+        renderRecordingLibrary();
         
         console.log(`Updated dropdown: ${oldName} -> ${newName}`);
       }
@@ -1168,6 +2244,12 @@
       if (cmd === 'start_teleoperation' || cmd === 'start_teleoperation_record' || cmd === 'play_recording') {
         params.append('extra_function1', window.extra_function1);
         console.log(`Adding extra_function1: ${window.extra_function1} to command: ${cmd}`);
+      }
+
+      // Fixed sanding pressure is only implemented for recording and playback.
+      // Normal start_teleoperation keeps the live potmeter behavior for manual testing.
+      if (cmd === 'start_teleoperation_record' || cmd === 'play_recording') {
+        appendFixedPressureParams(params);
       }
 
       // Teachbot mode: automatically use the single active setup
@@ -1253,7 +2335,7 @@
           const placeholder = document.createElement('option');
           placeholder.value = "";
           placeholder.hidden = true;
-          placeholder.textContent = "Select name...";
+          placeholder.textContent = "Select recording...";
           dropdown.appendChild(placeholder);
 
           // For each {file_name, recording_speed}, we only show file_name without .json extension.
@@ -1294,6 +2376,9 @@
           } else {
             dropdown.value = "";
           }
+
+          updateRecordingPickerLabel();
+          renderRecordingLibrary();
         })
         .catch(err => console.error('Error fetching recordings:', err));
     }
@@ -1390,21 +2475,50 @@
         });
     }
 
-    // Initialize icon visibility on page load
+    // Initialize the recording state and touchscreen controls on page load.
     document.addEventListener('DOMContentLoaded', function() {
-      // Set initial icon visibility based on current selection
       updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
-      
-      // Add hover listener to update icon visibility in real-time
-      const recordingsContainer = document.getElementById('recordingsDropdown').parentElement;
-      
-      recordingsContainer.addEventListener('mouseenter', function() {
-        updateIconVisibility('recordingsDropdown', document.getElementById('recordingsDropdown').value);
-      });
-      
-      // Initialize speed button states
+      updateRecordingPickerLabel();
+      fetchRecordingsInBackground();
       selectRecordingSpeed(window.selectedRecordingSpeedIndex);
     });
+
+    /**
+     * Refresh the badge through the existing controller response path.  A
+     * recursive timeout prevents overlapping requests when a robot is offline.
+     */
+    async function refreshConnectionStatus() {
+      const badge = document.getElementById('connection-status');
+      const label = document.getElementById('connection-status-text');
+
+      try {
+        const response = await fetch('/request_connection_status', { method: 'POST' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const status = await response.json();
+
+        badge.classList.remove('online', 'warning', 'offline');
+        if (!status.connected) {
+          badge.classList.add('offline');
+          label.textContent = 'Robot offline';
+        } else if (status.feedback_recent === false || !status.plc_connected) {
+          badge.classList.add('warning');
+          const detail = status.feedback_recent === false ? 'no robot feedback' : 'tool offline';
+          label.textContent = `Robot connected · ${detail}`;
+        } else {
+          badge.classList.add('online');
+          label.textContent = `Robot & tool connected · ${status.operation || 'Ready'}`;
+        }
+      } catch (error) {
+        badge.classList.remove('online', 'warning');
+        badge.classList.add('offline');
+        label.textContent = 'Status unavailable';
+        console.debug('Connection status unavailable:', error);
+      } finally {
+        window.setTimeout(refreshConnectionStatus, 5000);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', refreshConnectionStatus);
 
     // Error message polling and display functionality
     function checkForErrors() {
