@@ -12,6 +12,7 @@ import time
 import json
 import threading
 import subprocess
+import uuid
 from contextlib import contextmanager
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
@@ -19,6 +20,9 @@ import pika
 from pika.exceptions import AMQPConnectionError, AMQPChannelError
 
 from utils.utils import robust_connect  # or keep robust_connect inline if you prefer
+
+
+_controller_start_lock = threading.Lock()
 
 
 class TOSUIApplication:
@@ -40,10 +44,15 @@ class TOSUIApplication:
         self.model_names = None  # For model names if needed later
         self.recv_model_names_status = False
 
-        # A single event is enough for the Teachbot UI: only one status request
-        # is active at a time and the normal RabbitMQ consumer fills the result.
-        self.connection_status = None
-        self.connection_status_event = threading.Event()
+        # Each HTTP poll receives a correlation ID and its own Event. This is
+        # safe when the HMI is opened in multiple tabs or a slow request overlaps
+        # a newer one; a late RabbitMQ response can no longer wake the wrong poll.
+        self.connection_status_waiters = {}
+        self.connection_status_waiters_lock = threading.Lock()
+        # Incremented whenever a Stop response reaches the UI, regardless of
+        # whether Stop originated on the HMI or the red Teacharm button. The
+        # browser uses this generation to release its active-worker latch.
+        self.stop_generation = 0
         
         # Error message queue for frontend notifications
         self.error_messages = []
@@ -385,23 +394,34 @@ class TOSUIApplication:
         @self.app.route("/request_connection_status", methods=["POST"])
         def request_connection_status():
             """Request robot status without changing the existing command API."""
-            self.connection_status = None
-            self.connection_status_event.clear()
+            request_id = uuid.uuid4().hex
+            waiter = {"event": threading.Event(), "status": None}
+            with self.connection_status_waiters_lock:
+                self.connection_status_waiters[request_id] = waiter
 
             setup_ids = self.get_available_setup_ids()
             if not setup_ids:
+                with self.connection_status_waiters_lock:
+                    self.connection_status_waiters.pop(request_id, None)
                 return jsonify({"connected": False, "operation": "Unavailable"})
 
             try:
                 self.send_command(
-                    {"type": "CMD", "message": "report_connection_status"},
+                    {
+                        "type": "CMD",
+                        "message": "report_connection_status",
+                        "status_request_id": request_id,
+                    },
                     setup_id=setup_ids[0],
                 )
-                self.connection_status_event.wait(timeout=3.0)
+                waiter["event"].wait(timeout=3.0)
             except Exception as exc:
                 self.ui_logger.warning("Connection status request failed: %s", exc)
 
-            return jsonify(self.connection_status or {
+            with self.connection_status_waiters_lock:
+                completed_waiter = self.connection_status_waiters.pop(request_id, waiter)
+
+            return jsonify(completed_waiter["status"] or {
                 "connected": False,
                 "plc_connected": False,
                 "operation": "Unavailable",
@@ -574,14 +594,60 @@ class TOSUIApplication:
         # Check if it's indeed a "RESP"
         if msg_type == "RESP":
             if message_cmd == "report_connection_status":
-                # Keep only the small, stable contract consumed by the badge.
+                # Older robot-interface processes only publish ``operation``.
+                # Infer a useful workflow state so a newly loaded browser does
+                # not remain on "Robot Listen" while an older worker is already
+                # teleoperating.  Updated workers override this fallback with
+                # their detailed state and joint-alignment arrays.
+                operation = data.get("operation", "Unavailable")
+                fallback_state = {
+                    "Teleoperation": "TELEOP_ACTIVE",
+                    "Recording": "RECORDING",
+                    "Playing": "PLAYBACK_ACTIVE",
+                    "Ready": "CONNECTED",
+                }.get(operation, "CONNECTED" if data.get("connected") else "OFFLINE")
                 self.connection_status = {
+                    "worker_pid": data.get("worker_pid"),
                     "connected": bool(data.get("connected", False)),
                     "feedback_recent": data.get("feedback_recent"),
                     "plc_connected": bool(data.get("plc_connected", False)),
-                    "operation": data.get("operation", "Unavailable"),
+                    "operation": operation,
+                    # Structured operator-workflow fields.  Keep the browser
+                    # contract explicit instead of making JavaScript infer
+                    # motion state from connection and recording booleans.
+                    "workflow_state": data.get("workflow_state", fallback_state),
+                    "workflow_detail": data.get("workflow_detail", ""),
+                    "requested_operation": data.get("requested_operation"),
+                    "operation_elapsed": data.get("operation_elapsed"),
+                    "alignment_current": data.get("alignment_current", []),
+                    "alignment_target": data.get("alignment_target", []),
+                    "alignment_differences": data.get("alignment_differences", []),
+                    "alignment_tolerance": data.get("alignment_tolerance", 10.0),
+                    "actual_robot_joints_available": bool(
+                        data.get("actual_robot_joints_available", False)
+                    ),
+                    "stop_generation": self.stop_generation,
                 }
-                self.connection_status_event.set()
+                request_id = data.get("status_request_id")
+                with self.connection_status_waiters_lock:
+                    waiter = self.connection_status_waiters.get(request_id)
+                    if waiter is not None:
+                        waiter["status"] = self.connection_status
+                        waiter["event"].set()
+                    else:
+                        self.ui_logger.debug(
+                            "Ignoring stale connection status response id=%s", request_id
+                        )
+            elif message_cmd == "stop" and data.get("stop_complete") is True:
+                # The Teacharm red button follows the same controller Stop path
+                # as the HMI. Only the controller's final response carries
+                # stop_complete; interface-level responses arrive earlier and
+                # must not return the workflow to Idle during cleanup.
+                self.stop_generation += 1
+                self.ui_logger.info(
+                    "Observed completed Stop; stop generation is now %d",
+                    self.stop_generation,
+                )
             # For "report_recording_names" if the controller sends that
             elif message_cmd == "report_recording_names":
                 # The new format includes "files": [ {...}, {...} ]
@@ -821,6 +887,14 @@ def robust_consume(rabbit_conf, ui_logger, queue_name, routing_key, on_message_c
             break
 
 def ensure_controller_running(ui_logger, open_terminal, controller_path, rabbit_conf, config, setup_id=None):
+    """Serialize process discovery and launch across concurrent UI requests."""
+    with _controller_start_lock:
+        return _ensure_controller_running(
+            ui_logger, open_terminal, controller_path, rabbit_conf, config, setup_id
+        )
+
+
+def _ensure_controller_running(ui_logger, open_terminal, controller_path, rabbit_conf, config, setup_id=None):
     """
     Ensures controllers are running for ALL active setups.
     Launches separate controllers with --setup parameters for each active setup.

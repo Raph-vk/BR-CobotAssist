@@ -741,6 +741,7 @@ class RobotController:
         self.send_response(
             payload=payload,
             error=error_msg,
+            stop_complete=True,
         )
         return True
 
@@ -1992,6 +1993,25 @@ class RobotController:
                 msg_message = payload.get("message", "")
                 msg_error = payload.get("error", "None")
 
+                # A prior implementation cleared the process reference before
+                # ensuring that its child had exited. Those orphan workers can
+                # still consume the shared command queue and publish conflicting
+                # status. New workers identify every response with their PID;
+                # only the currently owned process is authoritative.
+                expected_pid = (
+                    self.robot_interface_process.pid
+                    if self.robot_interface_process is not None
+                    else None
+                )
+                response_pid = payload.get("worker_pid")
+                if expected_pid is not None and response_pid != expected_pid:
+                    self.logger_tc.warning(
+                        "Ignoring response from obsolete ROBOT_INTERFACE pid=%s; current pid=%s",
+                        response_pid,
+                        expected_pid,
+                    )
+                    continue
+
                 # Must match ROBOT_INTERFACE
                 if msg_type == "RESP" and (interface == "ROBOT_INTERFACE" or interface.endswith("_ROBOT_INTERFACE")):
                     # Check for errors FIRST, before clearing occupied flag
@@ -2219,6 +2239,18 @@ class RobotController:
         if base_interface_name == "ROBOT_INTERFACE":
             while self.robot_interface_occupied is not False:
                 time.sleep(self.status_refresh_period)
+            # A successful stop response only proves that one consumer handled
+            # the command. Join the exact child owned by this controller and
+            # terminate it if necessary before dropping the reference. This
+            # prevents multiple robot workers from accumulating on shared queues.
+            process_obj.join(timeout=2.0)
+            if process_obj.is_alive():
+                self.logger_tc.warning(
+                    "ROBOT_INTERFACE pid=%s did not exit after stop; terminating it.",
+                    process_obj.pid,
+                )
+                process_obj.terminate()
+                process_obj.join(timeout=2.0)
             self.robot_interface_process = None
         elif base_interface_name == "TEACHBOT_INTERFACE":
             while self.teachbot_interface_occupied is not False:

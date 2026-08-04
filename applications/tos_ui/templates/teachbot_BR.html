@@ -1165,6 +1165,191 @@
       cursor: default;
     }
 
+    /* -----------------------------------------------------------------
+       Guided robot workflow
+
+       This is intentionally a text-and-status interface: no robot camera or
+       simulated robot pose is shown.  Controls use generous touch targets for
+       the 215 x 135 mm HMI and never depend on hover to explain an action.
+       ----------------------------------------------------------------- */
+    .two-sections {
+      height: calc(1450px * var(--scale-factor));
+    }
+
+    .box-top {
+      min-height: calc(700px * var(--scale-factor));
+      height: auto;
+      padding: calc(24px * var(--scale-factor));
+    }
+
+    .line-top-bottom {
+      top: calc(700px * var(--scale-factor));
+    }
+
+    .line-top-left {
+      height: calc(705px * var(--scale-factor));
+    }
+
+    .line-bottom-right {
+      top: calc(700px * var(--scale-factor));
+      height: calc(750px * var(--scale-factor));
+    }
+
+    .box-bottom {
+      top: calc(720px * var(--scale-factor));
+    }
+
+    .workflow-card {
+      max-width: calc(1080px * var(--scale-factor));
+      margin: calc(18px * var(--scale-factor)) auto 0;
+      padding: calc(20px * var(--scale-factor));
+      border: calc(2px * var(--scale-factor)) solid #d5dbea;
+      border-radius: calc(20px * var(--scale-factor));
+      background: #f8faff;
+      text-align: left;
+    }
+
+    .workflow-steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: calc(10px * var(--scale-factor));
+      margin-bottom: calc(18px * var(--scale-factor));
+    }
+
+    .workflow-step {
+      min-height: calc(68px * var(--scale-factor));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: calc(8px * var(--scale-factor));
+      border-radius: calc(14px * var(--scale-factor));
+      background: #e7eaf1;
+      color: #596174;
+      font-size: calc(1rem * var(--scale-factor));
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .workflow-step.complete { background: #dcf7e5; color: #176b38; }
+    .workflow-step.current { background: #fff1c9; color: #774d00; outline: calc(3px * var(--scale-factor)) solid #edb83e; }
+    .workflow-step.fault { background: #fee4e2; color: #9e2119; }
+
+    .workflow-instruction {
+      min-height: calc(90px * var(--scale-factor));
+      margin-bottom: calc(16px * var(--scale-factor));
+      text-align: center;
+    }
+
+    .workflow-title {
+      color: var(--color-blue);
+      font-size: calc(1.8rem * var(--scale-factor));
+      font-weight: 850;
+    }
+
+    .workflow-detail {
+      margin-top: calc(6px * var(--scale-factor));
+      color: #475467;
+      font-size: calc(1.15rem * var(--scale-factor));
+      font-weight: 600;
+    }
+
+    .workflow-note {
+      margin-top: calc(5px * var(--scale-factor));
+      color: #7a4c00;
+      font-size: calc(.9rem * var(--scale-factor));
+      text-align: center;
+    }
+
+    .operation-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: calc(16px * var(--scale-factor));
+    }
+
+    .operation-button {
+      min-height: calc(120px * var(--scale-factor));
+      padding: calc(16px * var(--scale-factor));
+      border: 0;
+      border-radius: calc(18px * var(--scale-factor));
+      background: var(--color-blue);
+      color: white;
+      cursor: pointer;
+      touch-action: manipulation;
+      text-align: left;
+    }
+
+    .operation-button:active, .workflow-stop:active { transform: scale(.98); }
+    .operation-button-title { display: block; font-size: calc(1.45rem * var(--scale-factor)); font-weight: 850; }
+    .operation-button-copy { display: block; margin-top: calc(7px * var(--scale-factor)); font-size: calc(.95rem * var(--scale-factor)); line-height: 1.25; }
+
+    .playback-action {
+      grid-column: 1 / -1;
+      min-height: calc(82px * var(--scale-factor));
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: calc(16px * var(--scale-factor));
+      padding: calc(10px * var(--scale-factor));
+      border-radius: calc(18px * var(--scale-factor));
+      background: #eef1f8;
+    }
+
+    .playback-action .recording-picker { width: 100%; }
+
+    .compact-play-button {
+      min-width: calc(260px * var(--scale-factor));
+      min-height: calc(76px * var(--scale-factor));
+      margin: 0;
+      font-size: calc(1.25rem * var(--scale-factor));
+    }
+
+    .alignment-panel { display: none; }
+    .alignment-panel.visible { display: block; }
+
+    .alignment-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 calc(5px * var(--scale-factor));
+      font-variant-numeric: tabular-nums;
+    }
+
+    .alignment-table th {
+      padding: calc(5px * var(--scale-factor));
+      color: #667085;
+      font-size: calc(.85rem * var(--scale-factor));
+      text-align: center;
+    }
+
+    .alignment-row td {
+      height: calc(48px * var(--scale-factor));
+      padding: calc(7px * var(--scale-factor));
+      background: white;
+      font-size: calc(1.05rem * var(--scale-factor));
+      font-weight: 750;
+      text-align: center;
+    }
+
+    .alignment-row td:first-child { border-radius: calc(10px * var(--scale-factor)) 0 0 calc(10px * var(--scale-factor)); }
+    .alignment-row td:last-child { border-radius: 0 calc(10px * var(--scale-factor)) calc(10px * var(--scale-factor)) 0; }
+    .alignment-row.ready td { background: #eaf9ef; color: #176b38; }
+    .alignment-row.move td { background: #fff3d4; color: #704900; }
+
+    .workflow-stop {
+      width: 100%;
+      min-height: calc(92px * var(--scale-factor));
+      margin-top: calc(14px * var(--scale-factor));
+      border: 0;
+      border-radius: calc(18px * var(--scale-factor));
+      background: var(--color-red);
+      color: white;
+      cursor: pointer;
+      touch-action: manipulation;
+      font-size: calc(1.7rem * var(--scale-factor));
+      font-weight: 900;
+    }
+
+    .workflow-stop:disabled { opacity: .55; cursor: default; }
+
     @media (max-width: 900px) {
       .recording-grid { grid-template-columns: 1fr; }
       .recording-search { width: min(42vw, calc(330px * var(--scale-factor))); }
@@ -1203,42 +1388,63 @@
       </div>
       {% endif %}
 
-      <div class="button-row control-row">
-        <button class="btn" onclick="sendCommand('start_teleoperation')">
-          Start Teleop
-        </button>
-        <button class="btn" onclick="sendCommand('stop')">
-          Stop
-        </button>
-      </div>
-
-      <div class="button-row control-row program-control-row">
-        <button class="btn" onclick="sendCommand('start_teleoperation_record')">
-          Start Teleop &amp; Record
-        </button>
-        <div class="recording-picker">
-          <!-- Hidden compatibility layer for the existing command functions. -->
-          <select id="recordingsDropdown" onchange="onRecordingSelected()" aria-hidden="true" tabindex="-1">
-            <option hidden value="">Select recording...</option>
-          </select>
-          <button type="button" class="recording-picker-button" onclick="openRecordingLibrary()">
-            <span class="recording-picker-copy">
-              <span class="recording-picker-label">Recording</span>
-              <span id="selected-recording-name">Select recording</span>
-            </span>
-            <span class="recording-picker-arrow" aria-hidden="true">›</span>
-          </button>
+      <section class="workflow-card" aria-labelledby="workflow-title" aria-live="polite">
+        <div class="workflow-steps" aria-label="TeleOP preparation progress">
+          <div id="workflow-step-network" class="workflow-step complete">1 Network</div>
+          <div id="workflow-step-listen" class="workflow-step">2 Robot Idle</div>
+          <div id="workflow-step-start" class="workflow-step">3 Robot Start</div>
+          <div id="workflow-step-align" class="workflow-step">4 Align TOS Arm</div>
+          <div id="workflow-step-active" class="workflow-step">5 Active</div>
         </div>
-        <button class="btn" onclick="playSelectedRecording()">
-          Play Recording
-        </button>
-      </div>
+
+        <div class="workflow-instruction">
+          <div id="workflow-title" class="workflow-title">Select an operation</div>
+          <div id="workflow-detail" class="workflow-detail">Start TeleOP, record a movement, or play a saved recording.</div>
+          <div id="workflow-feedback-note" class="workflow-note" hidden>Alignment uses TOS-arm joints and the commanded start position.</div>
+        </div>
+
+        <div id="alignment-panel" class="alignment-panel">
+          <table class="alignment-table" aria-label="TOS arm joint alignment">
+            <thead><tr><th>Joint</th><th>TOS arm</th><th>Target</th><th>Difference</th><th>Status</th></tr></thead>
+            <tbody id="alignment-table-body"></tbody>
+          </table>
+        </div>
+
+        <div id="operation-actions" class="operation-actions">
+          <button type="button" class="operation-button" onclick="beginGuidedOperation('start_teleoperation')">
+            <span class="operation-button-title">START TELEOP</span>
+            <span class="operation-button-copy">Control the Techman with the TeleOperation arm.</span>
+          </button>
+          <button type="button" class="operation-button" onclick="beginGuidedOperation('start_teleoperation_record')">
+            <span class="operation-button-title">RECORD TELEOP</span>
+            <span class="operation-button-copy">TeleOperate and save the movement.</span>
+          </button>
+          <div class="playback-action">
+            <div class="recording-picker">
+          <!-- Hidden compatibility layer for the existing command functions. -->
+              <select id="recordingsDropdown" onchange="onRecordingSelected()" aria-hidden="true" tabindex="-1">
+                <option hidden value="">Select recording...</option>
+              </select>
+              <button type="button" class="recording-picker-button" onclick="openRecordingLibrary()">
+                <span class="recording-picker-copy">
+                  <span class="recording-picker-label">Saved recording</span>
+                  <span id="selected-recording-name">Select recording</span>
+                </span>
+                <span class="recording-picker-arrow" aria-hidden="true">›</span>
+              </button>
+            </div>
+            <button type="button" class="btn compact-play-button" onclick="playSelectedRecording()">PLAY RECORDING</button>
+          </div>
+        </div>
+
+        <button id="workflow-stop" type="button" class="workflow-stop" onclick="stopGuidedOperation()" hidden>STOP TELEOP</button>
+      </section>
     </div>
 
 
 
     <!-- Bottom Box -->
-    <div class="box-bottom">
+    <div id="settings-panel" class="box-bottom">
       <h2>Settings</h2>
       <div class="settings-tabs" role="tablist" aria-label="Settings phase">
         <button type="button" id="recording-settings-tab" class="settings-tab active" role="tab" aria-selected="true" aria-controls="recording-settings-panel" onclick="showSettingsTab('recording')">Recording</button>
@@ -1910,9 +2116,13 @@
       const dropdown = document.getElementById('recordingsDropdown');
       const selected = dropdown.value;
       if (!selected) {
-        alert("No recording selected to play!");
+        document.getElementById('workflow-title').textContent = 'Select a saved recording';
+        document.getElementById('workflow-detail').textContent = 'Choose a recording before starting playback.';
+        openRecordingLibrary();
         return;
       }
+      window.pendingGuidedOperation = 'play_recording';
+      renderWorkflow({workflow_state: 'CONNECTING', workflow_detail: 'Preparing the robot and loading the selected recording.'});
       sendCommand('play_recording', selected);
     }
 
@@ -2483,9 +2693,278 @@
       selectRecordingSpeed(window.selectedRecordingSpeedIndex);
     });
 
+    // ---------------------------------------------------------------------
+    // Guided operator workflow
+    // ---------------------------------------------------------------------
+    // This view is deliberately rendered from the workflow state supplied by
+    // the robot interface.  The UI only uses a short-lived optimistic
+    // CONNECTING state directly after a touch, so a slow TCP attempt still
+    // gives immediate feedback to the operator.
+    window.pendingGuidedOperation = null;
+
+    const WORKFLOW_COPY = {
+      OFFLINE: ['Robot offline', 'Choose an operation to connect and prepare the robot.'],
+      CONNECTING: ['Connecting to Techman…', 'Trying 192.168.10.2:5890. This can take a few seconds.'],
+      WAITING_FOR_TECHMAN_LISTEN: ['Start the Techman Listen node', 'Start the TMflow project and let it reach the Listen node. Connection retries automatically.'],
+      CONNECTED: ['Robot idle', 'The robot is connected and ready to prepare an operation.'],
+      MOVING_ROBOT_TO_START: ['Robot moving to start', 'Keep clear while the robot moves to the commanded start position.'],
+      ALIGN_TEACHBOT: ['Align the TOS arm', 'Move the TOS arm until every joint is within the displayed tolerance.'],
+      READY: ['TOS arm aligned', 'All joints are within tolerance. Starting the operation…'],
+      TELEOP_ACTIVE: ['TeleOP active', 'The Techman is following the TOS arm.'],
+      RECORDING: ['Recording movement', 'The Techman is following the TOS arm and movement data is being saved.'],
+      PLAYBACK_ACTIVE: ['Playing recording', 'The Techman is playing the selected saved movement.'],
+      STOPPING: ['Stopping safely…', 'Closing position streaming and stopping the active operation.'],
+      FAULT: ['Operation needs attention', 'The operation cannot continue. Review the message below.']
+    };
+
+    function setWorkflowSteps(state) {
+      const ids = ['network', 'listen', 'start', 'align', 'active'];
+      const activeIndex = {
+        OFFLINE: 0, CONNECTING: 1, WAITING_FOR_TECHMAN_LISTEN: 1,
+        CONNECTED: 1, MOVING_ROBOT_TO_START: 2, ALIGN_TEACHBOT: 3,
+        READY: 4, TELEOP_ACTIVE: 4, RECORDING: 4,
+        PLAYBACK_ACTIVE: 4, STOPPING: 4, FAULT: 0
+      }[state] ?? 0;
+
+      ids.forEach((id, index) => {
+        const element = document.getElementById(`workflow-step-${id}`);
+        element.classList.remove('complete', 'current', 'fault');
+        if (state === 'FAULT' && index === activeIndex) element.classList.add('fault');
+        else if (index < activeIndex) element.classList.add('complete');
+        else if (index === activeIndex) element.classList.add('current');
+      });
+    }
+
+    function renderAlignment(status) {
+      const panel = document.getElementById('alignment-panel');
+      const body = document.getElementById('alignment-table-body');
+      const isAligning = status.workflow_state === 'ALIGN_TEACHBOT';
+      panel.classList.toggle('visible', isAligning);
+      if (!isAligning) return;
+
+      const current = status.alignment_current || [];
+      const target = status.alignment_target || [];
+      const differences = status.alignment_differences || [];
+      const tolerance = Number(status.alignment_tolerance ?? 10);
+      body.replaceChildren();
+
+      for (let index = 0; index < 6; index += 1) {
+        const row = document.createElement('tr');
+        const difference = Number(differences[index]);
+        const hasSample = Number.isFinite(difference);
+        const ready = hasSample && difference < tolerance;
+        row.className = `alignment-row ${ready ? 'ready' : 'move'}`;
+
+        const formatAngle = value => Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}°` : 'Waiting';
+        const values = [
+          `J${index + 1}`,
+          formatAngle(current[index]),
+          formatAngle(target[index]),
+          formatAngle(differences[index]),
+          ready ? '✓ READY' : (hasSample ? 'ADJUST' : 'WAITING')
+        ];
+        values.forEach(value => {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        body.appendChild(row);
+      }
+    }
+
+    window.lastStableWorkflowState = null;
+    window.authoritativeRobotWorkerPid = null;
+    window.workflowPollDelayMs = 1000;
+    window.lastStopGeneration = null;
+    window.operationStopped = false;
+
+    function stabilizeWorkflowState(nextState) {
+      const previousState = window.lastStableWorkflowState;
+      const activeStates = ['TELEOP_ACTIVE', 'RECORDING', 'PLAYBACK_ACTIVE'];
+      const terminalStates = ['STOPPING', 'STOPPED', 'OFFLINE', 'FAULT'];
+
+      // Once motion is truly active, a single conflicting Ready/Connected
+      // response must not make the touchscreen jump backwards. Leaving an
+      // active operation requires an explicit stopping, offline, or fault state.
+      if (activeStates.includes(previousState)
+          && !activeStates.includes(nextState)
+          && !terminalStates.includes(nextState)) {
+        return previousState;
+      }
+
+      // During startup, do not regress to an earlier phase because of a late
+      // response. A new operator command resets the stable state to CONNECTING.
+      const startupRank = {
+        CONNECTING: 0,
+        WAITING_FOR_TECHMAN_LISTEN: 1,
+        CONNECTED: 1,
+        MOVING_ROBOT_TO_START: 2,
+        ALIGN_TEACHBOT: 3,
+        READY: 4,
+        TELEOP_ACTIVE: 5,
+        RECORDING: 5,
+        PLAYBACK_ACTIVE: 5
+      };
+      if (previousState in startupRank
+          && nextState in startupRank
+          && startupRank[nextState] < startupRank[previousState]) {
+        return previousState;
+      }
+
+      window.lastStableWorkflowState = nextState;
+      return nextState;
+    }
+
+    function renderWorkflow(status) {
+      // Remain compatible with a robot worker that was already running when
+      // this UI update was installed. Such a worker reports only ``operation``
+      // until TOS is restarted, but the screen should still leave step 2.
+      const legacyState = {
+        Teleoperation: 'TELEOP_ACTIVE',
+        Recording: 'RECORDING',
+        Playing: 'PLAYBACK_ACTIVE',
+        Ready: 'CONNECTED'
+      }[status.operation];
+      const reportedState = status.workflow_state || legacyState || (status.connected ? 'CONNECTED' : 'OFFLINE');
+      let effectiveReportedState = reportedState;
+
+      // Stop may originate from the physical red Teacharm button. Detect the
+      // server-side Stop generation and release the active PID latch exactly as
+      // if the operator had touched Stop on this HMI.
+      const stopGeneration = Number(status.stop_generation);
+      if (Number.isFinite(stopGeneration)) {
+        if (window.lastStopGeneration === null) {
+          window.lastStopGeneration = stopGeneration;
+        } else if (stopGeneration !== window.lastStopGeneration) {
+          window.lastStopGeneration = stopGeneration;
+          window.authoritativeRobotWorkerPid = null;
+          window.operationStopped = true;
+          window.lastStableWorkflowState = 'CONNECTED';
+        }
+      }
+      if (window.operationStopped) {
+        // Once either Stop control has been used, late Active responses cannot
+        // resurrect the operation. Keep showing Stopping until the controller
+        // confirms Stop, then return directly to Robot Idle (step 2).
+        if (reportedState === 'STOPPED') {
+          window.lastStableWorkflowState = 'CONNECTED';
+        }
+        effectiveReportedState = window.lastStableWorkflowState === 'STOPPING'
+          ? 'STOPPING'
+          : 'CONNECTED';
+      }
+
+      // During an operation, bind the display to the exact worker that reached
+      // a real motion phase. Other orphan workers may still answer the shared
+      // queue until the controller is restarted; their Ready/Fault messages
+      // must never replace the state of the worker controlling the robot.
+      const motionStates = [
+        'MOVING_ROBOT_TO_START', 'ALIGN_TEACHBOT', 'READY',
+        'TELEOP_ACTIVE', 'RECORDING', 'PLAYBACK_ACTIVE'
+      ];
+      const responseWorkerPid = status.worker_pid ?? null;
+      if (window.authoritativeRobotWorkerPid === null
+          && responseWorkerPid !== null
+          && motionStates.includes(effectiveReportedState)
+          && status.requested_operation) {
+        window.authoritativeRobotWorkerPid = responseWorkerPid;
+      }
+      if (window.authoritativeRobotWorkerPid !== null
+          && responseWorkerPid !== null
+          && responseWorkerPid !== window.authoritativeRobotWorkerPid) {
+        console.debug(
+          'Ignoring workflow status from non-authoritative robot worker',
+          responseWorkerPid,
+          'active worker is',
+          window.authoritativeRobotWorkerPid
+        );
+        return false;
+      }
+      if (!status.connected && effectiveReportedState === 'OFFLINE') {
+        window.authoritativeRobotWorkerPid = null;
+      }
+
+      const state = stabilizeWorkflowState(effectiveReportedState);
+
+      // Joint values are produced much faster than the original one-second UI
+      // poll. Sample them at 5 Hz during alignment so movement feels immediate,
+      // while retaining slower polling in steady states to avoid unnecessary
+      // RabbitMQ traffic and log volume.
+      if (state === 'ALIGN_TEACHBOT') {
+        window.workflowPollDelayMs = 200;
+      } else if (['CONNECTING', 'WAITING_FOR_TECHMAN_LISTEN', 'MOVING_ROBOT_TO_START', 'READY'].includes(state)) {
+        window.workflowPollDelayMs = 400;
+      } else {
+        window.workflowPollDelayMs = 1000;
+      }
+      const fallbackCopy = WORKFLOW_COPY[state] || WORKFLOW_COPY.FAULT;
+      const active = ['MOVING_ROBOT_TO_START', 'ALIGN_TEACHBOT', 'READY', 'TELEOP_ACTIVE', 'RECORDING', 'PLAYBACK_ACTIVE', 'STOPPING'].includes(state);
+      const actions = document.getElementById('operation-actions');
+      const stop = document.getElementById('workflow-stop');
+      const settings = document.getElementById('settings-panel');
+
+      document.getElementById('workflow-title').textContent = fallbackCopy[0];
+      const stoppedAtIdle = state === 'CONNECTED' && reportedState === 'STOPPED';
+      document.getElementById('workflow-detail').textContent = stoppedAtIdle
+        ? fallbackCopy[1]
+        : (status.workflow_detail || fallbackCopy[1]);
+      document.getElementById('workflow-feedback-note').hidden = state !== 'ALIGN_TEACHBOT';
+      actions.hidden = active;
+      settings.hidden = active;
+      stop.hidden = !active;
+      stop.disabled = state === 'STOPPING';
+      stop.textContent = state === 'STOPPING'
+        ? 'STOPPING…'
+        : (state === 'RECORDING' ? 'STOP & SAVE' : 'STOP OPERATION');
+
+      setWorkflowSteps(state);
+      renderAlignment({...status, workflow_state: state});
+
+      if (['CONNECTED', 'TELEOP_ACTIVE', 'RECORDING', 'PLAYBACK_ACTIVE'].includes(state)) {
+        window.pendingGuidedOperation = null;
+      }
+      return true;
+    }
+
+    function beginGuidedOperation(command) {
+      // Recording requires a name.  Explain this in the main workflow panel
+      // instead of opening a small browser alert that is awkward to dismiss on
+      // the touchscreen.
+      if (command === 'start_teleoperation_record') {
+        const selected = document.getElementById('recordingsDropdown').value;
+        if (!selected || selected === 'NEW_RECORDING') {
+          document.getElementById('workflow-title').textContent = 'Select a recording name';
+          document.getElementById('workflow-detail').textContent = 'Open Saved recording, create or select a name, then press Record Movement again.';
+          openRecordingLibrary();
+          return;
+        }
+      }
+
+      window.pendingGuidedOperation = command;
+      window.authoritativeRobotWorkerPid = null;
+      window.operationStopped = false;
+      window.lastStableWorkflowState = 'CONNECTING';
+      renderWorkflow({
+        connected: false,
+        workflow_state: 'CONNECTING',
+        workflow_detail: 'Starting the required interfaces and connecting to the Techman Listen node.'
+      });
+      sendCommand(command);
+    }
+
+    function stopGuidedOperation() {
+      // An explicit operator stop is the only normal command that releases the
+      // active-worker latch. The next operation can then select a new worker.
+      window.authoritativeRobotWorkerPid = null;
+      window.operationStopped = true;
+      window.lastStableWorkflowState = 'STOPPING';
+      renderWorkflow({workflow_state: 'STOPPING'});
+      sendCommand('stop');
+    }
+
     /**
-     * Refresh the badge through the existing controller response path.  A
-     * recursive timeout prevents overlapping requests when a robot is offline.
+     * Refresh the badge and guided workflow through the existing controller
+     * response path. A recursive timeout prevents overlapping requests.
      */
     async function refreshConnectionStatus() {
       const badge = document.getElementById('connection-status');
@@ -2496,6 +2975,14 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const status = await response.json();
 
+        // When an operation was just requested and the robot interface is not
+        // responding yet, "waiting for Listen" is more useful than reverting
+        // to a generic offline screen.
+        if (!status.connected && window.pendingGuidedOperation) {
+          status.workflow_state = 'WAITING_FOR_TECHMAN_LISTEN';
+          status.workflow_detail = 'Start the TMflow project and let it reach the Listen node. The connection will retry automatically.';
+        }
+        if (!renderWorkflow(status)) return;
         badge.classList.remove('online', 'warning', 'offline');
         if (!status.connected) {
           badge.classList.add('offline');
@@ -2512,9 +2999,20 @@
         badge.classList.remove('online', 'warning');
         badge.classList.add('offline');
         label.textContent = 'Status unavailable';
+        if (window.pendingGuidedOperation) {
+          renderWorkflow({
+            connected: false,
+            workflow_state: 'WAITING_FOR_TECHMAN_LISTEN',
+            workflow_detail: 'Start the TMflow project and let it reach the Listen node. The connection will retry automatically.'
+          });
+        } else {
+          renderWorkflow({connected: false, workflow_state: 'OFFLINE'});
+        }
         console.debug('Connection status unavailable:', error);
       } finally {
-        window.setTimeout(refreshConnectionStatus, 5000);
+        // Alignment uses the adaptive 5 Hz interval selected by
+        // renderWorkflow; idle and active operation remain at 1 Hz.
+        window.setTimeout(refreshConnectionStatus, window.workflowPollDelayMs);
       }
     }
 

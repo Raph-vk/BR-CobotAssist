@@ -35,7 +35,9 @@ def send_tc_command(queue, command):
     """
     Helper function to put a command into a queue.
     """
-    queue.put(command)
+    identified_command = dict(command)
+    identified_command["worker_pid"] = os.getpid()
+    queue.put(identified_command)
 
 
 def build_tmsct_packet(script_id, script_str):
@@ -121,6 +123,11 @@ def send_response(logger_ti, robot_interface_commup, payload, error="None", **kw
     """
     response = payload.copy() if isinstance(payload, dict) else {"message": str(payload)}
     response["type"] = "RESP"
+    # Every robot worker shares the same multiprocessing queues. Include the
+    # worker PID so the controller can reject replies from an obsolete process
+    # that survived an earlier disconnect. Without this identity, two workers
+    # can alternately report Ready and Teleoperation to the same UI.
+    response["worker_pid"] = os.getpid()
     if error not in ("None", ""):
         response["error"] = error
     elif response.get("error", "") == "":
@@ -281,6 +288,24 @@ class TechmanRobot():
         self.target_pos_received = None
         self.joint_state_received = None
 
+        # ------------------------------------------------------------------
+        # Operator workflow state
+        # ------------------------------------------------------------------
+        # The browser should not have to infer what the robot is doing from a
+        # handful of booleans.  Keep one explicit, human-facing state here and
+        # expose it through report_connection_status.  These values describe
+        # the Linux-side workflow; they do not claim that the Techman has
+        # supplied actual joint feedback (the current TMflow Listen program
+        # does not provide that feedback to this interface).
+        self.workflow_state = "CONNECTED"
+        self.workflow_detail = "Robot connection established."
+        self.requested_operation = None
+        self.operation_started_at = None
+        self.alignment_current = [None] * self.dof
+        self.alignment_target = list(self.start_position[:self.dof])
+        self.alignment_differences = [None] * self.dof
+        self.alignment_tolerance = float(self.start_joint_tolerance)
+
         # Speed limiter state for trajectory planning
         self.previous_joint_position = None
         self.previous_timestamp = None
@@ -289,10 +314,14 @@ class TechmanRobot():
         self.playback_speed_ratio = 1.0
         self.recording_speed = self.default_recording_speed  # Speed used when recording was made
 
-        # Connect automatically if desired:
+        # Try once during interface startup, but keep the process alive when
+        # TMflow has not reached its Listen node yet.  An unavailable TCP port
+        # is a normal operator workflow condition, not a fatal constructor
+        # error.  report_connection_status and Start TeleOP can therefore retry
+        # the same interface later without creating repeated red popups.
         if not self.connect():
-            raise Exception(
-                "TechmanRobot: Could not connect to robot. Check IP address, connection, and robot state."
+            self.logger_ri.warning(
+                "Techman Listen is not available yet; waiting for the TMflow Listen node."
             )
         
         # Initialize end effector communication based on type
@@ -618,6 +647,20 @@ class TechmanRobot():
         Create a thread to listen for target positions, then
         start the teleoperation control loop in another thread.
         """
+        # Record the requested workflow before creating worker threads.  This
+        # lets the touchscreen immediately say what is being prepared instead
+        # of briefly continuing to display "Ready".
+        message = (full_message or {}).get("message", "start_teleoperation")
+        self.requested_operation = (
+            "recording" if message in ("start_teleoperation_record", "record_episodes")
+            else "teleoperation"
+        )
+        self.operation_started_at = time.time()
+        self._set_workflow_state(
+            "MOVING_ROBOT_TO_START",
+            "Robot is moving to the commanded TeleOP start position. Keep clear.",
+        )
+
         # Update select value based on extra_function1 parameter
         self.update_select_value_from_command(full_message)
         self.configure_fixed_pressure_from_command(full_message)
@@ -631,6 +674,13 @@ class TechmanRobot():
                 self.logger_ri.error(
                     "start_teleoperation, could not connect to robot. "
                     "Check IP address, connection, or robot state."
+                )
+                self.robot_running = False
+                self.receive_target_pos = False
+                self.recording = False
+                self._set_workflow_state(
+                    "WAITING_FOR_TECHMAN_LISTEN",
+                    "Start the TMflow project and let it reach the Listen node, then start the operation again.",
                 )
                 return False
 
@@ -719,6 +769,13 @@ class TechmanRobot():
         """
         if full_message is None:
             full_message = {"message": "play_recording"}
+
+        self.requested_operation = "playback"
+        self.operation_started_at = time.time()
+        self._set_workflow_state(
+            "MOVING_ROBOT_TO_START",
+            "Robot is moving to the recording start position. Keep clear.",
+        )
             
         # Update select value based on extra_function1 parameter
         self.update_select_value_from_command(full_message)
@@ -763,8 +820,10 @@ class TechmanRobot():
         Stop teleoperation or recording if running,
         stop UDP streaming, then disconnect from robot.
         """
+        self._set_workflow_state("STOPPING", "Stopping robot and closing the control connection.")
         if not self.connected:
             self.logger_ri.info("stop, already disconnected.")
+            self._set_workflow_state("OFFLINE", "Robot is disconnected.")
             return True
 
         # Stop robot if running
@@ -792,6 +851,9 @@ class TechmanRobot():
         self.recording = False
         self.play_recording_active = False
         self.run_policy_active = False
+        self.requested_operation = None
+        self.operation_started_at = None
+        self._set_workflow_state("OFFLINE", "Robot is disconnected.")
         
         self.logger_ri.info("stop, disconnected.")
         return success
@@ -1057,10 +1119,30 @@ class TechmanRobot():
         6) Send 'stop' response if in playback mode.
         """
         # move to start position
-        self._move_to_start_position()
+        self._set_workflow_state(
+            "MOVING_ROBOT_TO_START",
+            "Robot is moving to the commanded TeleOP start position. Keep clear.",
+        )
+        if not self._move_to_start_position():
+            self.robot_running = False
+            self._set_workflow_state(
+                "FAULT",
+                "The robot could not reach the commanded start sequence. Stop and check the Techman state.",
+            )
+            return
 
         # check if start position is alright
-        self._check_start_position(full_message)
+        if self._check_start_position(full_message) is False:
+            # A normal operator Stop changes robot_running to false. Preserve
+            # that intentional stopping state; otherwise expose a real startup
+            # fault instead of silently entering position streaming.
+            if self.robot_running:
+                self.robot_running = False
+                self._set_workflow_state(
+                    "FAULT",
+                    "TOS-arm alignment did not complete. Stop the operation and try again.",
+                )
+            return
 
         # prepare robot
         started_streaming = self._prepare_robot(full_message)
@@ -1158,6 +1240,16 @@ class TechmanRobot():
         time.sleep(0.01)
         self.logger_ri.info("control_loop, After sleep, starting buffer fill")
 
+        if self.play_recording_active:
+            active_state = "PLAYBACK_ACTIVE"
+            active_detail = "The robot is playing the selected saved recording."
+        elif self.recording:
+            active_state = "RECORDING"
+            active_detail = "The robot is following the TOS arm and movement data is being recorded."
+        else:
+            active_state = "TELEOP_ACTIVE"
+            active_detail = "The robot is following the TOS arm."
+        self._set_workflow_state(active_state, active_detail)
         self.logger_ri.info("control_loop, starting control loop")
         previous_action_master = self.start_position
 
@@ -1550,16 +1642,27 @@ class TechmanRobot():
         time.sleep(0.01)
         
         self.logger_ri.info("Opening ceremony: waiting for target position within tolerance")
+        self._set_workflow_state(
+            "ALIGN_TEACHBOT",
+            "Move the TOS arm until every joint is within the start tolerance.",
+        )
 
         count = 0
         freq = int(1/self.control_dt)
         
         while self.robot_running:
             if not ready_for_teleoperation:
-                if self.target_pos_received is not None:
-                    target_pos_received = self.target_pos_received[:self.dof]
-                    start_position = self.start_position[:self.dof]
-                    
+                # No encoder target is available during the first few cycles.
+                # Previously the variables below were used before assignment,
+                # which could terminate startup.  Wait cleanly and let the UI
+                # show that it is waiting for the first TOS-arm sample.
+                if self.target_pos_received is None:
+                    self.workflow_detail = "Waiting for live joint data from the TOS arm."
+                    time.sleep(self.control_dt)
+                    continue
+
+                target_pos_received = list(self.target_pos_received[:self.dof])
+                start_position = list(self.start_position[:self.dof])
                 diffs = []
                 for c, s in zip(target_pos_received, start_position):
                     # Calculate the shortest angular distance between two angles
@@ -1568,6 +1671,22 @@ class TechmanRobot():
                     if diff > 180:
                         diff = 360 - diff
                     diffs.append(diff)
+
+                # These lists are copied into the status response.  Replacing
+                # whole lists (rather than mutating individual entries) keeps
+                # readers from observing a partially updated alignment frame.
+                self.alignment_current = target_pos_received
+                self.alignment_target = start_position
+                self.alignment_differences = diffs
+                waiting_joints = [
+                    f"J{i + 1}" for i, diff in enumerate(diffs)
+                    if diff >= self.alignment_tolerance
+                ]
+                self.workflow_detail = (
+                    "Move " + ", ".join(waiting_joints) + " toward the displayed targets."
+                    if waiting_joints
+                    else "All joints are aligned. Starting TeleOP."
+                )
   
                 count += 1
                 if count % freq == 0:
@@ -1576,10 +1695,46 @@ class TechmanRobot():
 
                     if all(d < self.start_joint_tolerance for d in diffs):
                         ready_for_teleoperation = True
+                        self._set_workflow_state("READY", "TOS arm aligned. Starting TeleOP.")
                         self.logger_ri.info("Opening ceremony: position within tolerance, starting teleoperation")
                         return True
                 time.sleep(self.control_dt)
         return False
+
+    def _set_workflow_state(self, state, detail):
+        """Update the small, explicit state contract consumed by the UI."""
+        self.workflow_state = state
+        self.workflow_detail = detail
+        self.logger_ri.info("Operator workflow state: %s - %s", state, detail)
+
+    def get_workflow_status(self):
+        """
+        Return a JSON-safe snapshot for the touchscreen.
+
+        Alignment compares the live TOS-arm encoder values with the configured
+        start position.  ``actual_robot_joints_available`` deliberately remains
+        false until real Techman joint feedback is parsed on this Linux PC.
+        """
+        # Encoder calculations may contain NumPy scalar types. Convert every
+        # value to a normal Python float so RabbitMQ/JSON serialization remains
+        # predictable on every supported NumPy version.
+        def json_angles(values):
+            return [None if value is None else float(value) for value in values]
+
+        elapsed = None
+        if self.operation_started_at is not None:
+            elapsed = max(0.0, time.time() - self.operation_started_at)
+        return {
+            "workflow_state": self.workflow_state,
+            "workflow_detail": self.workflow_detail,
+            "requested_operation": self.requested_operation,
+            "operation_elapsed": elapsed,
+            "alignment_current": json_angles(self.alignment_current),
+            "alignment_target": json_angles(self.alignment_target),
+            "alignment_differences": json_angles(self.alignment_differences),
+            "alignment_tolerance": self.alignment_tolerance,
+            "actual_robot_joints_available": False,
+        }
 
 
     def _execute_play_recording(self):
@@ -1704,12 +1859,17 @@ class TechmanRobot():
             self.logger_ri.info("Already connected to Techman.")
             return True
 
+        self._set_workflow_state(
+            "CONNECTING",
+            f"Connecting to Techman at {self.robot_address[0]}:{self.robot_address[1]}.",
+        )
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(5.0)
             self.sock.connect(self.robot_address)
             self.connected = True
             self.logger_ri.info(f"Connected to Techman at {self.robot_address[0]}:{self.robot_address[1]}")
+            self._set_workflow_state("CONNECTED", "Robot connection established.")
             
             # Start status streaming
             self.start_status_streaming()
@@ -1721,6 +1881,10 @@ class TechmanRobot():
                 self.sock.close()
                 self.sock = None
             self.connected = False
+            self._set_workflow_state(
+                "WAITING_FOR_TECHMAN_LISTEN",
+                "Start the TMflow project and let it reach the Listen node, then retry.",
+            )
             return False
 
     def move_to_start_position(self):
@@ -2254,16 +2418,19 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                         logger_ri.warning(
                             "[CMD] start_teleoperation unsuccessful, Robot already running"
                         )
+                        # This is an operation conflict, not a robot fault. The
+                        # workflow status already tells the touchscreen which
+                        # operation is active, so avoid producing a red popup.
                         send_response(logger_ri, robot_interface_commup, full_message,
-                                      error="Robot already running")
+                                      error="None", already_running=True)
                     else:
                         if robot.start_teleoperation(full_message):
                             logger_ri.info("start_teleoperation successful")
                             send_response(logger_ri, robot_interface_commup, full_message, error="None")
                         else:
-                            logger_ri.error("start_teleoperation unsuccessful, Could not start teleop")
+                            logger_ri.warning("start_teleoperation waiting for Techman Listen")
                             send_response(logger_ri, robot_interface_commup, full_message,
-                                          error="Could not start teleop, try again")
+                                          error="None", waiting_for_listen=True)
 
                 elif message == "start_teleoperation_record":
                     if robot.robot_running:
@@ -2271,17 +2438,15 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                             "[CMD] start_teleoperation_record unsuccessful, Robot already running"
                         )
                         send_response(logger_ri, robot_interface_commup, full_message,
-                                      error="Robot already running")
+                                      error="None", already_running=True)
                     else:
                         if robot.start_teleoperation_record(full_message):
                             logger_ri.info("start_teleoperation_record successful")
                             send_response(logger_ri, robot_interface_commup, full_message, error="None")
                         else:
-                            logger_ri.error(
-                                "start_teleoperation_record unsuccessful, Could not start teleop."
-                            )
+                            logger_ri.warning("start_teleoperation_record waiting for Techman Listen")
                             send_response(logger_ri, robot_interface_commup, full_message,
-                                          error="Could not start teleop, try again")
+                                          error="None", waiting_for_listen=True)
                             
                 elif message == "record_episodes":
                     if robot.robot_running:
@@ -2305,7 +2470,7 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                             "[CMD] play_recording unsuccessful, Robot already running"
                         )
                         send_response(logger_ri, robot_interface_commup, full_message,
-                                      error="Robot already running")
+                                      error="None", already_running=True)
                     else:
                         if robot.play_recording(full_message):
                             logger_ri.info("play_recording successful")
@@ -2337,6 +2502,7 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                     else:
                         operation = "Ready"
 
+                    workflow_status = robot.get_workflow_status()
                     send_response(
                         logger_ri,
                         robot_interface_commup,
@@ -2346,6 +2512,7 @@ def run_robot_interface(robot_interface_commup, robot_interface_commdown, shm_ta
                         feedback_recent=feedback_recent,
                         plc_connected=bool(getattr(robot, "plc_connected", False)),
                         operation=operation,
+                        **workflow_status,
                     )
 
                 elif message == "run_policy":
