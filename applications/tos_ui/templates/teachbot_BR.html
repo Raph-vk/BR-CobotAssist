@@ -757,14 +757,6 @@
       transform: scale(0.97);
     }
 
-    .btn.stop-button {
-      background: var(--color-blue);
-    }
-
-    .btn.stop-button:hover {
-      background: var(--color-blue);
-    }
-
     #recordingsDropdown {
       display: none;
     }
@@ -1215,7 +1207,7 @@
         <button class="btn" onclick="sendCommand('start_teleoperation')">
           Start Teleop
         </button>
-        <button class="btn stop-button" onclick="sendCommand('stop')">
+        <button class="btn" onclick="sendCommand('stop')">
           Stop
         </button>
       </div>
